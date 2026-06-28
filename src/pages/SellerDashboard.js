@@ -1,0 +1,873 @@
+import { useState, useEffect } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { FiHome, FiPackage, FiShoppingBag, FiStar, FiTrendingUp, FiDollarSign, FiBell, FiSettings, FiLogOut, FiPlus, FiEdit2, FiTrash2, FiMenu, FiX } from 'react-icons/fi';
+import API from '../services/api';
+
+function SellerReviews() {
+  const [reviews, setReviews] = useState([]);
+  const [average, setAverage] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        // Get seller id first
+        const sellerRes = await API.get('/sellers/me');
+        const sellerId = sellerRes.data.id;
+        const res = await API.get(`/reviews/seller/${sellerId}`);
+        setReviews(res.data.reviews);
+        setAverage(res.data.average_rating);
+      } catch (err) {
+        console.error('Reviews fetch failed:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReviews();
+  }, []);
+
+  const stars = (rating) => [1,2,3,4,5].map(s => (
+    <span key={s} style={{ color: s <= rating ? '#f4c430' : '#ddd', fontSize: '14px' }}>★</span>
+  ));
+
+  if (loading) return <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>Loading reviews...</div>;
+
+  return (
+    <div>
+      {/* Summary */}
+      <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '16px' }}>
+        <h2 style={{ margin: '0 0 16px', color: '#1a1a2e' }}>Customer Reviews</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span style={{ fontSize: '48px', fontWeight: '800', color: '#1a1a2e' }}>{average || '—'}</span>
+          <div>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+              {stars(Math.round(average))}
+            </div>
+            <div style={{ fontSize: '13px', color: '#999' }}>{reviews.length} total reviews</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Reviews List */}
+      <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        {reviews.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>⭐</div>
+            <p>No reviews yet. Reviews will appear here once customers rate your shop.</p>
+          </div>
+        ) : reviews.map(r => (
+          <div key={r.id} style={{ padding: '16px', borderBottom: '1px solid #f0f0e8' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontWeight: '700', color: '#1a1a2e' }}>👤 {r.buyer_name}</span>
+              <div style={{ display: 'flex', gap: '2px' }}>{stars(r.rating)}</div>
+            </div>
+            {r.comment && <p style={{ margin: 0, fontSize: '13px', color: '#666', lineHeight: '1.6' }}>{r.comment}</p>}
+            <div style={{ fontSize: '11px', color: '#bbb', marginTop: '6px' }}>{new Date(r.created_at).toLocaleDateString()}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function SellerDashboard() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showNotif, setShowNotif] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Real data states
+  const [dashboardData, setDashboardData] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+
+  // Product form
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [newProduct, setNewProduct] = useState({
+  name: '', description: '', sku: '', price: '',
+  stock: '', category: '', return_policy: 'STANDARD_ELECTRONICS',
+  image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: ''
+});
+  const [bankDetails, setBankDetails] = useState({
+  account_holder_name: '',
+  account_number: '',
+  ifsc_code: '',
+  bank_name: '',
+  account_type: 'savings',
+  upi_id: '',
+});
+const [bankLoading, setBankLoading] = useState(false);
+const [bankSaved, setBankSaved] = useState(false);
+
+// Fetch bank details on load
+// Add this state at top
+const [uploadingImage, setUploadingImage] = useState(false);
+const [productImages, setProductImages] = useState([]);
+
+const uploadImage = async (file) => {
+  setUploadingImage(true);
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await API.post('/uploads/product-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    setProductImages(prev => [...prev, res.data.url]);
+    setNewProduct(prev => ({ ...prev, image_urls: [...(prev.image_urls || []), res.data.url] }));
+  } catch (err) {
+    alert('Image upload failed');
+  } finally {
+    setUploadingImage(false);
+  }
+};
+useEffect(() => {
+  fetchBankDetails();
+}, []);
+
+const fetchBankDetails = async () => {
+  try {
+    const res = await API.get('/sellers/bank-details');
+    if (res.data) setBankDetails(res.data);
+  } catch (err) {
+    console.error('Bank details fetch failed');
+  }
+};
+
+const saveBankDetails = async () => {
+  setBankLoading(true);
+  try {
+    await API.post('/sellers/bank-details', bankDetails);
+    setBankSaved(true);
+    setTimeout(() => setBankSaved(false), 3000);
+  } catch (err) {
+    alert(err.response?.data?.error || 'Failed to save');
+  } finally {
+    setBankLoading(false);
+  }
+};
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const logout = () => { localStorage.clear(); window.location.href = '/login'; };
+  const getShopLocation = () => {
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      await API.patch('/sellers/me', {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+      alert('Shop location saved! ✅');
+    } catch (err) {
+      alert('Failed to save location');
+    }
+  });
+};
+
+  useEffect(() => {
+    fetchDashboard();
+    fetchProducts();
+    fetchOrders();
+  }, []);
+  
+  // Add this useEffect after existing useEffects
+useEffect(() => {
+  const interval = setInterval(async () => {
+    try {
+      const res = await API.get('/sellers/dashboard');
+      const newData = res.data;
+      
+      // Check for new pending orders
+      if (dashboardData && newData.sales.pending_orders > dashboardData.sales.pending_orders) {
+        const diff = newData.sales.pending_orders - dashboardData.sales.pending_orders;
+        setNotifications(prev => [
+          { id: Date.now(), msg: `🛒 ${diff} new order(s) received!`, time: 'Just now', read: false },
+          ...prev
+        ]);
+        // Browser notification
+        if (Notification.permission === 'granted') {
+          new Notification('New Order!', { body: `You have ${diff} new order(s)` });
+        }
+      }
+      setDashboardData(newData);
+    } catch (err) {
+      console.error('Poll failed');
+    }
+  }, 30000); // every 30 seconds
+
+  // Request browser notification permission
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
+  return () => clearInterval(interval);
+}, [dashboardData]);
+  const fetchDashboard = async () => {
+    try {
+      const res = await API.get('/sellers/dashboard');
+      setDashboardData(res.data);
+    } catch (err) {
+      console.error('Dashboard fetch failed:', err);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await API.get('/products/my-products');
+      setProducts(res.data);
+    } catch (err) {
+      console.error('Products fetch failed:', err);
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      const res = await API.get('/sellers/my-orders');
+      setOrders(res.data);
+    } catch (err) {
+      console.error('Orders fetch failed:', err);
+    }
+  };
+
+ const saveProduct = async () => {
+  if (!newProduct.name || !newProduct.price || !newProduct.stock) {
+    alert('Please fill name, price and stock');
+    return;
+  }
+  setLoading(true);
+  try {
+    await API.post('/products', {
+      ...newProduct,
+      image_urls: newProduct.image_urls.length > 0 ? newProduct.image_urls : ['https://via.placeholder.com/300'],
+      unit_type: newProduct.unit_type || 'piece',
+      unit_weight: newProduct.unit_weight || null,
+      price_per_kg: newProduct.price_per_kg || null,
+    });
+    alert('Product added!');
+    setShowAddProduct(false);
+    setNewProduct({ name: '', description: '', sku: '', price: '', stock: '', category: '', return_policy: 'STANDARD_ELECTRONICS', image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: '' });
+    fetchProducts();
+    fetchDashboard();
+  } catch (err) {
+    alert(err.response?.data?.error || 'Failed to add product');
+  } finally {
+    setLoading(false);
+  }
+};
+  const deleteProduct = async (id) => {
+    if (!window.confirm('Delete this product?')) return;
+    try {
+      await API.delete(`/products/${id}`);
+      fetchProducts();
+    } catch (err) {
+      alert('Failed to delete');
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const navItems = [
+  { id: 'dashboard', icon: <FiHome />, label: 'Dashboard' },
+  { id: 'products', icon: <FiPackage />, label: 'Products' },
+  { id: 'orders', icon: <FiShoppingBag />, label: 'Orders' },
+  { id: 'analytics', icon: <FiTrendingUp />, label: 'Analytics' },
+  { id: 'earnings', icon: <FiDollarSign />, label: 'Earnings' },
+  { id: 'reviews', icon: <FiStar />, label: 'Reviews' },
+  { id: 'bank', icon: <FiDollarSign />, label: 'Bank Details' },
+  { id: 'settings', icon: <FiSettings />, label: 'Shop Settings' },
+];
+
+  const s = dashboardData?.sales;
+  const f = dashboardData?.financials;
+  const chartData = dashboardData?.sales_chart || [];
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', background: '#fffef7', fontFamily: "'Inter', sans-serif", overflow: 'hidden' }}>
+
+      {/* Sidebar */}
+      <div style={{ width: sidebarOpen ? '240px' : '70px', background: 'white', borderRight: '1px solid #f0f0e8', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', boxShadow: '2px 0 12px rgba(0,0,0,0.06)', zIndex: 10 }}>
+        <div style={{ padding: '20px 16px', borderBottom: '1px solid #f0f0e8', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '16px', flexShrink: 0 }}><img src="/logo1.png" alt="Zaplo" style={{ width: '36px', height: '36px', borderRadius: '10px', objectFit: 'cover' }} /></div>
+          {sidebarOpen && <span style={{ fontWeight: '700', fontSize: '16px', color: '#1a1a2e' }}>Zaplo Seller</span>}
+        </div>
+        <nav style={{ flex: 1, padding: '12px 8px' }}>
+          {navItems.map(item => (
+            <div key={item.id} onClick={() => setActiveTab(item.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px', cursor: 'pointer', marginBottom: '4px', background: activeTab === item.id ? 'linear-gradient(135deg, #6c63ff15, #a78bfa15)' : 'transparent', color: activeTab === item.id ? '#6c63ff' : '#666', fontWeight: activeTab === item.id ? '600' : '400', borderLeft: activeTab === item.id ? '3px solid #6c63ff' : '3px solid transparent' }}>
+              <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon}</span>
+              {sidebarOpen && <span style={{ fontSize: '14px' }}>{item.label}</span>}
+            </div>
+          ))}
+        </nav>
+        <div onClick={logout} style={{ padding: '16px', borderTop: '1px solid #f0f0e8', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', color: '#ff4444' }}>
+          <FiLogOut style={{ flexShrink: 0 }} />
+          {sidebarOpen && <span style={{ fontSize: '14px' }}>Logout</span>}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* Top Bar */}
+        <div style={{ background: 'white', borderBottom: '1px solid #f0f0e8', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#666' }}>
+              {sidebarOpen ? <FiX /> : <FiMenu />}
+            </button>
+            <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1a1a2e', margin: 0 }}>
+              {navItems.find(n => n.id === activeTab)?.label}
+            </h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setShowNotif(!showNotif)} style={{ background: '#f8f8f0', border: 'none', borderRadius: '10px', padding: '10px', cursor: 'pointer', fontSize: '18px' }}>
+                <FiBell color="#666" />
+                {unreadCount > 0 && <span style={{ position: 'absolute', top: '6px', right: '6px', background: '#ff4444', color: 'white', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unreadCount}</span>}
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700' }}>
+                {user.name?.[0] || 'S'}
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a2e' }}>{user.name}</div>
+                <div style={{ fontSize: '11px', color: '#999' }}>Seller</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Page Content */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+
+          {/* DASHBOARD TAB */}
+          {activeTab === 'dashboard' && (
+            <div>
+              {!dashboardData ? (
+                <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>Loading dashboard...</div>
+              ) : (
+                <>
+                  {/* Stat Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                    {[
+                      { label: "Today's Sales", value: `₹${s?.today_sales?.toFixed(0) || 0}`, color: '#6c63ff' },
+                      { label: 'Total Orders', value: s?.total_orders || 0, color: '#00b894' },
+                      { label: 'Pending Orders', value: s?.pending_orders || 0, color: '#e17055' },
+                      { label: 'Monthly Revenue', value: `₹${s?.monthly_sales?.toFixed(0) || 0}`, color: '#0984e3' },
+                    ].map((card, i) => (
+                      <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #f0f0e8' }}>
+                        <div style={{ fontSize: '13px', color: '#999', marginBottom: '8px' }}>{card.label}</div>
+                        <div style={{ fontSize: '28px', fontWeight: '700', color: card.color }}>{card.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Charts */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                      <h3 style={{ margin: '0 0 16px', fontSize: '15px', color: '#1a1a2e' }}>Weekly Sales</h3>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <AreaChart data={chartData.length > 0 ? chartData : [{ day: 'No data', sales: 0 }]}>
+                          <defs>
+                            <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#6c63ff" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#6c63ff" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0e8" />
+                          <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#999' }} />
+                          <YAxis tick={{ fontSize: 12, fill: '#999' }} />
+                          <Tooltip formatter={(value) => [`₹${value}`, 'Sales']} />
+                          <Area type="monotone" dataKey="sales" stroke="#6c63ff" fill="url(#salesGrad)" strokeWidth={2} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                      <h3 style={{ margin: '0 0 16px', fontSize: '15px', color: '#1a1a2e' }}>Orders by Day</h3>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={chartData.length > 0 ? chartData : [{ day: 'No data', orders: 0 }]}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0e8" />
+                          <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#999' }} />
+                          <YAxis tick={{ fontSize: 12, fill: '#999' }} />
+                          <Tooltip />
+                          <Bar dataKey="orders" fill="#a78bfa" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Recent Orders */}
+                  <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                    <h3 style={{ margin: '0 0 16px', fontSize: '15px', color: '#1a1a2e' }}>Recent Orders</h3>
+                    {dashboardData?.recent_orders?.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '30px', color: '#999' }}>No orders yet</div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#fafaf5' }}>
+                            {['Order ID', 'Customer', 'Items', 'Amount', 'Status', 'Date'].map(h => (
+                              <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#999', fontWeight: '600' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dashboardData?.recent_orders?.map(order => (
+                            <tr key={order.id} style={{ borderBottom: '1px solid #f8f8f0' }}>
+                              <td style={{ padding: '12px', fontSize: '13px', fontWeight: '600', color: '#6c63ff' }}>#{order.id.slice(-6).toUpperCase()}</td>
+                              <td style={{ padding: '12px', fontSize: '13px', color: '#333' }}>{order.buyer_name}</td>
+                              <td style={{ padding: '12px', fontSize: '13px', color: '#666' }}>{order.item_count} items</td>
+                              <td style={{ padding: '12px', fontSize: '13px', fontWeight: '600' }}>₹{order.total_amount}</td>
+                              <td style={{ padding: '12px' }}>
+                                <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', background: order.status === 'delivered' ? '#e8fff8' : order.status === 'confirmed' ? '#e8f4ff' : '#fff3f0', color: order.status === 'delivered' ? '#00b894' : order.status === 'confirmed' ? '#0984e3' : '#e17055' }}>{order.status}</span>
+                              </td>
+                              <td style={{ padding: '12px', fontSize: '12px', color: '#999' }}>{new Date(order.created_at).toLocaleDateString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* PRODUCTS TAB */}
+          {activeTab === 'products' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, fontSize: '18px', color: '#1a1a2e' }}>Product Management ({products.length})</h2>
+                <button onClick={() => setShowAddProduct(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '10px 20px', cursor: 'pointer', fontWeight: '600' }}>
+                  <FiPlus /> Add Product
+                </button>
+              </div>
+
+              {showAddProduct && (
+                <div style={{ background: 'white', borderRadius: '16px', padding: '24px', marginBottom: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #f0f0e8' }}>
+                  <h3 style={{ margin: '0 0 16px', color: '#1a1a2e' }}>Add New Product</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    {[
+                      { placeholder: 'Product Name *', key: 'name' },
+                      { placeholder: 'SKU (optional)', key: 'sku' },
+                      { placeholder: 'Price (₹) *', key: 'price' },
+                      { placeholder: 'Stock Quantity *', key: 'stock' },
+                      { placeholder: 'Category', key: 'category' },
+                      
+                    ].map(f => (
+                      <input key={f.key} placeholder={f.placeholder}
+                        value={f.key === 'image_url_input' ? '' : newProduct[f.key]}
+                        onChange={e => {
+                          if (f.key === 'image_url_input') {
+                            setNewProduct({ ...newProduct, image_urls: [e.target.value] });
+                          } else {
+                            setNewProduct({ ...newProduct, [f.key]: e.target.value });
+                          }
+                        }}
+                        style={{ padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }} />
+                    ))}
+                    {/* Unit Type & Weight */}
+                    <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Sold By *</label>
+                        <select value={newProduct.return_policy}
+  onChange={e => setNewProduct({ ...newProduct, return_policy: e.target.value })}
+  style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+  <option value="PERISHABLE_FOOD">🥬 Perishable Food (No returns)</option>
+  <option value="PACKAGED_FOOD">📦 Packaged Food (2 days - Damaged/Expired)</option>
+  <option value="STANDARD_ELECTRONICS">📱 Standard Electronics (7 days - Replacement only)</option>
+  <option value="HIGH_VALUE_ELECTRONICS">💎 High Value Electronics (7 days - Approval required)</option>
+  <option value="STATIONERY">✏️ Stationery (2 days - Damaged only)</option>
+  <option value="FASHION">👕 Fashion (3 days - Wrong size/Damaged)</option>
+  <option value="GROCERY">🛒 Grocery (1 day - Damaged/Expired)</option>
+  <option value="FRESH">🥦 Fresh Produce (No returns)</option>
+</select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>
+                          Weight/Volume (optional)
+                        </label>
+                        <input placeholder="e.g. 500 (grams)" value={newProduct.unit_weight || ''}
+                          onChange={e => setNewProduct({ ...newProduct, unit_weight: e.target.value })}
+                          style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>
+                          Price per KG (if sold by KG)
+                        </label>
+                        <input placeholder="e.g. 80" value={newProduct.price_per_kg || ''}
+                          onChange={e => setNewProduct({ ...newProduct, price_per_kg: e.target.value })}
+                          style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                      {/* Image Upload Section */}
+<div style={{ gridColumn: 'span 2', marginTop: '8px' }}>
+  <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '10px' }}>
+    📷 Product Photos *
+  </label>
+
+  {/* Uploaded images preview */}
+  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
+    {(newProduct.image_urls || []).map((url, i) => (
+      <div key={i} style={{ position: 'relative' }}>
+        <img src={url} alt="" style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', border: '2px solid #e8e8e0' }} />
+        <button
+          onClick={() => setNewProduct(prev => ({
+            ...prev,
+            image_urls: prev.image_urls.filter((_, idx) => idx !== i)
+          }))}
+          style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#ff4444', color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          ✕
+        </button>
+      </div>
+    ))}
+
+    {/* Upload button */}
+    {(newProduct.image_urls || []).length < 5 && (
+      <label style={{
+        width: '80px', height: '80px',
+        border: '2px dashed #6c63ff',
+        borderRadius: '10px',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        cursor: uploadingImage ? 'not-allowed' : 'pointer',
+        color: '#6c63ff', background: '#f8f7ff',
+        transition: 'all 0.2s'
+      }}>
+        {uploadingImage ? (
+          <>
+            <span style={{ fontSize: '20px' }}>⏳</span>
+            <span style={{ fontSize: '9px', marginTop: '4px' }}>Uploading...</span>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: '24px' }}>📷</span>
+            <span style={{ fontSize: '9px', marginTop: '4px', fontWeight: '600' }}>Add Photo</span>
+          </>
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          
+          style={{ display: 'none' }}
+          disabled={uploadingImage}
+          onChange={async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            setUploadingImage(true);
+            try {
+              const formData = new FormData();
+              formData.append('image', file);
+              const res = await API.post('/uploads/product-image', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+              });
+              setNewProduct(prev => ({
+                ...prev,
+                image_urls: [...(prev.image_urls || []), res.data.url]
+              }));
+            } catch (err) {
+              alert('Upload failed. Check your internet connection.');
+            } finally {
+              setUploadingImage(false);
+              e.target.value = '';
+            }
+          }}
+        />
+      </label>
+    )}
+  </div>
+
+  <p style={{ fontSize: '11px', color: '#999', margin: 0 }}>
+    📱 On mobile: camera opens directly • Max 5 photos • Click ✕ to remove
+  </p>
+</div>
+
+                    <textarea placeholder="Description" value={newProduct.description}
+                      onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
+                      style={{ padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', gridColumn: 'span 2', height: '80px', resize: 'none', outline: 'none' }} />
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '8px' }}>Return Policy *</label>
+                      <select value={newProduct.return_policy}
+                        onChange={e => setNewProduct({ ...newProduct, return_policy: e.target.value })}
+                        style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+                        <option value="PERISHABLE_FOOD">🥬 Perishable Food (No returns)</option>
+<option value="PACKAGED_FOOD">📦 Packaged Food (2 days - Damaged/Expired)</option>
+<option value="STANDARD_ELECTRONICS">📱 Standard Electronics (7 days - Replacement only)</option>
+<option value="HIGH_VALUE_ELECTRONICS">💎 High Value Electronics (7 days - Approval required)</option>
+<option value="STATIONERY">✏️ Stationery (2 days - Damaged only)</option>
+<option value="FASHION">👕 Fashion (3 days - Wrong size/Damaged)</option>
+<option value="GROCERY">🛒 Grocery (1 day - Damaged/Expired)</option>
+<option value="FRESH">🥦 Fresh Produce (No returns)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                    <button onClick={saveProduct} disabled={loading}
+                      style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '10px 24px', cursor: 'pointer', fontWeight: '600', opacity: loading ? 0.7 : 1 }}>
+                      {loading ? 'Saving...' : 'Save Product'}
+                    </button>
+                    <button onClick={() => setShowAddProduct(false)} style={{ background: '#f0f0e8', color: '#666', border: 'none', borderRadius: '10px', padding: '10px 24px', cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                {products.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
+                    <p>No products yet. Add your first product!</p>
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#fafaf5' }}>
+                        {['Product', 'Category', 'Price', 'Stock', 'Return Policy', 'Status', 'Actions'].map(h => (
+                          <th key={h} style={{ padding: '14px 16px', textAlign: 'left', fontSize: '12px', color: '#999', fontWeight: '600' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {products.map(p => (
+                        <tr key={p.id} style={{ borderBottom: '1px solid #f8f8f0' }}>
+                          <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '600', color: '#1a1a2e' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              {p.image_urls?.[0] ? (
+                                <img src={p.image_urls[0]} alt={p.name} style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: '36px', height: '36px', background: '#f0eeff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📦</div>
+                              )}
+                              {p.name}
+                            </div>
+                          </td>
+                          <td style={{ padding: '14px 16px', fontSize: '13px', color: '#666' }}>{p.category || '—'}</td>
+                          <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '600', color: '#6c63ff' }}>₹{p.price}</td>
+                          <td style={{ padding: '14px 16px', fontSize: '13px', color: p.stock === 0 ? '#e17055' : '#333' }}>{p.stock === 0 ? 'Out of stock' : p.stock}</td>
+                          <td style={{ padding: '14px 16px', fontSize: '11px', color: '#666' }}>{p.return_policy?.replace(/_/g, ' ')}</td>
+                          <td style={{ padding: '14px 16px' }}>
+                            <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', background: p.is_available ? '#e8fff8' : '#fff3f0', color: p.is_available ? '#00b894' : '#e17055' }}>
+                              {p.is_available ? 'Active' : 'Out of Stock'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 16px' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button style={{ background: '#e8f4ff', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#0984e3' }}><FiEdit2 /></button>
+                              <button onClick={() => deleteProduct(p.id)} style={{ background: '#fff0f0', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#e17055' }}><FiTrash2 /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ORDERS TAB */}
+          {activeTab === 'orders' && (
+  <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <h2 style={{ margin: 0, fontSize: '18px', color: '#1a1a2e' }}>Order Management</h2>
+      <button onClick={fetchOrders} style={{ background: '#6c63ff15', color: '#6c63ff', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: '600' }}>
+        🔄 Refresh
+      </button>
+    </div>
+    {dashboardData?.recent_orders?.length === 0 ? (
+      <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>No orders yet</div>
+    ) : dashboardData?.recent_orders?.map(order => (
+      <div key={order.id} style={{ padding: '16px', border: '1px solid #f0f0e8', borderRadius: '12px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+          <div>
+            <div style={{ fontWeight: '700', color: '#6c63ff', fontSize: '15px' }}>#{order.id.slice(-6).toUpperCase()}</div>
+            <div style={{ color: '#333', fontSize: '13px', marginTop: '4px' }}>{order.buyer_name} • {order.item_count} items</div>
+            <div style={{ color: '#999', fontSize: '12px', marginTop: '2px' }}>{new Date(order.created_at).toLocaleString()}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontWeight: '700', fontSize: '18px', color: '#1a1a2e' }}>₹{order.total_amount}</div>
+            <span style={{
+              padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', marginTop: '6px', display: 'inline-block',
+              background: order.status === 'delivered' ? '#e8fff8' : order.status === 'confirmed' ? '#e8f4ff' : order.status === 'cancelled' ? '#fff0f0' : '#fff3f0',
+              color: order.status === 'delivered' ? '#00b894' : order.status === 'confirmed' ? '#0984e3' : order.status === 'cancelled' ? '#ff4444' : '#e17055',
+            }}>{order.status}</span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        {order.status === 'pending' && (
+          <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+            <button onClick={async () => {
+              try {
+                await API.patch(`/sellers/orders/${order.id}/confirm`);
+                alert('Order confirmed!');
+                fetchDashboard();
+              } catch (err) {
+                alert(err.response?.data?.error || 'Failed');
+              }
+            }}
+              style={{ flex: 1, padding: '10px', background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
+              ✅ Accept Order
+            </button>
+            <button onClick={async () => {
+              if (!window.confirm('Cancel this order?')) return;
+              try {
+                await API.patch(`/sellers/orders/${order.id}/cancel`);
+                alert('Order cancelled');
+                fetchDashboard();
+              } catch (err) {
+                alert(err.response?.data?.error || 'Failed');
+              }
+            }}
+              style={{ flex: 1, padding: '10px', background: '#ff444415', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
+              ❌ Reject Order
+            </button>
+          </div>
+        )}
+      </div>
+    ))}
+  </div>
+)}
+
+          {/* ANALYTICS TAB */}
+          {activeTab === 'analytics' && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                  <h3 style={{ margin: '0 0 16px', color: '#1a1a2e' }}>Sales Trend</h3>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <AreaChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0e8" />
+                      <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Area type="monotone" dataKey="sales" stroke="#6c63ff" fill="#6c63ff22" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                  <h3 style={{ margin: '0 0 16px', color: '#1a1a2e' }}>Top Products</h3>
+                  {dashboardData?.top_products?.map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f0f0e8', fontSize: '13px' }}>
+                      <span style={{ color: '#333', fontWeight: '600' }}>{p.name}</span>
+                      <span style={{ color: '#6c63ff', fontWeight: '700' }}>₹{parseFloat(p.total_revenue).toFixed(0)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* EARNINGS TAB */}
+          {activeTab === 'earnings' && (
+            <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ margin: '0 0 20px', color: '#1a1a2e' }}>Earnings & Payouts</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px', marginBottom: '24px' }}>
+                {[
+                  { label: 'Gross Sales (GMV)', value: `₹${f?.gross_gmv?.toFixed(0) || 0}`, color: '#6c63ff' },
+                  { label: 'Net Earnings (90%)', value: `₹${f?.net_earnings?.toFixed(0) || 0}`, color: '#00b894' },
+                  { label: 'Platform Commission', value: `₹${f?.platform_commission?.toFixed(0) || 0}`, color: '#e17055' },
+                  { label: 'Withdrawable Balance', value: `₹${f?.withdrawable?.toFixed(0) || 0}`, color: '#0984e3' },
+                  { label: 'Outstanding COD Debt', value: `₹${f?.outstanding_debt?.toFixed(0) || 0}`, color: '#e17055' },
+                  { label: 'Current Balance', value: `₹${f?.current_balance?.toFixed(0) || 0}`, color: f?.current_balance >= 0 ? '#00b894' : '#e17055' },
+                ].map((e, i) => (
+                  <div key={i} style={{ padding: '20px', background: '#fafaf5', borderRadius: '12px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '13px', color: '#999' }}>{e.label}</div>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: e.color, marginTop: '8px' }}>{e.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+           {/* REVIEWS TAB */}
+{activeTab === 'reviews' && (
+  <SellerReviews />
+)}
+
+           {/* BANK DETAILS TAB */}
+{activeTab === 'bank' && (
+  <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+    <h2 style={{ margin: '0 0 8px', color: '#1a1a2e' }}>🏦 Bank Details</h2>
+    <p style={{ color: '#999', fontSize: '13px', marginBottom: '24px' }}>Your earnings will be transferred to this account</p>
+
+    {bankSaved && (
+      <div style={{ background: '#e8fff8', border: '1px solid #00b894', borderRadius: '10px', padding: '12px', marginBottom: '16px', color: '#00b894', fontWeight: '600' }}>
+        ✅ Bank details saved successfully!
+      </div>
+    )}
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      {[
+        { label: 'Account Holder Name', key: 'account_holder_name', placeholder: 'Full name as per bank' },
+        { label: 'Bank Name', key: 'bank_name', placeholder: 'e.g. SBI, HDFC, ICICI' },
+        { label: 'Account Number', key: 'account_number', placeholder: 'Enter account number' },
+        { label: 'IFSC Code', key: 'ifsc_code', placeholder: 'e.g. SBIN0001234' },
+        { label: 'UPI ID (optional)', key: 'upi_id', placeholder: 'e.g. name@upi' },
+      ].map(f => (
+        <div key={f.key}>
+          <label style={{ fontSize: '13px', color: '#666', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{f.label}</label>
+          <input placeholder={f.placeholder} value={bankDetails[f.key] || ''}
+            onChange={e => setBankDetails({ ...bankDetails, [f.key]: e.target.value })}
+            style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+      ))}
+
+      <div>
+        <label style={{ fontSize: '13px', color: '#666', fontWeight: '600', display: 'block', marginBottom: '6px' }}>Account Type</label>
+        <select value={bankDetails.account_type || 'savings'}
+          onChange={e => setBankDetails({ ...bankDetails, account_type: e.target.value })}
+          style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+          <option value="savings">Savings Account</option>
+          <option value="current">Current Account</option>
+        </select>
+      </div>
+    </div>
+
+    {/* Commission Info */}
+    <div style={{ marginTop: '24px', background: '#f8f7ff', borderRadius: '12px', padding: '16px', border: '1px solid #e8e0ff' }}>
+      <h4 style={{ margin: '0 0 12px', color: '#6c63ff' }}>💡 How Payouts Work</h4>
+      <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.8' }}>
+        <div>• Platform takes <strong>10% commission</strong> on every order</div>
+        <div>• You receive <strong>90% of order value</strong></div>
+        <div>• Online payments: credited within <strong>2-3 business days</strong></div>
+        <div>• COD orders: 10% commission deducted from future payouts</div>
+        <div>• Minimum payout: <strong>₹100</strong></div>
+      </div>
+    </div>
+
+    <button onClick={saveBankDetails} disabled={bankLoading}
+      style={{ marginTop: '20px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '14px 40px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', opacity: bankLoading ? 0.7 : 1 }}>
+      {bankLoading ? 'Saving...' : '💾 Save Bank Details'}
+    </button>
+  </div>
+)}
+          {/* SETTINGS TAB */}
+          {activeTab === 'settings' && (
+            <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ margin: '0 0 24px', color: '#1a1a2e' }}>Shop Settings</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {[
+                  { label: 'Shop Name', placeholder: 'Enter shop name' },
+                  { label: 'Contact Phone', placeholder: 'Enter phone' },
+                  { label: 'Address', placeholder: 'Enter address' },
+                  { label: 'Locality', placeholder: 'Enter locality/area' },
+                  { label: 'Opening Hours', placeholder: '9:00 AM - 9:00 PM' },
+                  { label: 'Delivery Radius (km)', placeholder: '5' },
+                ].map((f, i) => (
+                  <div key={i}>
+                    <label style={{ fontSize: '13px', color: '#666', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{f.label}</label>
+                    <input placeholder={f.placeholder} style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                ))}6t
+              </div>
+              <button style={{ marginTop: '20px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 32px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>
+                Save Settings
+              </button>
+              <button onClick={getShopLocation}
+  style={{ marginTop: '16px', background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600' }}>
+  📍 Set Shop Location (for delivery distance)
+</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
