@@ -681,8 +681,8 @@ const calcDeliveryCharge = (distanceKm) => {
               {/* Banners */}
               <div style={{ padding: '8px 16px', display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1, background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', borderRadius: '14px', padding: '14px', color: 'white' }}>
-                  <div style={{ fontWeight: '800', fontSize: '18px' }}>₹0 FEES</div>
-                  <div style={{ fontSize: '11px', opacity: 0.85 }}>Free delivery on all orders</div>
+                  <div style={{ fontWeight: '800', fontSize: '18px' }}>₹20 DELIVERY</div>
+                  <div style={{ fontSize: '11px', opacity: 0.85 }}>First 5km • ₹6/km after</div>
                 </div>
                 <div style={{ flex: 1, background: 'linear-gradient(135deg, #00b894, #00cec9)', borderRadius: '14px', padding: '14px', color: 'white' }}>
                   <div style={{ fontWeight: '800', fontSize: '16px' }}>LOWEST PRICES</div>

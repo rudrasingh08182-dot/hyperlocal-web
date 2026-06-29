@@ -464,40 +464,41 @@ useEffect(() => {
                         }}
                         style={{ padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }} />
                     ))}
-                    {/* Unit Type & Weight */}
-                    <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                      <div>
-                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Sold By *</label>
-                        <select value={newProduct.return_policy}
-  onChange={e => setNewProduct({ ...newProduct, return_policy: e.target.value })}
-  style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
-  <option value="PERISHABLE_FOOD">🥬 Perishable Food (No returns)</option>
-  <option value="PACKAGED_FOOD">📦 Packaged Food (2 days - Damaged/Expired)</option>
-  <option value="STANDARD_ELECTRONICS">📱 Standard Electronics (7 days - Replacement only)</option>
-  <option value="HIGH_VALUE_ELECTRONICS">💎 High Value Electronics (7 days - Approval required)</option>
-  <option value="STATIONERY">✏️ Stationery (2 days - Damaged only)</option>
-  <option value="FASHION">👕 Fashion (3 days - Wrong size/Damaged)</option>
-  <option value="GROCERY">🛒 Grocery (1 day - Damaged/Expired)</option>
-  <option value="FRESH">🥦 Fresh Produce (No returns)</option>
-</select>
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>
-                          Weight/Volume (optional)
-                        </label>
-                        <input placeholder="e.g. 500 (grams)" value={newProduct.unit_weight || ''}
-                          onChange={e => setNewProduct({ ...newProduct, unit_weight: e.target.value })}
-                          style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>
-                          Price per KG (if sold by KG)
-                        </label>
-                        <input placeholder="e.g. 80" value={newProduct.price_per_kg || ''}
-                          onChange={e => setNewProduct({ ...newProduct, price_per_kg: e.target.value })}
-                          style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
-                      </div>
-                    </div>
+                   {/* Unit Type & Weight */}
+<div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+  <div>
+    <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Sold By *</label>
+    <select value={newProduct.unit_type || 'piece'}
+      onChange={e => setNewProduct({ ...newProduct, unit_type: e.target.value })}
+      style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+      <option value="piece">📦 Per Piece</option>
+      <option value="kg">⚖️ Per KG</option>
+      <option value="gram">🔢 Per Gram</option>
+      <option value="litre">💧 Per Litre</option>
+      <option value="ml">🧪 Per ML</option>
+      <option value="dozen">🥚 Per Dozen</option>
+      <option value="packet">📫 Per Packet</option>
+      <option value="box">📦 Per Box</option>
+      <option value="bundle">🎁 Per Bundle</option>
+    </select>
+  </div>
+  <div>
+    <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>
+      Weight/Volume (optional)
+    </label>
+    <input placeholder="e.g. 500 (grams)" value={newProduct.unit_weight || ''}
+      onChange={e => setNewProduct({ ...newProduct, unit_weight: e.target.value })}
+      style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+  </div>
+  <div>
+    <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>
+      Price per KG (if sold by KG)
+    </label>
+    <input placeholder="e.g. 80" value={newProduct.price_per_kg || ''}
+      onChange={e => setNewProduct({ ...newProduct, price_per_kg: e.target.value })}
+      style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+  </div>
+</div>
                       {/* Image Upload Section */}
 <div style={{ gridColumn: 'span 2', marginTop: '8px' }}>
   <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '10px' }}>
@@ -583,21 +584,21 @@ useEffect(() => {
                     <textarea placeholder="Description" value={newProduct.description}
                       onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
                       style={{ padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', gridColumn: 'span 2', height: '80px', resize: 'none', outline: 'none' }} />
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '8px' }}>Return Policy *</label>
-                      <select value={newProduct.return_policy}
-                        onChange={e => setNewProduct({ ...newProduct, return_policy: e.target.value })}
-                        style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
-                        <option value="PERISHABLE_FOOD">🥬 Perishable Food (No returns)</option>
-<option value="PACKAGED_FOOD">📦 Packaged Food (2 days - Damaged/Expired)</option>
-<option value="STANDARD_ELECTRONICS">📱 Standard Electronics (7 days - Replacement only)</option>
-<option value="HIGH_VALUE_ELECTRONICS">💎 High Value Electronics (7 days - Approval required)</option>
-<option value="STATIONERY">✏️ Stationery (2 days - Damaged only)</option>
-<option value="FASHION">👕 Fashion (3 days - Wrong size/Damaged)</option>
-<option value="GROCERY">🛒 Grocery (1 day - Damaged/Expired)</option>
-<option value="FRESH">🥦 Fresh Produce (No returns)</option>
-                      </select>
-                    </div>
+                   <div style={{ gridColumn: 'span 2' }}>
+  <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '8px' }}>Return Policy *</label>
+  <select value={newProduct.return_policy}
+    onChange={e => setNewProduct({ ...newProduct, return_policy: e.target.value })}
+    style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+    <option value="PERISHABLE_FOOD">🥬 Perishable Food (No returns)</option>
+    <option value="PACKAGED_FOOD">📦 Packaged Food (2 days - Damaged/Expired)</option>
+    <option value="STANDARD_ELECTRONICS">📱 Standard Electronics (7 days - Replacement only)</option>
+    <option value="HIGH_VALUE_ELECTRONICS">💎 High Value Electronics (7 days - Approval required)</option>
+    <option value="STATIONERY">✏️ Stationery (2 days - Damaged only)</option>
+    <option value="FASHION">👕 Fashion (3 days - Wrong size/Damaged)</option>
+    <option value="GROCERY">🛒 Grocery (1 day - Damaged/Expired)</option>
+    <option value="FRESH">🥦 Fresh Produce (No returns)</option>
+  </select>
+</div>
                   </div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                     <button onClick={saveProduct} disabled={loading}

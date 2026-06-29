@@ -17,10 +17,10 @@ export default function Login() {
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       const userRole = res.data.user.role;
-      if (userRole === 'admin') navigate('/admin');
-      else if (userRole === 'seller') navigate('/seller');
-      else if (userRole === 'delivery') navigate('/delivery');
-      else navigate('/buyer');
+      if (userRole === 'admin') window.location.href = '/admin';
+else if (userRole === 'seller') window.location.href = '/seller';
+else if (userRole === 'delivery') window.location.href = '/delivery';
+else window.location.href = '/buyer';
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid phone or password');
     } finally {
