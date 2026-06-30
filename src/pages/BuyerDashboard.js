@@ -1309,14 +1309,14 @@ const calcDeliveryCharge = (distanceKm) => {
   </div>
 </div>
 
-      {/* Delivery info */}
-      <div style={{ background: '#f0eeff', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span style={{ fontSize: '20px' }}>⚡</span>
-        <div>
-          <div style={{ fontWeight: '700', color: '#5c2d91', fontSize: '14px' }}>30 min delivery</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>Free delivery on this order</div>
-        </div>
-      </div>
+     {/* Delivery info */}
+<div style={{ background: '#f0eeff', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+  <span style={{ fontSize: '20px' }}>⚡</span>
+  <div>
+    <div style={{ fontWeight: '700', color: '#5c2d91', fontSize: '14px' }}>30 min delivery</div>
+    <div style={{ fontSize: '12px', color: '#666' }}>₹20 for first 5km, ₹6/km after</div>
+  </div>
+</div>
 
       {/* Description */}
       {selectedProduct.description && (
