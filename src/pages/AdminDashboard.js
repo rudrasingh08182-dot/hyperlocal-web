@@ -252,9 +252,9 @@ const suspendDelivery = async (id) => {
           </motion.div>
         ) : null}
         {tab === 'delivery' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            style={{ background: '#1a1a2e', borderRadius: '16px', overflow: 'hidden', border: '1px solid #2a2a4a' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+    style={{ background: '#1a1a2e', borderRadius: '16px', overflowX: 'auto', border: '1px solid #2a2a4a' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
               <thead>
                 <tr style={{ background: '#6c63ff22' }}>
                   <th style={th}>Name</th>
