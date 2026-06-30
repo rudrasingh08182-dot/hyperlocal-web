@@ -1291,9 +1291,9 @@ const calcDeliveryCharge = (distanceKm) => {
   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: selectedProduct.stock > 10 ? '#00b894' : selectedProduct.stock > 0 ? '#e17055' : '#ff4444' }} />
     <span style={{ fontSize: '13px', fontWeight: '600', color: selectedProduct.stock > 10 ? '#00b894' : selectedProduct.stock > 0 ? '#e17055' : '#ff4444' }}>
-      {selectedProduct.stock > 10 ? `${selectedProduct.stock} units available` :
-       selectedProduct.stock > 0 ? `Only ${selectedProduct.stock} left!` : 'Out of Stock'}
-    </span>
+  {selectedProduct.stock > 10 ? 'In Stock' :
+   selectedProduct.stock > 0 ? 'Limited Stock' : 'Out of Stock'}
+</span>
   </div>
 
   {/* Unit type badge */}
