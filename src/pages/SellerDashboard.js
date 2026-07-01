@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { FiHome, FiPackage, FiShoppingBag, FiStar, FiTrendingUp, FiDollarSign, FiBell, FiSettings, FiLogOut, FiPlus, FiEdit2, FiTrash2, FiMenu, FiX } from 'react-icons/fi';
 import API from '../services/api';
+import { requestNotificationPermission } from '../firebase';
 
 function SellerReviews() {
   const [reviews, setReviews] = useState([]);
@@ -172,6 +173,12 @@ const saveBankDetails = async () => {
   fetchProducts();
   fetchOrders();
   fetchShopSettings();
+  // Request FCM token
+  requestNotificationPermission().then(token => {
+    if (token) {
+      API.post('/sellers/fcm-token', { token });
+    }
+  });
 }, []);
   
   // Add this useEffect after existing useEffects
