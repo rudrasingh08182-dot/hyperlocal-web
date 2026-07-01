@@ -617,51 +617,52 @@ useEffect(() => {
                     <p>No products yet. Add your first product!</p>
                   </div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: '#fafaf5' }}>
-                        {['Product', 'Category', 'Price', 'Stock', 'Return Policy', 'Status', 'Actions'].map(h => (
-                          <th key={h} style={{ padding: '14px 16px', textAlign: 'left', fontSize: '12px', color: '#999', fontWeight: '600' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {products.map(p => (
-                        <tr key={p.id} style={{ borderBottom: '1px solid #f8f8f0' }}>
-                          <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '600', color: '#1a1a2e' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              {p.image_urls?.[0] ? (
-                                <img src={p.image_urls[0]} alt={p.name} style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }} />
-                              ) : (
-                                <div style={{ width: '36px', height: '36px', background: '#f0eeff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📦</div>
-                              )}
-                              {p.name}
-                            </div>
-                          </td>
-                          <td style={{ padding: '14px 16px', fontSize: '13px', color: '#666' }}>{p.category || '—'}</td>
-                          <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '600', color: '#6c63ff' }}>₹{p.price}</td>
-                          <td style={{ padding: '14px 16px', fontSize: '13px', color: p.stock === 0 ? '#e17055' : '#333' }}>{p.stock === 0 ? 'Out of stock' : p.stock}</td>
-                          <td style={{ padding: '14px 16px', fontSize: '11px', color: '#666' }}>{p.return_policy?.replace(/_/g, ' ')}</td>
-                          <td style={{ padding: '14px 16px' }}>
-                            <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', background: p.is_available ? '#e8fff8' : '#fff3f0', color: p.is_available ? '#00b894' : '#e17055' }}>
-                              {p.is_available ? 'Active' : 'Out of Stock'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '14px 16px' }}>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button style={{ background: '#e8f4ff', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#0984e3' }}><FiEdit2 /></button>
-                              <button onClick={() => deleteProduct(p.id)} style={{ background: '#fff0f0', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#e17055' }}><FiTrash2 /></button>
-                            </div>
-                          </td>
+                  <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                    <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#fafaf5' }}>
+                          {['Product', 'Category', 'Price', 'Stock', 'Return Policy', 'Status', 'Actions'].map(h => (
+                            <th key={h} style={{ padding: '14px 16px', textAlign: 'left', fontSize: '12px', color: '#999', fontWeight: '600' }}>{h}</th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {products.map(p => (
+                          <tr key={p.id} style={{ borderBottom: '1px solid #f8f8f0' }}>
+                            <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '600', color: '#1a1a2e' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                {p.image_urls?.[0] ? (
+                                  <img src={p.image_urls[0]} alt={p.name} style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }} />
+                                ) : (
+                                  <div style={{ width: '36px', height: '36px', background: '#f0eeff', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📦</div>
+                                )}
+                                {p.name}
+                              </div>
+                            </td>
+                            <td style={{ padding: '14px 16px', fontSize: '13px', color: '#666' }}>{p.category || '—'}</td>
+                            <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '600', color: '#6c63ff' }}>₹{p.price}</td>
+                            <td style={{ padding: '14px 16px', fontSize: '13px', color: p.stock === 0 ? '#e17055' : '#333' }}>{p.stock === 0 ? 'Out of stock' : p.stock}</td>
+                            <td style={{ padding: '14px 16px', fontSize: '11px', color: '#666' }}>{p.return_policy?.replace(/_/g, ' ')}</td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', background: p.is_available ? '#e8fff8' : '#fff3f0', color: p.is_available ? '#00b894' : '#e17055' }}>
+                                {p.is_available ? 'Active' : 'Out of Stock'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button style={{ background: '#e8f4ff', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#0984e3' }}><FiEdit2 /></button>
+                                <button onClick={() => deleteProduct(p.id)} style={{ background: '#fff0f0', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#e17055' }}><FiTrash2 /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>
           )}
-
           {/* ORDERS TAB */}
           {activeTab === 'orders' && (
   <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>

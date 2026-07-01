@@ -1,4 +1,4 @@
-import axios from 'axios';
+import API, { registerUser } from '../services/api';
 import { useState } from 'react';
 import { registerUser } from '../services/api';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -49,7 +49,7 @@ if (role === 'delivery' && (!form.vehicle_type || !form.vehicle_number || !form.
     try {
       if (role === 'seller') {
         // Use single API for seller registration
-        await axios.post('http://localhost:5000/api/auth/register-seller', {
+        await API.post('/auth/register-seller', {
           username: form.username,
           name: form.name,
           phone: form.phone,
@@ -61,7 +61,7 @@ if (role === 'delivery' && (!form.vehicle_type || !form.vehicle_number || !form.
         });
       // seller code above
 } else if (role === 'delivery') {
-  await axios.post('http://localhost:5000/api/auth/register-delivery', {
+ await API.post('/auth/register-delivery', {
     username: form.username,
     name: form.name,
     phone: form.phone,

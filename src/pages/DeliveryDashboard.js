@@ -67,6 +67,25 @@ export default function DeliveryDashboard() {
     getLocation();
     fetchMyDeliveries();
   }, [getLocation]);
+  useEffect(() => {
+  const activeOrder = myDeliveries.find(o => o.status === 'picked_up' || o.status === 'out_for_delivery');
+  if (!activeOrder) return;
+
+  const interval = setInterval(() => {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        await API.patch(`/tracking/${activeOrder.id}/location`, {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+      } catch (err) {
+        console.error('Auto location update failed');
+      }
+    });
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [myDeliveries]);
 
   const acceptDelivery = async (id) => {
     try {

@@ -104,6 +104,17 @@ const ReviewSection = ({ type, id }) => {
   );
 };
 
+const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 function OrderTracking({ orderId, onClose }) {
   const [tracking, setTracking] = useState(null);
   const [location, setLocation] = useState(null);
@@ -152,8 +163,12 @@ function OrderTracking({ orderId, onClose }) {
   }, [orderId]);
  
   const currentStatus = tracking?.order?.tracking_status || 'pending';
-  const currentStepIdx = STEPS.findIndex(s => s.key === currentStatus);
- 
+const currentStepIdx = STEPS.findIndex(s => s.key === currentStatus);
+
+const distanceKm = (location && tracking?.order?.delivery_latitude && tracking?.order?.delivery_longitude)
+  ? getDistanceKm(location.lat, location.lng, tracking.order.delivery_latitude, tracking.order.delivery_longitude)
+  : null;
+
   if (loading) return (
     <div style={styles.overlay}>
       <div style={styles.card}>
@@ -229,18 +244,25 @@ function OrderTracking({ orderId, onClose }) {
               🗺️ Live Location
             </div>
             <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #e8e8e8' }}>
-              <iframe
-                title="delivery-map"
-                width="100%"
-                height="200"
-                frameBorder="0"
-                style={{ display: 'block' }}
-                src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=15&output=embed`}
-              />
-            </div>
-            <div style={{ fontSize: '11px', color: '#999', marginTop: '4px', textAlign: 'center' }}>
-              🔄 Updates every 30 seconds
-            </div>
+  <iframe
+    title="delivery-map"
+    width="100%"
+    height="200"
+    frameBorder="0"
+    style={{ display: 'block' }}
+    src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=15&output=embed`}
+  />
+</div>
+
+{distanceKm !== null && (
+  <div style={{ fontSize: '13px', color: '#5c2d91', fontWeight: '700', marginTop: '8px', textAlign: 'center' }}>
+    📏 {distanceKm.toFixed(1)} km away
+  </div>
+)}
+
+<div style={{ fontSize: '11px', color: '#999', marginTop: '4px', textAlign: 'center' }}>
+  🔄 Updates every 30 seconds
+</div>
           </div>
         )}
  
