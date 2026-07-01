@@ -283,6 +283,19 @@ const distanceKm = (location && tracking?.order?.delivery_latitude && tracking?.
           <div style={{ fontSize: '13px', color: '#666' }}>🏪 <strong>{tracking?.order?.shop_name}</strong></div>
           <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>{tracking?.order?.shop_address}</div>
         </div>
+        {/* Return Button */}
+{currentStatus === 'delivered' && (
+  <div style={{ background: '#fff3f0', borderRadius: '12px', padding: '14px', marginTop: '16px' }}>
+    <div style={{ fontWeight: '700', color: '#e17055', fontSize: '13px', marginBottom: '8px' }}>🔄 Return Policy</div>
+    <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
+      Return window applies as per product policy. Contact the shop to initiate a return.
+    </div>
+    <a href={`tel:${tracking?.order?.shop_phone || ''}`}
+      style={{ display: 'block', textAlign: 'center', padding: '10px', background: '#e17055', color: 'white', borderRadius: '10px', fontWeight: '700', fontSize: '13px', textDecoration: 'none' }}>
+      📞 Contact Shop for Return
+    </a>
+  </div>
+)}
  
         {/* Refresh Button */}
         <button onClick={() => { fetchTracking(); fetchLocation(); }}
