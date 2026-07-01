@@ -100,14 +100,15 @@ export default function DeliveryDashboard() {
   };
 
   const markDelivered = async (id) => {
-    try {
-      await API.patch(`/orders/${id}/delivered`);
-      alert('Order marked as delivered!');
-      fetchMyDeliveries();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update');
-    }
-  };
+  try {
+    await API.patch(`/orders/${id}/delivered`);
+    await API.patch(`/tracking/${id}/status`, { status: 'delivered' });
+    alert('Order marked as delivered!');
+    fetchMyDeliveries();
+  } catch (err) {
+    alert(err.response?.data?.error || 'Failed to update');
+  }
+};
    const updateStatus = async (orderId, status) => {
   try {
     await API.patch(`/tracking/${orderId}/status`, { status });
