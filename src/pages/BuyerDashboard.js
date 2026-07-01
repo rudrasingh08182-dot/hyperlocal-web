@@ -982,6 +982,14 @@ const calcDeliveryCharge = (distanceKm) => {
     📍 Track Order
   </button>
 )}
+
+{order.status === 'delivered' && (
+  <button
+    onClick={() => setTrackingOrderId(order.id)}
+    style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#e8fff8', color: '#00b894', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+    📦 View Order Details & Return
+  </button>
+)}
               </div>
             ))}
           </div>
