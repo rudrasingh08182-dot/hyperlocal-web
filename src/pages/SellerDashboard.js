@@ -104,6 +104,10 @@ const [bankSaved, setBankSaved] = useState(false);
 // Add this state at top
 const [uploadingImage, setUploadingImage] = useState(false);
 const [productImages, setProductImages] = useState([]);
+const [shopSettings, setShopSettings] = useState({
+  shop_name: '', contact_phone: '', address: '', locality: '',
+});
+const [shopSaved, setShopSaved] = useState(false);
 
 const uploadImage = async (file) => {
   setUploadingImage(true);
@@ -163,11 +167,12 @@ const saveBankDetails = async () => {
   });
 };
 
-  useEffect(() => {
-    fetchDashboard();
-    fetchProducts();
-    fetchOrders();
-  }, []);
+ useEffect(() => {
+  fetchDashboard();
+  fetchProducts();
+  fetchOrders();
+  fetchShopSettings();
+}, []);
   
   // Add this useEffect after existing useEffects
 useEffect(() => {
@@ -227,6 +232,20 @@ useEffect(() => {
       console.error('Orders fetch failed:', err);
     }
   };
+
+const fetchShopSettings = async () => {
+  try {
+    const res = await API.get('/sellers/me');
+    setShopSettings({
+      shop_name: res.data.shop_name || '',
+      contact_phone: res.data.contact_phone || '',
+      address: res.data.address || '',
+      locality: res.data.locality || '',
+    });
+  } catch (err) {
+    console.error('Shop settings fetch failed');
+  }
+};
 
  const saveProduct = async () => {
   if (!newProduct.name || !newProduct.price || !newProduct.stock) {
@@ -841,33 +860,51 @@ useEffect(() => {
   </div>
 )}
           {/* SETTINGS TAB */}
-          {activeTab === 'settings' && (
-            <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-              <h2 style={{ margin: '0 0 24px', color: '#1a1a2e' }}>Shop Settings</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                {[
-                  { label: 'Shop Name', placeholder: 'Enter shop name' },
-                  { label: 'Contact Phone', placeholder: 'Enter phone' },
-                  { label: 'Address', placeholder: 'Enter address' },
-                  { label: 'Locality', placeholder: 'Enter locality/area' },
-                  { label: 'Opening Hours', placeholder: '9:00 AM - 9:00 PM' },
-                  { label: 'Delivery Radius (km)', placeholder: '5' },
-                ].map((f, i) => (
-                  <div key={i}>
-                    <label style={{ fontSize: '13px', color: '#666', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{f.label}</label>
-                    <input placeholder={f.placeholder} style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
-                ))}6t
-              </div>
-              <button style={{ marginTop: '20px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 32px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>
-                Save Settings
-              </button>
-              <button onClick={getShopLocation}
-  style={{ marginTop: '16px', background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600' }}>
-  📍 Set Shop Location (for delivery distance)
-</button>
-            </div>
-          )}
+        {activeTab === 'settings' && (
+  <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+    <h2 style={{ margin: '0 0 24px', color: '#1a1a2e' }}>Shop Settings</h2>
+
+    {shopSaved && (
+      <div style={{ background: '#e8fff8', border: '1px solid #00b894', borderRadius: '10px', padding: '12px', marginBottom: '16px', color: '#00b894', fontWeight: '600' }}>
+        ✅ Shop settings saved!
+      </div>
+    )}
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      {[
+        { label: 'Shop Name', key: 'shop_name', placeholder: 'Enter shop name' },
+        { label: 'Contact Phone', key: 'contact_phone', placeholder: 'Enter phone' },
+        { label: 'Address', key: 'address', placeholder: 'Enter address' },
+        { label: 'Locality', key: 'locality', placeholder: 'Enter locality/area' },
+      ].map((f) => (
+        <div key={f.key}>
+          <label style={{ fontSize: '13px', color: '#666', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{f.label}</label>
+          <input placeholder={f.placeholder} value={shopSettings[f.key]}
+            onChange={e => setShopSettings({ ...shopSettings, [f.key]: e.target.value })}
+            style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+      ))}
+    </div>
+
+    <button onClick={async () => {
+      try {
+        await API.patch('/sellers/me', shopSettings);
+        setShopSaved(true);
+        setTimeout(() => setShopSaved(false), 3000);
+      } catch (err) {
+        alert(err.response?.data?.error || 'Failed to save');
+      }
+    }}
+      style={{ marginTop: '20px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 32px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>
+      💾 Save Settings
+    </button>
+
+    <button onClick={getShopLocation}
+      style={{ marginTop: '16px', marginLeft: '12px', background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600' }}>
+      📍 Set Shop Location
+    </button>
+  </div>
+)}
         </div>
       </div>
     </div>
