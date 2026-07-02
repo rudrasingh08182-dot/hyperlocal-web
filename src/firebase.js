@@ -23,11 +23,10 @@ export const requestNotificationPermission = async () => {
       scope: '/firebase-cloud-messaging-push-scope'
     });
     await navigator.serviceWorker.ready;
-
-    const token = await getToken(messaging, {
-      vapidKey: 'BNO_31buOhhZBwaTSX5IMMHgfY-PZOKk863HM4PDqttAzGpsQeo5izJ_GZ9Kp9QKCOjDRA3m3MFc5S0i8sOh0ps',
-      serviceWorkerRegistration: swReg
-    });
+const token = await getToken(messaging, {
+  vapidKey: 'BFKIq_y2AupEs9ZELUiJ7LZ2lAJuxZG0Pnhdxrsrb2S9__snYSGVVtZCuHwTISY8XEaAdl7qo5XVQyuWE4SBrBU',
+  serviceWorkerRegistration: swReg
+});
     console.log('FCM Token:', token);
     return token;
   } catch (err) {
