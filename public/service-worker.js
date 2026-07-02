@@ -31,15 +31,10 @@ const CACHE_NAME = 'zaplo-v1';
 // Files to cache for offline use
 const STATIC_ASSETS = [
   '/',
-  '/buyer',
-  '/login',
-  '/static/js/main.chunk.js',
-  '/static/js/bundle.js',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
 ];
-
 // Install event — cache static assets
 self.addEventListener('install', event => {
   event.waitUntil(
