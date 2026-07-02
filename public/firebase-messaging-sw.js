@@ -1,6 +1,8 @@
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
+self.skipWaiting();
+
 firebase.initializeApp({
   apiKey: "AIzaSyAu0flLUCKGyPkr2yc1FXMocqJn1IFuNBI",
   authDomain: "zaplo-c8d22.firebaseapp.com",

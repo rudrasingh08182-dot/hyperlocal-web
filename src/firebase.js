@@ -17,12 +17,16 @@ const messaging = getMessaging(app);
 export const requestNotificationPermission = async () => {
   try {
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      console.log('Notification permission denied');
-      return null;
-    }
+    if (permission !== 'granted') return null;
+
+    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/firebase-cloud-messaging-push-scope'
+    });
+    await navigator.serviceWorker.ready;
+
     const token = await getToken(messaging, {
-      vapidKey: 'BNO_31buOhhZBwaTSX5IMMHgfY-PZOKk863HM4PDqttAzGpsQeo5izJ_GZ9Kp9QKCOjDRA3m3MFc5S0i8sOh0ps'
+      vapidKey: 'BNO_31buOhhZBwaTSX5IMMHgfY-PZOKk863HM4PDqttAzGpsQeo5izJ_GZ9Kp9QKCOjDRA3m3MFc5S0i8sOh0ps',
+      serviceWorkerRegistration: swReg
     });
     console.log('FCM Token:', token);
     return token;
@@ -31,7 +35,6 @@ export const requestNotificationPermission = async () => {
     return null;
   }
 };
-
 export const onMessageListener = () =>
   new Promise((resolve) => {
     onMessage(messaging, (payload) => {
