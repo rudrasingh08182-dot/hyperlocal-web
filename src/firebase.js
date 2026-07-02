@@ -22,7 +22,7 @@ export const requestNotificationPermission = async () => {
       return null;
     }
     
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const registration = await navigator.serviceWorker.register('/service-worker.js');
     
     const token = await getToken(messaging, {
       vapidKey: 'BNO_31buOhhZBwaTSX5IMMHgfY-PZOKk863HM4PDqttAzGpsQeo5izJ_GZ9Kp9QKCOjDRA3m3MFc5S0i8sOh0ps',
