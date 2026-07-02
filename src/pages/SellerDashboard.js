@@ -694,7 +694,7 @@ const fetchShopSettings = async () => {
   <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
       <h2 style={{ margin: 0, fontSize: '18px', color: '#1a1a2e' }}>Order Management</h2>
-      <button onClick={fetchOrders} style={{ background: '#6c63ff15', color: '#6c63ff', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: '600' }}>
+      <button onClick={fetchDashboard}style={{ background: '#6c63ff15', color: '#6c63ff', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: '600' }}>
         🔄 Refresh
       </button>
     </div>
