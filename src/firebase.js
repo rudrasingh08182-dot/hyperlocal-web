@@ -21,8 +21,12 @@ export const requestNotificationPermission = async () => {
       console.log('Notification permission denied');
       return null;
     }
+    
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    
     const token = await getToken(messaging, {
-      vapidKey: 'BNO_31buOhhZBwaTSX5IMMHgfY-PZOKk863HM4PDqttAzGpsQeo5izJ_GZ9Kp9QKCOjDRA3m3MFc5S0i8sOh0ps'
+      vapidKey: 'BNO_31buOhhZBwaTSX5IMMHgfY-PZOKk863HM4PDqttAzGpsQeo5izJ_GZ9Kp9QKCOjDRA3m3MFc5S0i8sOh0ps',
+      serviceWorkerRegistration: registration
     });
     console.log('FCM Token:', token);
     return token;
