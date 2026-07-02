@@ -1,42 +1,19 @@
-import { initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAu0flLUCKGyPkr2yc1FXMocqJn1IFuNBI",
-  authDomain: "zaplo-c8d22.firebaseapp.com",
-  projectId: "zaplo-c8d22",
-  storageBucket: "zaplo-c8d22.firebasestorage.app",
-  messagingSenderId: "398032163373",
-  appId: "1:398032163373:web:da47874cac729c7ab0dea4",
-  measurementId: "G-VM1K6DEE74"
-};
-
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
-
 export const requestNotificationPermission = async () => {
   try {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return null;
-
-    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-      scope: '/firebase-cloud-messaging-push-scope'
-    });
-    await navigator.serviceWorker.ready;
-const token = await getToken(messaging, {
-  vapidKey: 'BFKIq_y2AupEs9ZELUiJ7LZ2lAJuxZG0Pnhdxrsrb2S9__snYSGVVtZCuHwTISY8XEaAdl7qo5XVQyuWE4SBrBU',
-  serviceWorkerRegistration: swReg
-});
-    console.log('FCM Token:', token);
-    return token;
+    return 'browser-notification-enabled';
   } catch (err) {
-    console.error('FCM token error:', err);
+    console.error('Notification error:', err);
     return null;
   }
 };
-export const onMessageListener = () =>
-  new Promise((resolve) => {
-    onMessage(messaging, (payload) => {
-      resolve(payload);
+
+export const showNotification = (title, body) => {
+  if (Notification.permission === 'granted') {
+    new Notification(title, {
+      body,
+      icon: '/icons/icon-192x192.png',
     });
-  });
+  }
+};

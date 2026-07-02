@@ -707,6 +707,17 @@ const fetchShopSettings = async () => {
             <div style={{ fontWeight: '700', color: '#6c63ff', fontSize: '15px' }}>#{order.id.slice(-6).toUpperCase()}</div>
             <div style={{ color: '#333', fontSize: '13px', marginTop: '4px' }}>{order.buyer_name} • {order.item_count} items</div>
             <div style={{ color: '#999', fontSize: '12px', marginTop: '2px' }}>{new Date(order.created_at).toLocaleString()}</div>
+            {/* Product Details */}
+{order.items && (
+  <div style={{ background: '#f8f8f0', borderRadius: '10px', padding: '10px 12px', marginTop: '10px' }}>
+    {order.items.map((item, i) => (
+      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '13px', borderBottom: i < order.items.length - 1 ? '1px solid #f0f0e8' : 'none' }}>
+        <span style={{ color: '#333', fontWeight: '600' }}>📦 {item.name}</span>
+        <span style={{ color: '#6c63ff', fontWeight: '700' }}>x{item.quantity} — ₹{item.unit_price * item.quantity}</span>
+      </div>
+    ))}
+  </div>
+)}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontWeight: '700', fontSize: '18px', color: '#1a1a2e' }}>₹{order.total_amount}</div>
