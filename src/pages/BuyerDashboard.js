@@ -1,5 +1,49 @@
 import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import API from '../services/api';
+
+/* ============================================================
+   ZAPLO DESIGN SYSTEM
+   Premium / minimal / calm. Do not hardcode raw colors below —
+   always pull from T (tokens) so the whole app stays consistent.
+   ============================================================ */
+const T = {
+  primary: '#5B4BFF',
+  primaryDark: '#4636D6',
+  primaryGradient: 'linear-gradient(135deg, #5B4BFF 0%, #7C6FFF 100%)',
+  accent: '#FFC83D',
+  success: '#22C55E',
+  successGradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+  error: '#EF4444',
+  bg: '#F8F9FC',
+  card: '#FFFFFF',
+  text: '#1A1A1A',
+  textSoft: '#6B7280',
+  textFaint: '#9CA3AF',
+  border: '#ECEEF3',
+  primaryTint: '#F1EFFF',
+  accentTint: '#FFF8E8',
+  successTint: '#EAFBF1',
+  errorTint: '#FEEEEE',
+  radiusLg: '24px',
+  radiusMd: '18px',
+  radiusSm: '12px',
+  radiusPill: '999px',
+  shadowSoft: '0 4px 20px rgba(17, 17, 39, 0.06)',
+  shadowCard: '0 2px 12px rgba(17, 17, 39, 0.05)',
+  shadowFloating: '0 12px 32px rgba(91, 75, 255, 0.16)',
+  font: "'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+};
+
+const FontLoader = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+    * { -webkit-tap-highlight-color: transparent; }
+    ::-webkit-scrollbar { display: none; }
+  `}</style>
+);
+
+const btnTap = { whileTap: { scale: 0.96 } };
 
 const useCart = () => {
   const [cart, setCart] = useState([]);
@@ -30,12 +74,13 @@ const categories = [
   { id: 'food', label: 'Food', emoji: '🍔' },
   { id: 'stationery', label: 'Stationery', emoji: '📚' },
 ];
+
 const StarRating = ({ value, onChange, readonly = false }) => (
   <div style={{ display: 'flex', gap: '4px' }}>
     {[1, 2, 3, 4, 5].map(star => (
       <span key={star}
         onClick={() => !readonly && onChange?.(star)}
-        style={{ fontSize: readonly ? '14px' : '24px', cursor: readonly ? 'default' : 'pointer', color: star <= value ? '#f4c430' : '#ddd' }}>
+        style={{ fontSize: readonly ? '14px' : '24px', cursor: readonly ? 'default' : 'pointer', color: star <= value ? T.accent : T.border }}>
         ★
       </span>
     ))}
@@ -70,36 +115,34 @@ const ReviewSection = ({ type, id }) => {
 
   return (
     <div style={{ marginTop: '16px' }}>
-      <div style={{ background: '#f8f8f8', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '32px', fontWeight: '800', color: '#1a1a2e' }}>{average || '—'}</span>
-          <div>
-            <StarRating value={Math.round(average)} readonly />
-            <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{reviews.length} reviews</div>
-          </div>
+      <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '18px' , marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <span style={{ fontSize: '36px', fontWeight: '800', color: T.text, fontFamily: T.font }}>{average || '—'}</span>
+        <div>
+          <StarRating value={Math.round(average)} readonly />
+          <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '4px' }}>{reviews.length} reviews</div>
         </div>
       </div>
-      <div style={{ background: 'white', border: '1.5px solid #e8e8e8', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-        <div style={{ fontWeight: '700', color: '#1a1a2e', marginBottom: '10px', fontSize: '14px' }}>✍️ Write a Review</div>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: T.radiusMd, padding: '18px', marginBottom: '16px', boxShadow: T.shadowCard }}>
+        <div style={{ fontWeight: '700', color: T.text, marginBottom: '12px', fontSize: '14px' }}>Write a review</div>
         <StarRating value={rating} onChange={setRating} />
         <textarea placeholder="Share your experience..." value={comment} onChange={e => setComment(e.target.value)}
-          style={{ width: '100%', marginTop: '10px', padding: '10px', border: '1.5px solid #e8e8e8', borderRadius: '8px', fontSize: '13px', outline: 'none', resize: 'none', height: '70px', boxSizing: 'border-box' }} />
-        <button onClick={submitReview} disabled={loading}
-          style={{ marginTop: '8px', padding: '10px 24px', background: '#5c2d91', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '13px', opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Submitting...' : '⭐ Submit Review'}
-        </button>
+          style={{ width: '100%', marginTop: '12px', padding: '12px 14px', border: `1.5px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '13px', outline: 'none', resize: 'none', height: '72px', boxSizing: 'border-box', fontFamily: T.font, background: T.bg }} />
+        <motion.button {...btnTap} onClick={submitReview} disabled={loading}
+          style={{ marginTop: '12px', padding: '11px 26px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '13px', opacity: loading ? 0.7 : 1, fontFamily: T.font }}>
+          {loading ? 'Submitting...' : 'Submit review'}
+        </motion.button>
       </div>
       {reviews.map(r => (
-        <div key={r.id} style={{ background: 'white', border: '1px solid #f0f0e8', borderRadius: '12px', padding: '12px', marginBottom: '10px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontWeight: '700', fontSize: '13px', color: '#1a1a2e' }}>👤 {r.buyer_name}</span>
+        <div key={r.id} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: T.radiusMd, padding: '14px 16px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontWeight: '700', fontSize: '13px', color: T.text }}>{r.buyer_name}</span>
             <StarRating value={r.rating} readonly />
           </div>
-          {r.comment && <p style={{ margin: 0, fontSize: '13px', color: '#666', lineHeight: '1.5' }}>{r.comment}</p>}
-          <div style={{ fontSize: '11px', color: '#bbb', marginTop: '6px' }}>{new Date(r.created_at).toLocaleDateString()}</div>
+          {r.comment && <p style={{ margin: 0, fontSize: '13px', color: T.textSoft, lineHeight: '1.6' }}>{r.comment}</p>}
+          <div style={{ fontSize: '11px', color: T.textFaint, marginTop: '8px' }}>{new Date(r.created_at).toLocaleDateString()}</div>
         </div>
       ))}
-      {reviews.length === 0 && <div style={{ textAlign: 'center', padding: '20px', color: '#bbb', fontSize: '13px' }}>No reviews yet. Be the first!</div>}
+      {reviews.length === 0 && <div style={{ textAlign: 'center', padding: '28px', color: T.textFaint, fontSize: '13px' }}>No reviews yet. Be the first!</div>}
     </div>
   );
 };
@@ -119,16 +162,16 @@ function OrderTracking({ orderId, onClose }) {
   const [tracking, setTracking] = useState(null);
   const [location, setLocation] = useState(null);
   const [loading, setLoading]   = useState(true);
- 
+
   const STEPS = [
-    { key: 'pending',          label: 'Order Placed',       icon: '📋' },
-    { key: 'confirmed',        label: 'Confirmed',          icon: '✅' },
-    { key: 'preparing',        label: 'Preparing',          icon: '👨‍🍳' },
-    { key: 'picked_up',        label: 'Picked Up',          icon: '🛵' },
-    { key: 'out_for_delivery', label: 'Out for Delivery',   icon: '🚚' },
-    { key: 'delivered',        label: 'Delivered',          icon: '🎉' },
+    { key: 'pending',          label: 'Order placed' },
+    { key: 'confirmed',        label: 'Confirmed' },
+    { key: 'preparing',        label: 'Preparing' },
+    { key: 'picked_up',        label: 'Picked up' },
+    { key: 'out_for_delivery', label: 'Out for delivery' },
+    { key: 'delivered',        label: 'Delivered' },
   ];
- 
+
   const fetchTracking = async () => {
     try {
       const res = await API.get(`/tracking/${orderId}`);
@@ -139,7 +182,7 @@ function OrderTracking({ orderId, onClose }) {
       setLoading(false);
     }
   };
- 
+
   const fetchLocation = async () => {
     try {
       const res = await API.get(`/tracking/${orderId}/location`);
@@ -150,84 +193,80 @@ function OrderTracking({ orderId, onClose }) {
       console.error('Location fetch failed');
     }
   };
- 
+
   useEffect(() => {
     fetchTracking();
     fetchLocation();
-    // Poll every 30 seconds for live updates
     const interval = setInterval(() => {
       fetchTracking();
       fetchLocation();
     }, 30000);
     return () => clearInterval(interval);
   }, [orderId]);
- 
-  const currentStatus = tracking?.order?.tracking_status || 'pending';
-const currentStepIdx = STEPS.findIndex(s => s.key === currentStatus);
 
-const distanceKm = (location && tracking?.order?.delivery_latitude && tracking?.order?.delivery_longitude)
-  ? getDistanceKm(location.lat, location.lng, tracking.order.delivery_latitude, tracking.order.delivery_longitude)
-  : null;
+  const currentStatus = tracking?.order?.tracking_status || 'pending';
+  const currentStepIdx = STEPS.findIndex(s => s.key === currentStatus);
+
+  const distanceKm = (location && tracking?.order?.delivery_latitude && tracking?.order?.delivery_longitude)
+    ? getDistanceKm(location.lat, location.lng, tracking.order.delivery_latitude, tracking.order.delivery_longitude)
+    : null;
 
   if (loading) return (
     <div style={styles.overlay}>
       <div style={styles.card}>
-        <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>Loading tracking...</div>
+        <div style={{ textAlign: 'center', padding: '48px', color: T.textFaint, fontFamily: T.font }}>Loading tracking...</div>
       </div>
     </div>
   );
- 
+
   return (
     <div style={styles.overlay}>
-      <div style={styles.card}>
+      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.25 }} style={styles.card}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <h3 style={{ margin: 0, color: '#1a1a2e', fontSize: '18px' }}>📦 Order Tracking</h3>
-            <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+            <h3 style={{ margin: 0, color: T.text, fontSize: '18px', fontWeight: '800' }}>Order tracking</h3>
+            <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '4px' }}>
               #{orderId.slice(-6).toUpperCase()}
             </div>
           </div>
-          <button onClick={onClose}
-            style={{ background: '#f0f0f0', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '18px' }}>
+          <motion.button {...btnTap} onClick={onClose}
+            style={{ background: T.bg, border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', color: T.text }}>
             ✕
-          </button>
+          </motion.button>
         </div>
- 
+
         {/* Status Steps */}
         <div style={{ marginBottom: '20px' }}>
           {STEPS.map((step, idx) => {
             const isDone    = idx <= currentStepIdx;
             const isCurrent = idx === currentStepIdx;
             return (
-              <div key={step.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '4px' }}>
-                {/* Icon + line */}
+              <div key={step.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '4px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{
-                    width: '36px', height: '36px', borderRadius: '50%',
-                    background: isDone ? (isCurrent ? '#5c2d91' : '#e8fff8') : '#f0f0f0',
-                    border: isCurrent ? '2px solid #5c2d91' : isDone ? '2px solid #00b894' : '2px solid #e8e8e8',
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    background: isCurrent ? T.primary : isDone ? T.successTint : T.bg,
+                    border: isCurrent ? `2px solid ${T.primary}` : isDone ? `2px solid ${T.success}` : `2px solid ${T.border}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '16px', flexShrink: 0,
-                    boxShadow: isCurrent ? '0 0 0 4px #5c2d9122' : 'none',
+                    fontSize: '13px', flexShrink: 0, color: isCurrent ? 'white' : T.success, fontWeight: '700',
+                    boxShadow: isCurrent ? `0 0 0 5px ${T.primaryTint}` : 'none',
                   }}>
-                    {isDone && !isCurrent ? '✓' : step.icon}
+                    {isDone ? '✓' : ''}
                   </div>
                   {idx < STEPS.length - 1 && (
-                    <div style={{ width: '2px', height: '24px', background: idx < currentStepIdx ? '#00b894' : '#e8e8e8', marginTop: '2px' }} />
+                    <div style={{ width: '2px', height: '26px', background: idx < currentStepIdx ? T.success : T.border, marginTop: '2px' }} />
                   )}
                 </div>
-                {/* Label */}
-                <div style={{ paddingTop: '6px' }}>
-                  <div style={{ fontWeight: isCurrent ? '700' : '500', color: isDone ? '#1a1a2e' : '#bbb', fontSize: '14px' }}>
+                <div style={{ paddingTop: '4px' }}>
+                  <div style={{ fontWeight: isCurrent ? '700' : '500', color: isDone ? T.text : T.textFaint, fontSize: '14px' }}>
                     {step.label}
                   </div>
                   {isCurrent && (
-                    <div style={{ fontSize: '11px', color: '#5c2d91', fontWeight: '600', marginTop: '2px' }}>● Current Status</div>
+                    <div style={{ fontSize: '11px', color: T.primary, fontWeight: '600', marginTop: '2px' }}>● Current status</div>
                   )}
-                  {/* Show log time if available */}
                   {tracking?.tracking_log?.find(l => l.status === step.key) && (
-                    <div style={{ fontSize: '11px', color: '#999', marginTop: '1px' }}>
+                    <div style={{ fontSize: '11px', color: T.textFaint, marginTop: '2px' }}>
                       {new Date(tracking.tracking_log.find(l => l.status === step.key).created_at).toLocaleTimeString()}
                     </div>
                   )}
@@ -236,130 +275,129 @@ const distanceKm = (location && tracking?.order?.delivery_latitude && tracking?.
             );
           })}
         </div>
- 
-        {/* Live Map (shows when out for delivery) */}
+
+        {/* Live Map */}
         {location && (currentStatus === 'out_for_delivery' || currentStatus === 'picked_up') && (
           <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontWeight: '700', color: '#1a1a2e', fontSize: '14px', marginBottom: '8px' }}>
-              🗺️ Live Location
+            <div style={{ fontWeight: '700', color: T.text, fontSize: '14px', marginBottom: '10px' }}>
+              Live location
             </div>
-            <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #e8e8e8' }}>
-  <iframe
-    title="delivery-map"
-    width="100%"
-    height="200"
-    frameBorder="0"
-    style={{ display: 'block' }}
-    src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=15&output=embed`}
-  />
-</div>
+            <div style={{ borderRadius: T.radiusMd, overflow: 'hidden', border: `1px solid ${T.border}` }}>
+              <iframe
+                title="delivery-map"
+                width="100%"
+                height="200"
+                frameBorder="0"
+                style={{ display: 'block' }}
+                src={`https://maps.google.com/maps?q=${location.lat},${location.lng}&z=15&output=embed`}
+              />
+            </div>
 
-{distanceKm !== null && (
-  <div style={{ fontSize: '13px', color: '#5c2d91', fontWeight: '700', marginTop: '8px', textAlign: 'center' }}>
-    📏 {distanceKm.toFixed(1)} km away
-  </div>
-)}
+            {distanceKm !== null && (
+              <div style={{ fontSize: '13px', color: T.primary, fontWeight: '700', marginTop: '10px', textAlign: 'center' }}>
+                {distanceKm.toFixed(1)} km away
+              </div>
+            )}
 
-<div style={{ fontSize: '11px', color: '#999', marginTop: '4px', textAlign: 'center' }}>
-  🔄 Updates every 30 seconds
-</div>
+            <div style={{ fontSize: '11px', color: T.textFaint, marginTop: '4px', textAlign: 'center' }}>
+              Updates every 30 seconds
+            </div>
           </div>
         )}
- 
+
         {/* Delivery Boy Info */}
         {tracking?.order?.delivery_boy_name && (
-          <div style={{ background: '#f0eeff', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-            <div style={{ fontWeight: '700', color: '#5c2d91', fontSize: '13px', marginBottom: '6px' }}>🛵 Your Delivery Partner</div>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a2e' }}>{tracking.order.delivery_boy_name}</div>
+          <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '16px', marginBottom: '16px' }}>
+            <div style={{ fontWeight: '700', color: T.primary, fontSize: '12px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Your delivery partner</div>
+            <div style={{ fontSize: '14px', fontWeight: '700', color: T.text }}>{tracking.order.delivery_boy_name}</div>
             <a href={`tel:${tracking.order.delivery_boy_phone}`}
-              style={{ fontSize: '13px', color: '#5c2d91', textDecoration: 'none', fontWeight: '600' }}>
-              📞 {tracking.order.delivery_boy_phone}
+              style={{ fontSize: '13px', color: T.primary, textDecoration: 'none', fontWeight: '600' }}>
+              {tracking.order.delivery_boy_phone}
             </a>
           </div>
         )}
- 
+
         {/* Shop Info */}
-        <div style={{ background: '#f8f8f8', borderRadius: '12px', padding: '14px' }}>
-          <div style={{ fontSize: '13px', color: '#666' }}>🏪 <strong>{tracking?.order?.shop_name}</strong></div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>{tracking?.order?.shop_address}</div>
+        <div style={{ background: T.bg, borderRadius: T.radiusMd, padding: '16px' }}>
+          <div style={{ fontSize: '13px', color: T.textSoft }}><strong style={{ color: T.text }}>{tracking?.order?.shop_name}</strong></div>
+          <div style={{ fontSize: '12px', color: T.textFaint, marginTop: '4px' }}>{tracking?.order?.shop_address}</div>
         </div>
-      {/* Return Button */}
-{currentStatus === 'delivered' && (
-  <div style={{ background: '#fff3f0', borderRadius: '12px', padding: '14px', marginTop: '16px' }}>
-    <div style={{ fontWeight: '700', color: '#e17055', fontSize: '13px', marginBottom: '8px' }}>🔄 Return Policy</div>
-    <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
-      Return window applies as per product policy. Contact the shop to initiate a return.
-    </div>
-    {tracking?.order?.shop_phone ? (
-      <a href={`tel:${tracking.order.shop_phone}`}
-        style={{ display: 'block', textAlign: 'center', padding: '10px', background: '#e17055', color: 'white', borderRadius: '10px', fontWeight: '700', fontSize: '13px', textDecoration: 'none' }}>
-        📞 Call Shop: {tracking.order.shop_phone}
-      </a>
-    ) : (
-      <div style={{ textAlign: 'center', padding: '10px', background: '#f0f0f0', color: '#666', borderRadius: '10px', fontSize: '13px' }}>
-        📞 Contact shop directly for return
-      </div>
-    )}
-  </div>
-)}
+
+        {/* Return Button */}
+        {currentStatus === 'delivered' && (
+          <div style={{ background: T.accentTint, borderRadius: T.radiusMd, padding: '16px', marginTop: '16px' }}>
+            <div style={{ fontWeight: '700', color: '#B45309', fontSize: '13px', marginBottom: '8px' }}>Return policy</div>
+            <div style={{ fontSize: '12px', color: T.textSoft, marginBottom: '14px', lineHeight: '1.6' }}>
+              Return window applies as per product policy. Contact the shop to initiate a return.
+            </div>
+            {tracking?.order?.shop_phone ? (
+              <a href={`tel:${tracking.order.shop_phone}`}
+                style={{ display: 'block', textAlign: 'center', padding: '12px', background: T.accent, color: T.text, borderRadius: T.radiusPill, fontWeight: '700', fontSize: '13px', textDecoration: 'none' }}>
+                Call shop: {tracking.order.shop_phone}
+              </a>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '12px', background: 'white', color: T.textSoft, borderRadius: T.radiusPill, fontSize: '13px' }}>
+                Contact shop directly for return
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Refresh Button */}
-        <button onClick={() => { fetchTracking(); fetchLocation(); }}
-          style={{ width: '100%', marginTop: '16px', padding: '12px', background: '#f0eeff', color: '#5c2d91', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
-          🔄 Refresh Tracking
-        </button>
-      </div>
+        <motion.button {...btnTap} onClick={() => { fetchTracking(); fetchLocation(); }}
+          style={{ width: '100%', marginTop: '16px', padding: '14px', background: T.primaryTint, color: T.primary, border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '14px', fontFamily: T.font }}>
+          Refresh tracking
+        </motion.button>
+      </motion.div>
     </div>
   );
 }
- 
+
 const styles = {
-  overlay: { position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', height: '100vh', background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'flex-end' },
-  card:    { background: 'white', borderRadius: '20px 20px 0 0', padding: '24px', width: '100%', maxHeight: '90vh', overflowY: 'auto' },
+  overlay: { position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', height: '100vh', background: 'rgba(17,17,39,0.45)', zIndex: 300, display: 'flex', alignItems: 'flex-end', backdropFilter: 'blur(2px)' },
+  card:    { background: T.card, borderRadius: '28px 28px 0 0', padding: '28px 22px', width: '100%', maxHeight: '90vh', overflowY: 'auto', fontFamily: T.font },
 };
- 
+
 function InstallBanner() {
   const [showBanner, setShowBanner] = useState(false);
- 
+
   useEffect(() => {
-    // Show banner when PWA install is available
     window.addEventListener('pwaInstallReady', () => setShowBanner(true));
-    // Hide if already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setShowBanner(false);
     }
   }, []);
- 
+
   if (!showBanner) return null;
- 
+
   return (
     <div style={{
       position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
-      width: '100%', maxWidth: '480px', background: '#5c2d91',
-      padding: '12px 16px', zIndex: 999, display: 'flex',
-      alignItems: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+      width: '100%', maxWidth: '480px', background: T.text,
+      padding: '14px 18px', zIndex: 999, display: 'flex',
+      alignItems: 'center', gap: '12px', boxShadow: T.shadowFloating, fontFamily: T.font
     }}>
-      <img src="/icons/icon-72x72.png" alt="Zaplo" style={{ width: '36px', height: '36px', borderRadius: '8px' }} />
+      <img src="/icons/icon-72x72.png" alt="Zaplo" style={{ width: '36px', height: '36px', borderRadius: '10px' }} />
       <div style={{ flex: 1 }}>
-        <div style={{ color: 'white', fontWeight: '700', fontSize: '13px' }}>Install Zaplo App</div>
-        <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Add to home screen for best experience</div>
+        <div style={{ color: 'white', fontWeight: '700', fontSize: '13px' }}>Install Zaplo</div>
+        <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '11px' }}>Add to home screen for the best experience</div>
       </div>
-      <button
+      <motion.button {...btnTap}
         onClick={async () => {
           const { promptInstall } = await import('../pwa');
           const accepted = await promptInstall();
           if (accepted) setShowBanner(false);
         }}
-        style={{ background: 'white', color: '#5c2d91', border: 'none', borderRadius: '8px', padding: '6px 14px', fontWeight: '700', cursor: 'pointer', fontSize: '12px' }}>
+        style={{ background: T.accent, color: T.text, border: 'none', borderRadius: T.radiusPill, padding: '8px 16px', fontWeight: '700', cursor: 'pointer', fontSize: '12px' }}>
         Install
-      </button>
+      </motion.button>
       <button onClick={() => setShowBanner(false)}
-        style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '18px' }}>
+        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '16px' }}>
         ✕
       </button>
     </div>
   );
 }
- 
 
 export default function BuyerDashboard() {
   const [screen, setScreen] = useState('home');
@@ -378,31 +416,28 @@ export default function BuyerDashboard() {
   const [searchMode, setSearchMode] = useState('products');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [trackingOrderId, setTrackingOrderId] = useState(null);
-  const [deliveryCharge, setDeliveryCharge] = useState(20);  
-const [buyerLocation, setBuyerLocation] = useState(null);  
-const [savedAddresses, setSavedAddresses] = useState([]);
-const [showAddAddress, setShowAddAddress] = useState(false);
-const [newAddress, setNewAddress] = useState({ label: 'Home', full_address: '', landmark: '', phone: '' });
+  const [deliveryCharge, setDeliveryCharge] = useState(20);
+  const [buyerLocation, setBuyerLocation] = useState(null);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState({ label: 'Home', full_address: '', landmark: '', phone: '' });
   const { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  
 
   const loadRazorpayScript = () => {
-  return new Promise((resolve) => {
-    if (window.Razorpay) return resolve(true);
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
-
+    return new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
 
-  // Load all products on mount
   useEffect(() => {
     loadAllProducts();
   }, []);
@@ -469,135 +504,128 @@ const [newAddress, setNewAddress] = useState({ label: 'Home', full_address: '', 
       console.error(err);
     }
   };
-   
-   const getBuyerLocation = () => {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setBuyerLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => console.log('Location not available')
-    );
-  }
-};
 
-const calcDeliveryCharge = (distanceKm) => {
-  if (!distanceKm || distanceKm <= 0) return 20;
-  if (distanceKm <= 5) return 20;
-  return 20 + Math.ceil(distanceKm - 5) * 6;
-};
- 
+  const getBuyerLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setBuyerLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => console.log('Location not available')
+      );
+    }
+  };
+
+  const calcDeliveryCharge = (distanceKm) => {
+    if (!distanceKm || distanceKm <= 0) return 20;
+    if (distanceKm <= 5) return 20;
+    return 20 + Math.ceil(distanceKm - 5) * 6;
+  };
 
   const placeOrder = async () => {
-  if (!address.full_address || !address.phone) {
-    alert('Please fill address and phone');
-    return;
-  }
- 
-  const sellerGroups = {};
-  cart.forEach(item => {
-    const sid = item.seller_id || item.shop_id;
-    if (!sellerGroups[sid]) sellerGroups[sid] = [];
-    sellerGroups[sid].push(item);
-  });
- 
-  try {
-    const placedOrderIds = [];
- 
-    // Place all orders first (one per seller)
-    for (const [seller_id, items] of Object.entries(sellerGroups)) {
-      const res = await API.post('/orders', {
-        seller_id,
-        items: items.map(i => ({ product_id: i.id, quantity: i.qty })),
-        payment_method: paymentMethod,
-        delivery_address: address.full_address,
-        delivery_phone: address.phone,
-        delivery_landmark: address.landmark,
-        buyer_lat: buyerLocation?.lat,   // 👈 ADD THIS
-        buyer_lng: buyerLocation?.lng, 
-      });
-      placedOrderIds.push(res.data.order.id || res.data.id);
-    }
- 
-    // If COD — done!
-    if (paymentMethod === 'COD') {
-      clearCart();
-      alert('Order placed successfully! 🎉 Pay cash on delivery.');
-      setScreen('orders');
-      fetchMyOrders();
-      setCheckoutStep(1);
+    if (!address.full_address || !address.phone) {
+      alert('Please fill address and phone');
       return;
     }
- 
-    // If ONLINE — open Razorpay for each order
-    if (paymentMethod === 'ONLINE') {
-      const loaded = await loadRazorpayScript();
-      if (!loaded) {
-        alert('Failed to load payment gateway. Please try COD.');
+
+    const sellerGroups = {};
+    cart.forEach(item => {
+      const sid = item.seller_id || item.shop_id;
+      if (!sellerGroups[sid]) sellerGroups[sid] = [];
+      sellerGroups[sid].push(item);
+    });
+
+    try {
+      const placedOrderIds = [];
+
+      for (const [seller_id, items] of Object.entries(sellerGroups)) {
+        const res = await API.post('/orders', {
+          seller_id,
+          items: items.map(i => ({ product_id: i.id, quantity: i.qty })),
+          payment_method: paymentMethod,
+          delivery_address: address.full_address,
+          delivery_phone: address.phone,
+          delivery_landmark: address.landmark,
+          buyer_lat: buyerLocation?.lat,
+          buyer_lng: buyerLocation?.lng,
+        });
+        placedOrderIds.push(res.data.order.id || res.data.id);
+      }
+
+      if (paymentMethod === 'COD') {
+        clearCart();
+        alert('Order placed successfully! 🎉 Pay cash on delivery.');
+        setScreen('orders');
+        fetchMyOrders();
+        setCheckoutStep(1);
         return;
       }
- 
-      for (const orderId of placedOrderIds) {
-        // Create Razorpay order on backend
-        const { data } = await API.post(`/payments/create-order/${orderId}`);
- 
-        await new Promise((resolve, reject) => {
-          const options = {
-            key: data.key,
-            amount: data.amount,
-            currency: 'INR',
-            name: 'HyperLocal App',
-            description: `Order #${orderId.slice(-6).toUpperCase()}`,
-            order_id: data.razorpay_order_id,
-            prefill: {
-              name: user.name,
-              contact: user.phone,
-            },
-            theme: { color: '#5c2d91' },
- 
-            handler: async (response) => {
-              try {
-                // Verify payment on backend
-                await API.post('/payments/verify', {
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  order_id: orderId,
-                });
-                resolve();
-              } catch {
-                alert('Payment done but verification failed. Contact support.');
-                resolve();
-              }
-            },
- 
-            modal: {
-              ondismiss: () => {
-                alert('Payment cancelled. Your order is saved. Go to My Orders to pay later.');
-                resolve();
+
+      if (paymentMethod === 'ONLINE') {
+        const loaded = await loadRazorpayScript();
+        if (!loaded) {
+          alert('Failed to load payment gateway. Please try COD.');
+          return;
+        }
+
+        for (const orderId of placedOrderIds) {
+          const { data } = await API.post(`/payments/create-order/${orderId}`);
+
+          await new Promise((resolve, reject) => {
+            const options = {
+              key: data.key,
+              amount: data.amount,
+              currency: 'INR',
+              name: 'HyperLocal App',
+              description: `Order #${orderId.slice(-6).toUpperCase()}`,
+              order_id: data.razorpay_order_id,
+              prefill: {
+                name: user.name,
+                contact: user.phone,
               },
-            },
-          };
- 
-          const rzp = new window.Razorpay(options);
-          rzp.on('payment.failed', (response) => {
-            alert(`Payment failed: ${response.error.description}`);
-            resolve();
+              theme: { color: T.primary },
+
+              handler: async (response) => {
+                try {
+                  await API.post('/payments/verify', {
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature,
+                    order_id: orderId,
+                  });
+                  resolve();
+                } catch {
+                  alert('Payment done but verification failed. Contact support.');
+                  resolve();
+                }
+              },
+
+              modal: {
+                ondismiss: () => {
+                  alert('Payment cancelled. Your order is saved. Go to My Orders to pay later.');
+                  resolve();
+                },
+              },
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', (response) => {
+              alert(`Payment failed: ${response.error.description}`);
+              resolve();
+            });
+            rzp.open();
           });
-          rzp.open();
-        });
+        }
+
+        clearCart();
+        alert('Payment successful! 🎉');
+        setScreen('orders');
+        fetchMyOrders();
+        setCheckoutStep(1);
       }
- 
-      clearCart();
-      alert('Payment successful! 🎉');
-      setScreen('orders');
-      fetchMyOrders();
-      setCheckoutStep(1);
+
+    } catch (err) {
+      alert(err.response?.data?.error || 'Order failed');
     }
- 
-  } catch (err) {
-    alert(err.response?.data?.error || 'Order failed');
-  }
-};
- 
+  };
 
   const getCartQty = (productId) => {
     const item = cart.find(i => i.id === productId);
@@ -605,102 +633,102 @@ const calcDeliveryCharge = (distanceKm) => {
   };
 
   const ProductCard = ({ product }) => {
-  const qty = getCartQty(product.id);
-  return (
-    <div style={{ background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', position: 'relative', cursor: 'pointer' }}
-      onClick={() => setSelectedProduct(product)}>
-      <div style={{ position: 'relative' }}>
-        {product.image_urls?.[0] || product.image_url ? (
-          <img src={product.image_urls?.[0] || product.image_url} alt={product.name} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
-        ) : (
-          <div style={{ width: '100%', height: '140px', background: 'linear-gradient(135deg, #f0eeff, #e8e0ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px' }}>📦</div>
-        )}
-        {/* Add/Remove buttons */}
-        <div style={{ position: 'absolute', bottom: '8px', right: '8px' }}
-          onClick={e => e.stopPropagation()}>
-          {qty === 0 ? (
-            <button onClick={() => addToCart({ ...product, seller_id: product.shop_id || product.seller_id })}
-              disabled={product.stock === 0}
-              style={{ width: '36px', height: '36px', background: product.stock === 0 ? '#ccc' : '#5c2d91', color: 'white', border: 'none', borderRadius: '10px', fontSize: '22px', cursor: product.stock === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(92,45,145,0.4)' }}>
-              +
-            </button>
+    const qty = getCartQty(product.id);
+    return (
+      <motion.div whileTap={{ scale: 0.98 }} style={{ background: T.card, borderRadius: T.radiusMd, overflow: 'hidden', boxShadow: T.shadowCard, position: 'relative', cursor: 'pointer', border: `1px solid ${T.border}` }}
+        onClick={() => setSelectedProduct(product)}>
+        <div style={{ position: 'relative' }}>
+          {product.image_urls?.[0] || product.image_url ? (
+            <img src={product.image_urls?.[0] || product.image_url} alt={product.name} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', background: '#5c2d91', borderRadius: '10px', overflow: 'hidden' }}>
-              <button onClick={() => updateQty(product.id, qty - 1)} style={{ width: '32px', height: '36px', background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>-</button>
-              <span style={{ color: 'white', fontWeight: '700', minWidth: '24px', textAlign: 'center', fontSize: '14px' }}>{qty}</span>
-              <button onClick={() => addToCart({ ...product, seller_id: product.shop_id || product.seller_id })} style={{ width: '32px', height: '36px', background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>+</button>
-            </div>
+            <div style={{ width: '100%', height: '140px', background: T.primaryTint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '44px' }}>📦</div>
+          )}
+          <div style={{ position: 'absolute', bottom: '10px', right: '10px' }}
+            onClick={e => e.stopPropagation()}>
+            {qty === 0 ? (
+              <motion.button {...btnTap} onClick={() => addToCart({ ...product, seller_id: product.shop_id || product.seller_id })}
+                disabled={product.stock === 0}
+                style={{ width: '34px', height: '34px', background: product.stock === 0 ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: '10px', fontSize: '20px', cursor: product.stock === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: T.shadowFloating, lineHeight: 0 }}>
+                +
+              </motion.button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: '10px', overflow: 'hidden', boxShadow: T.shadowFloating }}>
+                <button onClick={() => updateQty(product.id, qty - 1)} style={{ width: '30px', height: '34px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer' }}>-</button>
+                <span style={{ color: 'white', fontWeight: '700', minWidth: '20px', textAlign: 'center', fontSize: '13px' }}>{qty}</span>
+                <button onClick={() => addToCart({ ...product, seller_id: product.shop_id || product.seller_id })} style={{ width: '30px', height: '34px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer' }}>+</button>
+              </div>
+            )}
+          </div>
+          {product.stock === 0 && (
+            <div style={{ position: 'absolute', top: '10px', left: '10px', background: T.error, color: 'white', padding: '3px 10px', borderRadius: T.radiusPill, fontSize: '10px', fontWeight: '700' }}>OUT OF STOCK</div>
           )}
         </div>
-        {product.stock === 0 && (
-          <div style={{ position: 'absolute', top: '8px', left: '8px', background: '#ff4444', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '700' }}>OUT OF STOCK</div>
-        )}
-      </div>
-      <div style={{ padding: '10px 12px 12px' }}>
-        <div style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '2px', lineHeight: '1.3' }}>{product.name}</div>
-        <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px' }}>🏪 {product.shop_name}</div>
-        <div style={{ fontWeight: '800', fontSize: '16px', color: '#1a1a2e' }}>₹{product.price}</div>
-      </div>
-    </div>
-  );
-};
+        <div style={{ padding: '12px 14px 14px' }}>
+          <div style={{ fontSize: '13px', color: T.text, fontWeight: '600', marginBottom: '4px', lineHeight: '1.35' }}>{product.name}</div>
+          <div style={{ fontSize: '11px', color: T.textFaint, marginBottom: '8px' }}>{product.shop_name}</div>
+          <div style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>₹{product.price}</div>
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f4f1fb', fontFamily: "'Inter', sans-serif", maxWidth: '480px', margin: '0 auto', position: 'relative' }}>
-         <InstallBanner />
+    <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.font, maxWidth: '480px', margin: '0 auto', position: 'relative', color: T.text }}>
+      <FontLoader />
+      <InstallBanner />
 
       {/* HOME SCREEN */}
       {screen === 'home' && (
-        <div style={{ paddingBottom: '80px' }}>
+        <div style={{ paddingBottom: '104px' }}>
 
           {/* Top Header */}
-          <div style={{ background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', padding: '16px 16px 20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div style={{ background: T.primaryGradient, padding: '20px 20px 24px', borderRadius: '0 0 28px 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
-                <div style={{ color: 'white', fontWeight: '800', fontSize: '18px' }}>⚡ 30 minutes</div>
-                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>Delivering to your location</div>
+                <div style={{ color: 'white', fontWeight: '800', fontSize: '19px', letterSpacing: '-0.01em' }}>⚡ 30 minutes</div>
+                <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '12px', marginTop: '2px' }}>Delivering to your location</div>
               </div>
-              <div onClick={() => { setScreen('profile'); }} style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <span style={{ fontSize: '20px' }}>👤</span>
-              </div>
+              <motion.div {...btnTap} onClick={() => { setScreen('profile'); }} style={{ width: '42px', height: '42px', background: 'rgba(255,255,255,0.18)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <span style={{ fontSize: '19px' }}>👤</span>
+              </motion.div>
             </div>
 
             {/* Search Bar */}
             <div style={{ display: 'flex', gap: '8px' }}>
-              <div style={{ flex: 1, background: 'white', borderRadius: '12px', display: 'flex', alignItems: 'center', padding: '0 12px', gap: '8px' }}>
-                <span style={{ fontSize: '16px', color: '#999' }}>🔍</span>
+              <div style={{ flex: 1, background: 'white', borderRadius: T.radiusPill, display: 'flex', alignItems: 'center', padding: '0 16px', gap: '10px' }}>
+                <span style={{ fontSize: '15px', color: T.textFaint }}>🔍</span>
                 <input
                   placeholder={searchMode === 'products' ? 'Search for products...' : 'Search for shops...'}
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && search()}
-                  style={{ flex: 1, border: 'none', outline: 'none', fontSize: '14px', padding: '12px 0', background: 'transparent' }}
+                  style={{ flex: 1, border: 'none', outline: 'none', fontSize: '14px', padding: '13px 0', background: 'transparent', fontFamily: T.font, color: T.text }}
                 />
               </div>
-              <button onClick={() => setSearchMode(searchMode === 'products' ? 'shops' : 'products')}
-                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '12px', padding: '0 14px', color: 'white', fontSize: '12px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                {searchMode === 'products' ? '🏪 Shops' : '📦 Products'}
-              </button>
+              <motion.button {...btnTap} onClick={() => setSearchMode(searchMode === 'products' ? 'shops' : 'products')}
+                style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, padding: '0 16px', color: 'white', fontSize: '12px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {searchMode === 'products' ? 'Shops' : 'Products'}
+              </motion.button>
             </div>
           </div>
 
           {/* Search Results */}
           {query && (
-            <div style={{ padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span style={{ fontWeight: '700', color: '#1a1a2e' }}>Results for "{query}"</span>
-                <button onClick={search} style={{ background: '#5c2d91', color: 'white', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Search</button>
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <span style={{ fontWeight: '700', color: T.text, fontSize: '15px' }}>Results for "{query}"</span>
+                <motion.button {...btnTap} onClick={search} style={{ background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '8px 16px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Search</motion.button>
               </div>
               {searchMode === 'shops' && shops.map(shop => (
-                <div key={shop.id} onClick={() => openShop(shop)}
-                  style={{ background: 'white', borderRadius: '14px', padding: '14px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  <div style={{ width: '48px', height: '48px', background: '#f0eeff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>🏪</div>
+                <motion.div whileTap={{ scale: 0.98 }} key={shop.id} onClick={() => openShop(shop)}
+                  style={{ background: T.card, borderRadius: T.radiusMd, padding: '16px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                  <div style={{ width: '48px', height: '48px', background: T.primaryTint, borderRadius: T.radiusSm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>🏪</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '700', color: '#1a1a2e' }}>{shop.shop_name}</div>
-                    <div style={{ fontSize: '12px', color: '#999' }}>📍 {shop.locality} • {shop.total_products} products</div>
+                    <div style={{ fontWeight: '700', color: T.text, fontSize: '14px' }}>{shop.shop_name}</div>
+                    <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '2px' }}>{shop.locality} • {shop.total_products} products</div>
                   </div>
-                  <span style={{ color: '#5c2d91', fontSize: '18px' }}>›</span>
-                </div>
+                  <span style={{ color: T.primary, fontSize: '18px' }}>›</span>
+                </motion.div>
               ))}
             </div>
           )}
@@ -708,44 +736,44 @@ const calcDeliveryCharge = (distanceKm) => {
           {/* Categories */}
           {!query && (
             <>
-              <div style={{ padding: '16px 16px 8px', overflowX: 'auto', display: 'flex', gap: '10px', scrollbarWidth: 'none' }}>
+              <div style={{ padding: '20px 20px 8px', overflowX: 'auto', display: 'flex', gap: '12px', scrollbarWidth: 'none' }}>
                 {categories.map(cat => (
-                  <button key={cat.id} onClick={() => filterByCategory(cat.id)}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', background: activeCategory === cat.id ? '#5c2d91' : 'white', border: 'none', borderRadius: '14px', padding: '10px 16px', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minWidth: '70px' }}>
+                  <motion.button {...btnTap} key={cat.id} onClick={() => filterByCategory(cat.id)}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: activeCategory === cat.id ? T.primary : T.card, border: `1px solid ${activeCategory === cat.id ? T.primary : T.border}`, borderRadius: T.radiusMd, padding: '12px 18px', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: T.shadowCard, minWidth: '72px' }}>
                     <span style={{ fontSize: '22px' }}>{cat.emoji}</span>
-                    <span style={{ fontSize: '11px', fontWeight: '600', color: activeCategory === cat.id ? 'white' : '#333' }}>{cat.label}</span>
-                  </button>
+                    <span style={{ fontSize: '11px', fontWeight: '600', color: activeCategory === cat.id ? 'white' : T.textSoft }}>{cat.label}</span>
+                  </motion.button>
                 ))}
               </div>
 
               {/* Banners */}
-              <div style={{ padding: '8px 16px', display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1, background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', borderRadius: '14px', padding: '14px', color: 'white' }}>
-                  <div style={{ fontWeight: '800', fontSize: '18px' }}>₹20 DELIVERY</div>
-                  <div style={{ fontSize: '11px', opacity: 0.85 }}>First 5km • ₹6/km after</div>
+              <div style={{ padding: '12px 20px', display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1, background: T.primaryGradient, borderRadius: T.radiusMd, padding: '18px', color: 'white' }}>
+                  <div style={{ fontWeight: '800', fontSize: '18px', letterSpacing: '-0.01em' }}>₹20 delivery</div>
+                  <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '4px' }}>First 5km • ₹6/km after</div>
                 </div>
-                <div style={{ flex: 1, background: 'linear-gradient(135deg, #00b894, #00cec9)', borderRadius: '14px', padding: '14px', color: 'white' }}>
-                  <div style={{ fontWeight: '800', fontSize: '16px' }}>LOWEST PRICES</div>
-                  <div style={{ fontSize: '11px', opacity: 0.85 }}>Best deals near you</div>
+                <div style={{ flex: 1, background: `linear-gradient(135deg, ${T.accent}, #FFB300)`, borderRadius: T.radiusMd, padding: '18px', color: T.text }}>
+                  <div style={{ fontWeight: '800', fontSize: '16px', letterSpacing: '-0.01em' }}>Lowest prices</div>
+                  <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '4px' }}>Best deals near you</div>
                 </div>
               </div>
             </>
           )}
 
           {/* Products Grid */}
-          <div style={{ padding: '8px 16px' }}>
-            {!query && <h3 style={{ margin: '8px 0 12px', color: '#1a1a2e', fontSize: '16px', fontWeight: '700' }}>
-              {activeCategory === 'all' ? '🛍️ All Products' : `${categories.find(c => c.id === activeCategory)?.emoji} ${categories.find(c => c.id === activeCategory)?.label}`}
+          <div style={{ padding: '8px 20px' }}>
+            {!query && <h3 style={{ margin: '12px 0 14px', color: T.text, fontSize: '16px', fontWeight: '700', letterSpacing: '-0.01em' }}>
+              {activeCategory === 'all' ? 'All products' : `${categories.find(c => c.id === activeCategory)?.label}`}
             </h3>}
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>Loading...</div>
+              <div style={{ textAlign: 'center', padding: '48px', color: T.textFaint }}>Loading...</div>
             ) : products.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', background: 'white', borderRadius: '16px' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>📭</div>
-                <p style={{ color: '#999' }}>No products found</p>
+              <div style={{ textAlign: 'center', padding: '48px', background: T.card, borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '40px', marginBottom: '14px' }}>📭</div>
+                <p style={{ color: T.textSoft, margin: 0 }}>No products found</p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 {products.map(product => <ProductCard key={product.id} product={product} />)}
               </div>
             )}
@@ -755,23 +783,23 @@ const calcDeliveryCharge = (distanceKm) => {
 
       {/* SHOP LIST SCREEN */}
       {screen === 'shoplist' && (
-        <div style={{ paddingBottom: '80px' }}>
-          <div style={{ background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', padding: '16px' }}>
-            <button onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', color: 'white', padding: '8px 14px', cursor: 'pointer', marginBottom: '12px', fontWeight: '600' }}>← Back</button>
-            <h2 style={{ color: 'white', margin: 0, fontSize: '18px' }}>🏪 Shops Near You</h2>
+        <div style={{ paddingBottom: '104px' }}>
+          <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
+            <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>Shops near you</h2>
           </div>
-          <div style={{ padding: '16px' }}>
+          <div style={{ padding: '20px' }}>
             {shops.map(shop => (
-              <div key={shop.id} onClick={() => openShop(shop)}
-                style={{ background: 'white', borderRadius: '16px', padding: '16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ width: '56px', height: '56px', background: '#f0eeff', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>🏪</div>
+              <motion.div whileTap={{ scale: 0.98 }} key={shop.id} onClick={() => openShop(shop)}
+                style={{ background: T.card, borderRadius: T.radiusMd, padding: '18px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                <div style={{ width: '56px', height: '56px', background: T.primaryTint, borderRadius: T.radiusSm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px' }}>🏪</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '700', fontSize: '15px', color: '#1a1a2e' }}>{shop.shop_name}</div>
-                  <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>📍 {shop.locality}</div>
-                  <div style={{ fontSize: '12px', color: '#5c2d91', fontWeight: '600', marginTop: '4px' }}>{shop.total_products} products available</div>
+                  <div style={{ fontWeight: '700', fontSize: '15px', color: T.text }}>{shop.shop_name}</div>
+                  <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '3px' }}>{shop.locality}</div>
+                  <div style={{ fontSize: '12px', color: T.primary, fontWeight: '600', marginTop: '5px' }}>{shop.total_products} products available</div>
                 </div>
-                <span style={{ color: '#5c2d91', fontSize: '22px' }}>›</span>
-              </div>
+                <span style={{ color: T.primary, fontSize: '20px' }}>›</span>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -779,179 +807,173 @@ const calcDeliveryCharge = (distanceKm) => {
 
       {/* SHOP SCREEN */}
       {screen === 'shop' && selectedShop && (
-        <div style={{ paddingBottom: '80px' }}>
-          <div style={{ background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', padding: '16px' }}>
-            <button onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', color: 'white', padding: '8px 14px', cursor: 'pointer', marginBottom: '12px', fontWeight: '600' }}>← Back</button>
-            <h2 style={{ color: 'white', margin: '0 0 4px', fontSize: '20px' }}>🏪 {selectedShop.shop_name}</h2>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>📍 {selectedShop.address}</div>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>📞 {selectedShop.contact_phone}</div>
+        <div style={{ paddingBottom: '104px' }}>
+          <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
+            <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <h2 style={{ color: 'white', margin: '0 0 6px', fontSize: '20px', fontWeight: '800' }}>{selectedShop.shop_name}</h2>
+            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '13px' }}>{selectedShop.address}</div>
+            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '13px' }}>{selectedShop.contact_phone}</div>
           </div>
-          <div style={{ padding: '16px' }}>
+          <div style={{ padding: '20px' }}>
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>Loading products...</div>
+              <div style={{ textAlign: 'center', padding: '48px', color: T.textFaint }}>Loading products...</div>
             ) : shopProducts.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', background: 'white', borderRadius: '16px' }}>
+              <div style={{ textAlign: 'center', padding: '48px', background: T.card, borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
                 <div style={{ fontSize: '40px' }}>📭</div>
-                <p style={{ color: '#999' }}>No products in this shop</p>
+                <p style={{ color: T.textSoft }}>No products in this shop</p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 {shopProducts.map(product => <ProductCard key={product.id} product={{ ...product, seller_id: selectedShop.id }} />)}
               </div>
             )}
             {/* Seller Reviews */}
-          <div style={{ padding: '0 16px 16px' }}>
-            <h4 style={{ margin: '0 0 8px', color: '#1a1a2e', fontSize: '15px' }}>⭐ Shop Reviews</h4>
-            <ReviewSection type="seller" id={selectedShop?.id} />
+            <div style={{ padding: '20px 0 0' }}>
+              <h4 style={{ margin: '0 0 10px', color: T.text, fontSize: '15px', fontWeight: '700' }}>Shop reviews</h4>
+              <ReviewSection type="seller" id={selectedShop?.id} />
+            </div>
           </div>
-
         </div>
-      </div>
-    )}
-          
-        
+      )}
 
- 
       {/* CART SCREEN */}
       {screen === 'cart' && (
-        <div style={{ paddingBottom: '80px' }}>
-          <div style={{ background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', padding: '16px' }}>
-            <button onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', color: 'white', padding: '8px 14px', cursor: 'pointer', marginBottom: '12px', fontWeight: '600' }}>← Back</button>
-            <h2 style={{ color: 'white', margin: 0 }}>🛒 My Cart</h2>
+        <div style={{ paddingBottom: '104px' }}>
+          <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
+            <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>My cart</h2>
           </div>
 
-          <div style={{ padding: '16px' }}>
+          <div style={{ padding: '20px' }}>
             {cart.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: '20px' }}>
-                <div style={{ fontSize: '60px', marginBottom: '16px' }}>🛒</div>
-                <div style={{ fontWeight: '700', fontSize: '18px', color: '#1a1a2e', marginBottom: '8px' }}>Your cart is empty</div>
-                <p style={{ color: '#999', marginBottom: '20px' }}>Add items to get started</p>
-                <button onClick={() => setScreen('home')} style={{ background: '#5c2d91', color: 'white', border: 'none', borderRadius: '12px', padding: '12px 28px', fontWeight: '700', cursor: 'pointer' }}>Start Shopping</button>
+              <div style={{ textAlign: 'center', padding: '64px 20px', background: T.card, borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '56px', marginBottom: '18px' }}>🛒</div>
+                <div style={{ fontWeight: '700', fontSize: '18px', color: T.text, marginBottom: '8px' }}>Your cart is empty</div>
+                <p style={{ color: T.textSoft, marginBottom: '22px' }}>Add items to get started</p>
+                <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '13px 30px', fontWeight: '700', cursor: 'pointer' }}>Start shopping</motion.button>
               </div>
             ) : checkoutStep === 1 ? (
               <>
                 {cart.map(item => (
-                  <div key={item.id} style={{ background: 'white', borderRadius: '14px', padding: '14px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                    <div style={{ width: '56px', height: '56px', background: '#f0eeff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', overflow: 'hidden' }}>
+                  <div key={item.id} style={{ background: T.card, borderRadius: T.radiusMd, padding: '16px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                    <div style={{ width: '56px', height: '56px', background: T.primaryTint, borderRadius: T.radiusSm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', overflow: 'hidden' }}>
                       {item.image_url ? <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📦'}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '700', fontSize: '14px', color: '#1a1a2e' }}>{item.name}</div>
-                      <div style={{ fontWeight: '800', color: '#5c2d91', fontSize: '15px', marginTop: '2px' }}>₹{item.price}</div>
+                      <div style={{ fontWeight: '700', fontSize: '14px', color: T.text }}>{item.name}</div>
+                      <div style={{ fontWeight: '800', color: T.primary, fontSize: '15px', marginTop: '3px' }}>₹{item.price}</div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', background: '#5c2d91', borderRadius: '10px', overflow: 'hidden' }}>
-                      <button onClick={() => updateQty(item.id, item.qty - 1)} style={{ width: '32px', height: '34px', background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>-</button>
-                      <span style={{ color: 'white', fontWeight: '700', minWidth: '24px', textAlign: 'center' }}>{item.qty}</span>
-                      <button onClick={() => updateQty(item.id, item.qty + 1)} style={{ width: '32px', height: '34px', background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>+</button>
+                    <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: T.radiusSm, overflow: 'hidden' }}>
+                      <button onClick={() => updateQty(item.id, item.qty - 1)} style={{ width: '30px', height: '32px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer' }}>-</button>
+                      <span style={{ color: 'white', fontWeight: '700', minWidth: '22px', textAlign: 'center', fontSize: '13px' }}>{item.qty}</span>
+                      <button onClick={() => updateQty(item.id, item.qty + 1)} style={{ width: '30px', height: '32px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer' }}>+</button>
                     </div>
-                    <div style={{ fontWeight: '700', color: '#1a1a2e', minWidth: '60px', textAlign: 'right' }}>₹{item.price * item.qty}</div>
+                    <div style={{ fontWeight: '700', color: T.text, minWidth: '58px', textAlign: 'right' }}>₹{item.price * item.qty}</div>
                   </div>
                 ))}
-              <div style={{ background: 'white', borderRadius: '16px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' }}>
-    <span style={{ color: '#666' }}>Subtotal</span>
-    <span style={{ fontWeight: '600' }}>₹{total}</span>
-  </div>
-  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid #f0f0e8', marginBottom: '8px' }}>
-    <span style={{ fontWeight: '700', fontSize: '16px' }}>Total</span>
-    <span style={{ fontWeight: '800', fontSize: '18px', color: '#5c2d91' }}>₹{total}</span>
-  </div>
-  <div style={{ background: '#fff3f0', borderRadius: '8px', padding: '10px 12px', marginBottom: '16px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-      <span style={{ color: '#e17055', fontWeight: '600' }}>🚚 Delivery Charge</span>
-      <span style={{ color: '#e17055', fontWeight: '700' }}>₹{deliveryCharge}</span>
-    </div>
-    <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
-      📍 First 5km: ₹20 | Extra: ₹6/km • Pay to delivery boy
-    </div>
-  </div>
-  <button onClick={() => setCheckoutStep(2)} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '16px', cursor: 'pointer' }}>
-    Proceed to Checkout →
-  </button>
-</div>
+                <div style={{ background: T.card, borderRadius: T.radiusLg, padding: '20px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px' }}>
+                    <span style={{ color: T.textSoft }}>Subtotal</span>
+                    <span style={{ fontWeight: '600' }}>₹{total}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '14px', borderTop: `1px solid ${T.border}`, marginBottom: '14px' }}>
+                    <span style={{ fontWeight: '700', fontSize: '16px' }}>Total</span>
+                    <span style={{ fontWeight: '800', fontSize: '18px', color: T.primary }}>₹{total}</span>
+                  </div>
+                  <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '12px 14px', marginBottom: '18px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                      <span style={{ color: '#B45309', fontWeight: '600' }}>Delivery charge</span>
+                      <span style={{ color: '#B45309', fontWeight: '700' }}>₹{deliveryCharge}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '6px' }}>
+                      First 5km: ₹20 | Extra: ₹6/km • Pay to delivery partner
+                    </div>
+                  </div>
+                  <motion.button {...btnTap} onClick={() => setCheckoutStep(2)} style={{ width: '100%', padding: '16px', background: T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', fontSize: '16px', cursor: 'pointer' }}>
+                    Proceed to checkout →
+                  </motion.button>
+                </div>
               </>
             ) : checkoutStep === 2 ? (
               <div>
-                <h3 style={{ margin: '0 0 16px', color: '#1a1a2e' }}>📍 Delivery Address</h3>
-                <div style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: '16px' }}>
+                <h3 style={{ margin: '0 0 18px', color: T.text, fontSize: '17px', fontWeight: '800' }}>Delivery address</h3>
+                <div style={{ background: T.card, borderRadius: T.radiusLg, padding: '22px', boxShadow: T.shadowCard, marginBottom: '18px', border: `1px solid ${T.border}` }}>
                   {[
-                    { label: 'Full Address', key: 'full_address', placeholder: 'House no, Street, Area...', type: 'textarea' },
+                    { label: 'Full address', key: 'full_address', placeholder: 'House no, Street, Area...', type: 'textarea' },
                     { label: 'Landmark', key: 'landmark', placeholder: 'Near school, temple...' },
-                    { label: 'Phone Number', key: 'phone', placeholder: 'Contact for delivery' },
+                    { label: 'Phone number', key: 'phone', placeholder: 'Contact for delivery' },
                   ].map(f => (
-                    <div key={f.key} style={{ marginBottom: '14px' }}>
-                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>{f.label}</label>
+                    <div key={f.key} style={{ marginBottom: '16px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: T.text, display: 'block', marginBottom: '8px' }}>{f.label}</label>
                       {f.type === 'textarea' ? (
                         <textarea placeholder={f.placeholder} value={address[f.key]}
                           onChange={e => setAddress({ ...address, [f.key]: e.target.value })}
-                          style={{ width: '100%', padding: '12px', border: '1.5px solid #e8e8e8', borderRadius: '10px', fontSize: '14px', outline: 'none', height: '80px', resize: 'none', boxSizing: 'border-box' }} />
+                          style={{ width: '100%', padding: '13px 14px', border: `1.5px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', outline: 'none', height: '84px', resize: 'none', boxSizing: 'border-box', fontFamily: T.font, background: T.bg }} />
                       ) : (
                         <input placeholder={f.placeholder} value={address[f.key]}
                           onChange={e => setAddress({ ...address, [f.key]: e.target.value })}
-                          style={{ width: '100%', padding: '12px', border: '1.5px solid #e8e8e8', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                          style={{ width: '100%', padding: '13px 14px', border: `1.5px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', outline: 'none', boxSizing: 'border-box', fontFamily: T.font, background: T.bg }} />
                       )}
                     </div>
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => setCheckoutStep(1)} style={{ flex: 1, padding: '14px', background: '#f0f0f0', color: '#666', border: 'none', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}>← Back</button>
-                  <button onClick={() => setCheckoutStep(3)} style={{ flex: 2, padding: '14px', background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', cursor: 'pointer' }}>Continue →</button>
+                  <motion.button {...btnTap} onClick={() => setCheckoutStep(1)} style={{ flex: 1, padding: '15px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer' }}>← Back</motion.button>
+                  <motion.button {...btnTap} onClick={() => setCheckoutStep(3)} style={{ flex: 2, padding: '15px', background: T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer' }}>Continue →</motion.button>
                 </div>
               </div>
             ) : (
               <div>
-                <h3 style={{ margin: '0 0 16px', color: '#1a1a2e' }}>💳 Payment</h3>
-                <div style={{ background: 'white', borderRadius: '16px', padding: '16px', marginBottom: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  <h4 style={{ margin: '0 0 12px', color: '#1a1a2e', fontSize: '15px' }}>Order Summary</h4>
+                <h3 style={{ margin: '0 0 18px', color: T.text, fontSize: '17px', fontWeight: '800' }}>Payment</h3>
+                <div style={{ background: T.card, borderRadius: T.radiusLg, padding: '18px', marginBottom: '14px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                  <h4 style={{ margin: '0 0 14px', color: T.text, fontSize: '15px', fontWeight: '700' }}>Order summary</h4>
                   {cart.map(item => (
-                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px', borderBottom: '1px solid #f8f8f0' }}>
-                      <span>{item.name} x{item.qty}</span>
+                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', fontSize: '13px', borderBottom: `1px solid ${T.border}` }}>
+                      <span style={{ color: T.textSoft }}>{item.name} x{item.qty}</span>
                       <span style={{ fontWeight: '600' }}>₹{item.price * item.qty}</span>
                     </div>
                   ))}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', marginTop: '4px' }}>
-  <span style={{ fontWeight: '700' }}>Total</span>
-  <span style={{ fontWeight: '800', color: '#5c2d91', fontSize: '16px' }}>₹{total}</span>
-</div>
-<div style={{ background: '#fff3f0', borderRadius: '8px', padding: '10px 12px', marginTop: '10px' }}>
-  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-    <span style={{ color: '#e17055', fontWeight: '600' }}>🚚 Delivery Charge</span>
-    <span style={{ color: '#e17055', fontWeight: '700' }}>₹{deliveryCharge}</span>
-  </div>
-  <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
-    Pay delivery charge directly to delivery boy
-  </div>
-</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '12px', marginTop: '4px' }}>
+                    <span style={{ fontWeight: '700' }}>Total</span>
+                    <span style={{ fontWeight: '800', color: T.primary, fontSize: '16px' }}>₹{total}</span>
+                  </div>
+                  <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '12px 14px', marginTop: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                      <span style={{ color: '#B45309', fontWeight: '600' }}>Delivery charge</span>
+                      <span style={{ color: '#B45309', fontWeight: '700' }}>₹{deliveryCharge}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '6px' }}>
+                      Pay delivery charge directly to delivery partner
+                    </div>
+                  </div>
                 </div>
-                <div style={{ background: '#f0eeff', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#5c2d91', marginBottom: '6px' }}>📍 DELIVERING TO</div>
-                  <div style={{ fontSize: '13px', color: '#333' }}>{address.full_address}</div>
-                  {address.landmark && <div style={{ fontSize: '12px', color: '#666' }}>Near: {address.landmark}</div>}
-                  <div style={{ fontSize: '12px', color: '#666' }}>📞 {address.phone}</div>
+                <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '16px', marginBottom: '14px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: T.primary, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Delivering to</div>
+                  <div style={{ fontSize: '13px', color: T.text }}>{address.full_address}</div>
+                  {address.landmark && <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '2px' }}>Near: {address.landmark}</div>}
+                  <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '2px' }}>{address.phone}</div>
                 </div>
-                <div style={{ background: 'white', borderRadius: '16px', padding: '16px', marginBottom: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  <h4 style={{ margin: '0 0 12px', color: '#1a1a2e', fontSize: '15px' }}>Payment Method</h4>
+                <div style={{ background: T.card, borderRadius: T.radiusLg, padding: '18px', marginBottom: '18px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                  <h4 style={{ margin: '0 0 14px', color: T.text, fontSize: '15px', fontWeight: '700' }}>Payment method</h4>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     {['COD', 'ONLINE'].map(method => (
-                      <button key={method} onClick={() => setPaymentMethod(method)}
-                        style={{ flex: 1, padding: '12px', border: `2px solid ${paymentMethod === method ? '#5c2d91' : '#e8e8e8'}`, borderRadius: '12px', cursor: 'pointer', background: paymentMethod === method ? '#f0eeff' : 'white', fontWeight: '600', color: paymentMethod === method ? '#5c2d91' : '#666', fontSize: '13px' }}>
-                        {method === 'COD' ? '💵 Cash on Delivery' : '💳 Online'}
-                      </button>
+                      <motion.button {...btnTap} key={method} onClick={() => setPaymentMethod(method)}
+                        style={{ flex: 1, padding: '14px', border: `2px solid ${paymentMethod === method ? T.primary : T.border}`, borderRadius: T.radiusSm, cursor: 'pointer', background: paymentMethod === method ? T.primaryTint : 'white', fontWeight: '600', color: paymentMethod === method ? T.primary : T.textSoft, fontSize: '13px' }}>
+                        {method === 'COD' ? 'Cash on delivery' : 'Online'}
+                      </motion.button>
                     ))}
                   </div>
                   {paymentMethod === 'ONLINE' && (
-  <div style={{ marginTop: '10px', padding: '10px', background: '#f0fff8', borderRadius: '8px', fontSize: '12px', color: '#00b894' }}>
-    ✅ You will be redirected to Razorpay secure payment after placing order.
-  </div>
-)}
- 
-
+                    <div style={{ marginTop: '12px', padding: '12px', background: T.successTint, borderRadius: T.radiusSm, fontSize: '12px', color: T.success, fontWeight: '600' }}>
+                      You'll be redirected to Razorpay secure payment after placing your order.
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => setCheckoutStep(2)} style={{ flex: 1, padding: '14px', background: '#f0f0f0', color: '#666', border: 'none', borderRadius: '12px', fontWeight: '600', cursor: 'pointer' }}>← Back</button>
-                  <button onClick={placeOrder} style={{ flex: 2, padding: '14px', background: 'linear-gradient(135deg, #00b894, #00cec9)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', fontSize: '15px' }}>
-                    ✅ Place Order
-                  </button>
+                  <motion.button {...btnTap} onClick={() => setCheckoutStep(2)} style={{ flex: 1, padding: '15px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer' }}>← Back</motion.button>
+                  <motion.button {...btnTap} onClick={placeOrder} style={{ flex: 2, padding: '15px', background: T.successGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '15px' }}>
+                    Place order
+                  </motion.button>
                 </div>
               </div>
             )}
@@ -961,53 +983,53 @@ const calcDeliveryCharge = (distanceKm) => {
 
       {/* ORDERS SCREEN */}
       {screen === 'orders' && (
-        <div style={{ paddingBottom: '80px' }}>
-          <div style={{ background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', padding: '16px' }}>
-            <h2 style={{ color: 'white', margin: 0 }}>📦 My Orders</h2>
+        <div style={{ paddingBottom: '104px' }}>
+          <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
+            <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>My orders</h2>
           </div>
-          <div style={{ padding: '16px' }}>
+          <div style={{ padding: '20px' }}>
             {myOrders.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: '20px' }}>
-                <div style={{ fontSize: '60px', marginBottom: '16px' }}>📭</div>
-                <div style={{ fontWeight: '700', fontSize: '18px', color: '#1a1a2e', marginBottom: '8px' }}>No orders yet</div>
-                <button onClick={() => setScreen('home')} style={{ background: '#5c2d91', color: 'white', border: 'none', borderRadius: '12px', padding: '12px 28px', fontWeight: '700', cursor: 'pointer', marginTop: '8px' }}>Start Shopping</button>
+              <div style={{ textAlign: 'center', padding: '64px 20px', background: T.card, borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '56px', marginBottom: '18px' }}>📭</div>
+                <div style={{ fontWeight: '700', fontSize: '18px', color: T.text, marginBottom: '8px' }}>No orders yet</div>
+                <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '13px 30px', fontWeight: '700', cursor: 'pointer', marginTop: '10px' }}>Start shopping</motion.button>
               </div>
             ) : myOrders.map(order => (
-              <div key={order.id} style={{ background: 'white', borderRadius: '16px', padding: '16px', marginBottom: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div key={order.id} style={{ background: T.card, borderRadius: T.radiusMd, padding: '18px', marginBottom: '14px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <div>
-                    <div style={{ fontWeight: '700', color: '#5c2d91', fontSize: '14px' }}>#{order.id.slice(-6).toUpperCase()}</div>
-                    <div style={{ fontSize: '12px', color: '#999' }}>{new Date(order.created_at).toLocaleDateString()}</div>
+                    <div style={{ fontWeight: '700', color: T.primary, fontSize: '14px' }}>#{order.id.slice(-6).toUpperCase()}</div>
+                    <div style={{ fontSize: '12px', color: T.textFaint, marginTop: '2px' }}>{new Date(order.created_at).toLocaleDateString()}</div>
                   </div>
                   <span style={{
-                    padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700',
-                    background: order.status === 'delivered' ? '#e8fff8' : order.status === 'pending' ? '#fff3f0' : '#f0eeff',
-                    color: order.status === 'delivered' ? '#00b894' : order.status === 'pending' ? '#e17055' : '#5c2d91',
+                    padding: '5px 12px', borderRadius: T.radiusPill, fontSize: '11px', fontWeight: '700', height: 'fit-content',
+                    background: order.status === 'delivered' ? T.successTint : order.status === 'pending' ? T.accentTint : T.primaryTint,
+                    color: order.status === 'delivered' ? T.success : order.status === 'pending' ? '#B45309' : T.primary,
                   }}>{order.status?.toUpperCase()}</span>
                 </div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>🏪 {order.shop_name}</div>
+                <div style={{ fontSize: '13px', color: T.textSoft, marginBottom: '10px' }}>{order.shop_name}</div>
                 {order.items?.map((item, i) => (
-                  <div key={i} style={{ fontSize: '13px', color: '#333', padding: '3px 0' }}>• {item.name} x{item.quantity} — ₹{item.unit_price * item.quantity}</div>
+                  <div key={i} style={{ fontSize: '13px', color: T.text, padding: '4px 0' }}>• {item.name} x{item.quantity} — ₹{item.unit_price * item.quantity}</div>
                 ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #f0f0e8' }}>
-                  <span style={{ color: '#666', fontSize: '13px' }}>{order.payment_method}</span>
-                  <span style={{ fontWeight: '800', color: '#5c2d91', fontSize: '16px' }}>₹{order.total_amount}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${T.border}` }}>
+                  <span style={{ color: T.textSoft, fontSize: '13px' }}>{order.payment_method}</span>
+                  <span style={{ fontWeight: '800', color: T.primary, fontSize: '16px' }}>₹{order.total_amount}</span>
                 </div>
                 {order.status !== 'delivered' && order.status !== 'cancelled' && (
-  <button
-    onClick={() => setTrackingOrderId(order.id)}
-    style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#f0eeff', color: '#5c2d91', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
-    📍 Track Order
-  </button>
-)}
+                  <motion.button {...btnTap}
+                    onClick={() => setTrackingOrderId(order.id)}
+                    style={{ width: '100%', marginTop: '12px', padding: '12px', background: T.primaryTint, color: T.primary, border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                    Track order
+                  </motion.button>
+                )}
 
-{order.status === 'delivered' && (
-  <button
-    onClick={() => setTrackingOrderId(order.id)}
-    style={{ width: '100%', marginTop: '10px', padding: '10px', background: '#e8fff8', color: '#00b894', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
-    📦 View Order Details & Return
-  </button>
-)}
+                {order.status === 'delivered' && (
+                  <motion.button {...btnTap}
+                    onClick={() => setTrackingOrderId(order.id)}
+                    style={{ width: '100%', marginTop: '12px', padding: '12px', background: T.successTint, color: T.success, border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                    View order details & return
+                  </motion.button>
+                )}
               </div>
             ))}
           </div>
@@ -1015,443 +1037,428 @@ const calcDeliveryCharge = (distanceKm) => {
       )}
 
       {/* PROFILE SCREEN */}
-{screen === 'profile' && (
-  <div style={{ paddingBottom: '80px', background: '#f4f1fb', minHeight: '100vh' }}>
-    
-    {/* Header */}
-    <div style={{ background: 'white', padding: '20px 16px', display: 'flex', alignItems: 'center', gap: '14px', borderBottom: '1px solid #f0f0e8' }}>
-      <div style={{ width: '56px', height: '56px', background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', color: 'white', fontWeight: '800' }}>
-        {user.name?.[0]?.toUpperCase() || '👤'}
-      </div>
-      <div>
-        <div style={{ fontWeight: '800', fontSize: '18px', color: '#1a1a2e' }}>{user.name?.toUpperCase()}</div>
-        <div style={{ fontSize: '13px', color: '#999', marginTop: '2px' }}>{user.phone}</div>
-      </div>
-    </div>
- 
-    {/* Quick Actions */}
-    <div style={{ background: 'white', margin: '12px 16px', borderRadius: '16px', padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-      {[
-        { icon: '📦', label: 'Your Orders', action: () => { fetchMyOrders(); setScreen('orders'); } },
-        { icon: '💬', label: 'Help & Support', action: () => setScreen('help') },
-        { icon: '📍', label: 'Saved Addresses', action: () => setScreen('addresses') },
-        { icon: '⭐', label: 'My Reviews', action: () => setScreen('myreviews') },
-      ].map((item, i) => (
-        <div key={i} onClick={item.action}
-          style={{ background: '#f8f7ff', borderRadius: '12px', padding: '16px', textAlign: 'center', cursor: 'pointer', border: '1px solid #e8e0ff' }}>
-          <div style={{ fontSize: '28px', marginBottom: '6px' }}>{item.icon}</div>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#1a1a2e' }}>{item.label}</div>
-        </div>
-      ))}
-    </div>
- 
-    {/* Your Information */}
-    <div style={{ margin: '0 16px 8px', fontWeight: '700', fontSize: '15px', color: '#1a1a2e' }}>Your Information</div>
-    <div style={{ background: 'white', margin: '0 16px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-      {[
-        { icon: '📦', label: 'My Orders', sub: '', action: () => { fetchMyOrders(); setScreen('orders'); } },
-        { icon: '📍', label: 'Saved Addresses', sub: `${savedAddresses.length} address${savedAddresses.length !== 1 ? 'es' : ''}`, action: () => setScreen('addresses') },
-        { icon: '💳', label: 'Payment History', sub: '', action: () => { fetchMyOrders(); setScreen('orders'); } },
-        { icon: '💬', label: 'Help & Support', sub: '', action: () => setScreen('help') },
-      ].map((item, i, arr) => (
-        <div key={i} onClick={item.action}
-          style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', cursor: 'pointer', borderBottom: i < arr.length - 1 ? '1px solid #f0f0e8' : 'none' }}>
-          <span style={{ fontSize: '20px' }}>{item.icon}</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: '600', color: '#1a1a2e', fontSize: '14px' }}>{item.label}</div>
-            {item.sub && <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{item.sub}</div>}
+      {screen === 'profile' && (
+        <div style={{ paddingBottom: '104px', background: T.bg, minHeight: '100vh' }}>
+
+          {/* Header */}
+          <div style={{ background: T.card, padding: '24px 20px', display: 'flex', alignItems: 'center', gap: '16px', borderBottom: `1px solid ${T.border}` }}>
+            <div style={{ width: '58px', height: '58px', background: T.primaryGradient, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', color: 'white', fontWeight: '800' }}>
+              {user.name?.[0]?.toUpperCase() || '👤'}
+            </div>
+            <div>
+              <div style={{ fontWeight: '800', fontSize: '18px', color: T.text }}>{user.name}</div>
+              <div style={{ fontSize: '13px', color: T.textSoft, marginTop: '3px' }}>{user.phone}</div>
+            </div>
           </div>
-          <span style={{ color: '#ccc', fontSize: '18px' }}>›</span>
-        </div>
-      ))}
-    </div>
- 
-    {/* Other Information */}
-    <div style={{ margin: '16px 16px 8px', fontWeight: '700', fontSize: '15px', color: '#1a1a2e' }}>Other Information</div>
-    <div style={{ background: 'white', margin: '0 16px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-      {[
-        { icon: '⭐', label: 'My Reviews', action: () => setScreen('myreviews') },
-        { icon: 'ℹ️', label: 'About Zaplo', action: () => setScreen('help') },
-      ].map((item, i, arr) => (
-        <div key={i} onClick={item.action}
-          style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', cursor: 'pointer', borderBottom: i < arr.length - 1 ? '1px solid #f0f0e8' : 'none' }}>
-          <span style={{ fontSize: '20px' }}>{item.icon}</span>
-          <div style={{ flex: 1, fontWeight: '600', color: '#1a1a2e', fontSize: '14px' }}>{item.label}</div>
-          <span style={{ color: '#ccc', fontSize: '18px' }}>›</span>
-        </div>
-      ))}
-    </div>
- 
-    {/* Logout */}
-    <div style={{ margin: '16px' }}>
-      <button onClick={logout}
-        style={{ width: '100%', padding: '16px', background: 'white', color: '#ff4444', border: '1.5px solid #ff4444', borderRadius: '14px', fontWeight: '700', fontSize: '15px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-        🚪 Log Out
-      </button>
-    </div>
- 
-    {/* App version */}
-    <div style={{ textAlign: 'center', color: '#bbb', fontSize: '12px', marginTop: '8px' }}>
-      App version 1.0.0
-    </div>
-  </div>
-)}
- 
-{/* MY REVIEWS SCREEN */}
-{screen === 'myreviews' && (
-  <div style={{ paddingBottom: '80px' }}>
-    <div style={{ background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', padding: '16px' }}>
-      <button onClick={() => setScreen('profile')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', color: 'white', padding: '8px 14px', cursor: 'pointer', marginBottom: '12px', fontWeight: '600' }}>← Back</button>
-      <h2 style={{ color: 'white', margin: 0 }}>⭐ My Reviews</h2>
-    </div>
-    <div style={{ padding: '16px' }}>
-      <div style={{ textAlign: 'center', padding: '40px', background: 'white', borderRadius: '16px' }}>
-        <div style={{ fontSize: '48px', marginBottom: '12px' }}>⭐</div>
-        <p style={{ color: '#999' }}>Your reviews on products and shops will appear here</p>
-        <button onClick={() => setScreen('home')}
-          style={{ marginTop: '12px', background: '#5c2d91', color: 'white', border: 'none', borderRadius: '10px', padding: '10px 24px', cursor: 'pointer', fontWeight: '600' }}>
-          Start Shopping
-        </button>
-      </div>
-    </div>
-  </div>
-)}
- 
 
-{/* ADDRESSES SCREEN */}
-{screen === 'addresses' && (
-  <div style={{ paddingBottom: '80px' }}>
-    <div style={{ background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', padding: '16px' }}>
-      <button onClick={() => setScreen('profile')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', color: 'white', padding: '8px 14px', cursor: 'pointer', marginBottom: '12px', fontWeight: '600' }}>← Back</button>
-      <h2 style={{ color: 'white', margin: 0 }}>📍 My Addresses</h2>
-    </div>
-    <div style={{ padding: '16px' }}>
-      {/* Add new address button */}
-      <button onClick={() => setShowAddAddress(!showAddAddress)}
-        style={{ width: '100%', padding: '14px', background: '#f0eeff', color: '#5c2d91', border: '2px dashed #5c2d91', borderRadius: '14px', fontWeight: '700', cursor: 'pointer', fontSize: '14px', marginBottom: '16px' }}>
-        + Add New Address
-      </button>
-
-      {/* Add address form */}
-      {showAddAddress && (
-        <div style={{ background: 'white', borderRadius: '16px', padding: '16px', marginBottom: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <h4 style={{ margin: '0 0 12px', color: '#1a1a2e' }}>New Address</h4>
-          
-          {/* Label buttons */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-            {['Home', 'Work', 'Other'].map(l => (
-              <button key={l} onClick={() => setNewAddress({ ...newAddress, label: l })}
-                style={{ padding: '6px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '12px', background: newAddress.label === l ? '#5c2d91' : '#f0f0f0', color: newAddress.label === l ? 'white' : '#666' }}>
-                {l === 'Home' ? '🏠' : l === 'Work' ? '💼' : '📍'} {l}
-              </button>
+          {/* Quick Actions */}
+          <div style={{ background: T.card, margin: '16px 20px', borderRadius: T.radiusMd, padding: '18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+            {[
+              { icon: '📦', label: 'Your orders', action: () => { fetchMyOrders(); setScreen('orders'); } },
+              { icon: '💬', label: 'Help & support', action: () => setScreen('help') },
+              { icon: '📍', label: 'Saved addresses', action: () => setScreen('addresses') },
+              { icon: '⭐', label: 'My reviews', action: () => setScreen('myreviews') },
+            ].map((item, i) => (
+              <motion.div whileTap={{ scale: 0.97 }} key={i} onClick={item.action}
+                style={{ background: T.bg, borderRadius: T.radiusSm, padding: '18px', textAlign: 'center', cursor: 'pointer', border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '26px', marginBottom: '8px' }}>{item.icon}</div>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: T.text }}>{item.label}</div>
+              </motion.div>
             ))}
           </div>
 
-          {[
-            { label: 'Full Address', key: 'full_address', placeholder: 'House no, Street, Area...' },
-            { label: 'Landmark', key: 'landmark', placeholder: 'Near school, temple...' },
-            { label: 'Phone', key: 'phone', placeholder: 'Contact number' },
-          ].map(f => (
-            <div key={f.key} style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '4px' }}>{f.label}</label>
-              <input placeholder={f.placeholder} value={newAddress[f.key]}
-                onChange={e => setNewAddress({ ...newAddress, [f.key]: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e8e8e8', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-          ))}
+          {/* Your Information */}
+          <div style={{ margin: '20px 20px 10px', fontWeight: '700', fontSize: '15px', color: T.text }}>Your information</div>
+          <div style={{ background: T.card, margin: '0 20px', borderRadius: T.radiusMd, overflow: 'hidden', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+            {[
+              { icon: '📦', label: 'My orders', sub: '', action: () => { fetchMyOrders(); setScreen('orders'); } },
+              { icon: '📍', label: 'Saved addresses', sub: `${savedAddresses.length} address${savedAddresses.length !== 1 ? 'es' : ''}`, action: () => setScreen('addresses') },
+              { icon: '💳', label: 'Payment history', sub: '', action: () => { fetchMyOrders(); setScreen('orders'); } },
+              { icon: '💬', label: 'Help & support', sub: '', action: () => setScreen('help') },
+            ].map((item, i, arr) => (
+              <div key={i} onClick={item.action}
+                style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '17px 18px', cursor: 'pointer', borderBottom: i < arr.length - 1 ? `1px solid ${T.border}` : 'none' }}>
+                <span style={{ fontSize: '19px' }}>{item.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: '600', color: T.text, fontSize: '14px' }}>{item.label}</div>
+                  {item.sub && <div style={{ fontSize: '12px', color: T.textFaint, marginTop: '2px' }}>{item.sub}</div>}
+                </div>
+                <span style={{ color: T.textFaint, fontSize: '17px' }}>›</span>
+              </div>
+            ))}
+          </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={() => {
-              if (!newAddress.full_address) { alert('Please enter address'); return; }
-              setSavedAddresses(prev => [...prev, { ...newAddress, id: Date.now() }]);
-              setNewAddress({ label: 'Home', full_address: '', landmark: '', phone: '' });
-              setShowAddAddress(false);
-            }} style={{ flex: 2, padding: '12px', background: '#5c2d91', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
-              Save Address
-            </button>
-            <button onClick={() => setShowAddAddress(false)}
-              style={{ flex: 1, padding: '12px', background: '#f0f0f0', color: '#666', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>
-              Cancel
-            </button>
+          {/* Other Information */}
+          <div style={{ margin: '20px 20px 10px', fontWeight: '700', fontSize: '15px', color: T.text }}>Other information</div>
+          <div style={{ background: T.card, margin: '0 20px', borderRadius: T.radiusMd, overflow: 'hidden', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+            {[
+              { icon: '⭐', label: 'My reviews', action: () => setScreen('myreviews') },
+              { icon: 'ℹ️', label: 'About Zaplo', action: () => setScreen('help') },
+            ].map((item, i, arr) => (
+              <div key={i} onClick={item.action}
+                style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '17px 18px', cursor: 'pointer', borderBottom: i < arr.length - 1 ? `1px solid ${T.border}` : 'none' }}>
+                <span style={{ fontSize: '19px' }}>{item.icon}</span>
+                <div style={{ flex: 1, fontWeight: '600', color: T.text, fontSize: '14px' }}>{item.label}</div>
+                <span style={{ color: T.textFaint, fontSize: '17px' }}>›</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Logout */}
+          <div style={{ margin: '20px' }}>
+            <motion.button {...btnTap} onClick={logout}
+              style={{ width: '100%', padding: '17px', background: T.card, color: T.error, border: `1.5px solid ${T.error}`, borderRadius: T.radiusPill, fontWeight: '700', fontSize: '15px', cursor: 'pointer', boxShadow: T.shadowCard }}>
+              Log out
+            </motion.button>
+          </div>
+
+          <div style={{ textAlign: 'center', color: T.textFaint, fontSize: '12px', marginTop: '8px' }}>
+            App version 1.0.0
           </div>
         </div>
       )}
 
-      {/* Saved addresses list */}
-      {savedAddresses.length === 0 && !showAddAddress ? (
-        <div style={{ textAlign: 'center', padding: '40px', background: 'white', borderRadius: '16px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '12px' }}>📍</div>
-          <p style={{ color: '#999' }}>No saved addresses yet</p>
-        </div>
-      ) : savedAddresses.map((addr, i) => (
-        <div key={addr.id} style={{ background: 'white', borderRadius: '14px', padding: '16px', marginBottom: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontWeight: '700', color: '#5c2d91', fontSize: '13px' }}>
-              {addr.label === 'Home' ? '🏠' : addr.label === 'Work' ? '💼' : '📍'} {addr.label}
-            </span>
-            <button onClick={() => setSavedAddresses(prev => prev.filter(a => a.id !== addr.id))}
-              style={{ background: '#fff0f0', color: '#ff4444', border: 'none', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px' }}>
-              Delete
-            </button>
+      {/* MY REVIEWS SCREEN */}
+      {screen === 'myreviews' && (
+        <div style={{ paddingBottom: '104px' }}>
+          <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
+            <motion.button {...btnTap} onClick={() => setScreen('profile')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>My reviews</h2>
           </div>
-          <div style={{ fontSize: '13px', color: '#333' }}>{addr.full_address}</div>
-          {addr.landmark && <div style={{ fontSize: '12px', color: '#999' }}>Near: {addr.landmark}</div>}
-          {addr.phone && <div style={{ fontSize: '12px', color: '#999' }}>📞 {addr.phone}</div>}
-          <button onClick={() => {
-            setAddress({ full_address: addr.full_address, landmark: addr.landmark, phone: addr.phone });
-            setScreen('cart');
-            setCheckoutStep(2);
-          }} style={{ marginTop: '10px', width: '100%', padding: '8px', background: '#f0eeff', color: '#5c2d91', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}>
-            Use this address
-          </button>
+          <div style={{ padding: '20px' }}>
+            <div style={{ textAlign: 'center', padding: '48px', background: T.card, borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
+              <div style={{ fontSize: '48px', marginBottom: '14px' }}>⭐</div>
+              <p style={{ color: T.textSoft }}>Your reviews on products and shops will appear here</p>
+              <motion.button {...btnTap} onClick={() => setScreen('home')}
+                style={{ marginTop: '14px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '11px 26px', cursor: 'pointer', fontWeight: '600' }}>
+                Start shopping
+              </motion.button>
+            </div>
+          </div>
         </div>
-      ))}
-    </div>
-  </div>
-)}
+      )}
 
-{/* HELP & SUPPORT SCREEN */}
-{screen === 'help' && (
-  <div style={{ paddingBottom: '80px' }}>
-    <div style={{ background: 'linear-gradient(135deg, #5c2d91, #7c3aed)', padding: '16px' }}>
-      <button onClick={() => setScreen('profile')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '10px', color: 'white', padding: '8px 14px', cursor: 'pointer', marginBottom: '12px', fontWeight: '600' }}>← Back</button>
-      <h2 style={{ color: 'white', margin: 0 }}>💬 Help & Support</h2>
-    </div>
-    <div style={{ padding: '16px' }}>
+      {/* ADDRESSES SCREEN */}
+      {screen === 'addresses' && (
+        <div style={{ paddingBottom: '104px' }}>
+          <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
+            <motion.button {...btnTap} onClick={() => setScreen('profile')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>My addresses</h2>
+          </div>
+          <div style={{ padding: '20px' }}>
+            <motion.button {...btnTap} onClick={() => setShowAddAddress(!showAddAddress)}
+              style={{ width: '100%', padding: '16px', background: T.primaryTint, color: T.primary, border: `2px dashed ${T.primary}`, borderRadius: T.radiusMd, fontWeight: '700', cursor: 'pointer', fontSize: '14px', marginBottom: '18px' }}>
+              + Add new address
+            </motion.button>
 
-      {/* FAQs */}
-      {[
-        { q: 'How do I track my order?', a: 'Go to My Orders and tap "Track Order" on any active order to see live status and delivery partner location.' },
-        { q: 'How do I cancel an order?', a: 'You can cancel an order within 2 minutes of placing it. Go to My Orders and tap Cancel. After confirmation by seller, cancellation is not possible.' },
-        { q: 'What is the delivery charge?', a: 'Delivery charge is ₹20 for first 5km. For every extra km beyond 5km, ₹6 is added. The charge is paid directly to the delivery partner.' },
-        { q: 'How does payment work?', a: 'You can pay via Cash on Delivery (pay to delivery partner) or Online (Razorpay secure payment). 10% platform fee applies on all orders.' },
-        { q: 'What is the return policy?', a: 'Return policy varies by product category. Fresh food cannot be returned. Electronics have 7-day replacement. Fashion has 3-day return window.' },
-        { q: 'How do I become a seller?', a: 'Register as a seller from the login page. After admin approval, you can start listing products and receiving orders.' },
-      ].map((faq, i) => (
-        <div key={i} style={{ background: 'white', borderRadius: '14px', padding: '16px', marginBottom: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontWeight: '700', color: '#1a1a2e', fontSize: '14px', marginBottom: '8px' }}>❓ {faq.q}</div>
-          <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.6' }}>{faq.a}</div>
+            {showAddAddress && (
+              <div style={{ background: T.card, borderRadius: T.radiusMd, padding: '18px', marginBottom: '18px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                <h4 style={{ margin: '0 0 14px', color: T.text, fontSize: '15px', fontWeight: '700' }}>New address</h4>
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                  {['Home', 'Work', 'Other'].map(l => (
+                    <motion.button {...btnTap} key={l} onClick={() => setNewAddress({ ...newAddress, label: l })}
+                      style={{ padding: '7px 18px', borderRadius: T.radiusPill, border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '12px', background: newAddress.label === l ? T.primary : T.bg, color: newAddress.label === l ? 'white' : T.textSoft }}>
+                      {l}
+                    </motion.button>
+                  ))}
+                </div>
+
+                {[
+                  { label: 'Full address', key: 'full_address', placeholder: 'House no, Street, Area...' },
+                  { label: 'Landmark', key: 'landmark', placeholder: 'Near school, temple...' },
+                  { label: 'Phone', key: 'phone', placeholder: 'Contact number' },
+                ].map(f => (
+                  <div key={f.key} style={{ marginBottom: '14px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '600', color: T.textSoft, display: 'block', marginBottom: '6px' }}>{f.label}</label>
+                    <input placeholder={f.placeholder} value={newAddress[f.key]}
+                      onChange={e => setNewAddress({ ...newAddress, [f.key]: e.target.value })}
+                      style={{ width: '100%', padding: '11px 14px', border: `1.5px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', outline: 'none', boxSizing: 'border-box', fontFamily: T.font, background: T.bg }} />
+                  </div>
+                ))}
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <motion.button {...btnTap} onClick={() => {
+                    if (!newAddress.full_address) { alert('Please enter address'); return; }
+                    setSavedAddresses(prev => [...prev, { ...newAddress, id: Date.now() }]);
+                    setNewAddress({ label: 'Home', full_address: '', landmark: '', phone: '' });
+                    setShowAddAddress(false);
+                  }} style={{ flex: 2, padding: '13px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer' }}>
+                    Save address
+                  </motion.button>
+                  <motion.button {...btnTap} onClick={() => setShowAddAddress(false)}
+                    style={{ flex: 1, padding: '13px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, cursor: 'pointer' }}>
+                    Cancel
+                  </motion.button>
+                </div>
+              </div>
+            )}
+
+            {savedAddresses.length === 0 && !showAddAddress ? (
+              <div style={{ textAlign: 'center', padding: '48px', background: T.card, borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '48px', marginBottom: '14px' }}>📍</div>
+                <p style={{ color: T.textSoft }}>No saved addresses yet</p>
+              </div>
+            ) : savedAddresses.map((addr) => (
+              <div key={addr.id} style={{ background: T.card, borderRadius: T.radiusMd, padding: '18px', marginBottom: '12px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: '700', color: T.primary, fontSize: '13px' }}>
+                    {addr.label}
+                  </span>
+                  <button onClick={() => setSavedAddresses(prev => prev.filter(a => a.id !== addr.id))}
+                    style={{ background: T.errorTint, color: T.error, border: 'none', borderRadius: T.radiusPill, padding: '5px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>
+                    Delete
+                  </button>
+                </div>
+                <div style={{ fontSize: '13px', color: T.text }}>{addr.full_address}</div>
+                {addr.landmark && <div style={{ fontSize: '12px', color: T.textFaint, marginTop: '2px' }}>Near: {addr.landmark}</div>}
+                {addr.phone && <div style={{ fontSize: '12px', color: T.textFaint, marginTop: '2px' }}>{addr.phone}</div>}
+                <motion.button {...btnTap} onClick={() => {
+                  setAddress({ full_address: addr.full_address, landmark: addr.landmark, phone: addr.phone });
+                  setScreen('cart');
+                  setCheckoutStep(2);
+                }} style={{ marginTop: '12px', width: '100%', padding: '10px', background: T.primaryTint, color: T.primary, border: 'none', borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}>
+                  Use this address
+                </motion.button>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
+      )}
 
-      {/* Contact */}
-      <div style={{ background: '#f0eeff', borderRadius: '16px', padding: '20px', marginTop: '8px' }}>
-        <h4 style={{ margin: '0 0 12px', color: '#5c2d91' }}>📞 Contact Us</h4>
-        <div style={{ fontSize: '13px', color: '#666', lineHeight: '2' }}>
-          <div>📧 support@zaplo.in</div>
-          <div>📞 +91 6392303278</div>
-          <div>🕐 Mon-Sat, 9AM - 6PM</div>
+      {/* HELP & SUPPORT SCREEN */}
+      {screen === 'help' && (
+        <div style={{ paddingBottom: '104px' }}>
+          <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
+            <motion.button {...btnTap} onClick={() => setScreen('profile')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>Help & support</h2>
+          </div>
+          <div style={{ padding: '20px' }}>
+
+            {[
+              { q: 'How do I track my order?', a: 'Go to My Orders and tap "Track Order" on any active order to see live status and delivery partner location.' },
+              { q: 'How do I cancel an order?', a: 'You can cancel an order within 2 minutes of placing it. Go to My Orders and tap Cancel. After confirmation by seller, cancellation is not possible.' },
+              { q: 'What is the delivery charge?', a: 'Delivery charge is ₹20 for first 5km. For every extra km beyond 5km, ₹6 is added. The charge is paid directly to the delivery partner.' },
+              { q: 'How does payment work?', a: 'You can pay via Cash on Delivery (pay to delivery partner) or Online (Razorpay secure payment). 10% platform fee applies on all orders.' },
+              { q: 'What is the return policy?', a: 'Return policy varies by product category. Fresh food cannot be returned. Electronics have 7-day replacement. Fashion has 3-day return window.' },
+              { q: 'How do I become a seller?', a: 'Register as a seller from the login page. After admin approval, you can start listing products and receiving orders.' },
+            ].map((faq, i) => (
+              <div key={i} style={{ background: T.card, borderRadius: T.radiusMd, padding: '18px', marginBottom: '10px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+                <div style={{ fontWeight: '700', color: T.text, fontSize: '14px', marginBottom: '10px' }}>{faq.q}</div>
+                <div style={{ fontSize: '13px', color: T.textSoft, lineHeight: '1.7' }}>{faq.a}</div>
+              </div>
+            ))}
+
+            <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '22px', marginTop: '10px' }}>
+              <h4 style={{ margin: '0 0 14px', color: T.primary, fontSize: '15px', fontWeight: '700' }}>Contact us</h4>
+              <div style={{ fontSize: '13px', color: T.textSoft, lineHeight: '2.1' }}>
+                <div>support@zaplo.in</div>
+                <div>+91 6392303278</div>
+                <div>Mon–Sat, 9AM – 6PM</div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* PRODUCT DETAIL MODAL */}
-{selectedProduct && (
-  <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', height: '100vh', background: 'white', zIndex: 200, overflowY: 'hidden' }}>
-    <div style={{ height: 'calc(100vh - 90px)', overflowY: 'auto' }}>
-    {/* Back button */}
-    <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10 }}>
-      <button onClick={() => setSelectedProduct(null)}
-        style={{ width: '40px', height: '40px', background: 'white', border: 'none', borderRadius: '50%', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        ←
-      </button>
-    </div>
+      {selectedProduct && (
+        <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', height: '100vh', background: T.card, zIndex: 200, overflowY: 'hidden' }}>
+          <div style={{ height: 'calc(100vh - 90px)', overflowY: 'auto' }}>
+            {/* Back button */}
+            <div style={{ position: 'absolute', top: '18px', left: '18px', zIndex: 10 }}>
+              <motion.button {...btnTap} onClick={() => setSelectedProduct(null)}
+                style={{ width: '40px', height: '40px', background: 'white', border: 'none', borderRadius: '50%', boxShadow: T.shadowFloating, cursor: 'pointer', fontSize: '17px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                ←
+              </motion.button>
+            </div>
 
-    {/* Product Image */}
-<div style={{ width: '100%', height: '320px', background: '#f8f8f8', position: 'relative' }}>
-  {selectedProduct.image_urls?.[0] || selectedProduct.image_url ? (
-    <img src={selectedProduct.image_urls?.[activeImageIndex] || selectedProduct.image_url}
-      alt={selectedProduct.name}
-      style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-  ) : (
-    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '80px' }}>📦</div>
-  )}
+            {/* Product Image */}
+            <div style={{ width: '100%', height: '320px', background: T.bg, position: 'relative' }}>
+              {selectedProduct.image_urls?.[0] || selectedProduct.image_url ? (
+                <img src={selectedProduct.image_urls?.[activeImageIndex] || selectedProduct.image_url}
+                  alt={selectedProduct.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '80px' }}>📦</div>
+              )}
 
-  {/* Left arrow */}
-  {selectedProduct.image_urls?.length > 1 && activeImageIndex > 0 && (
-    <button onClick={() => setActiveImageIndex(prev => prev - 1)}
-      style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', color: 'white', fontSize: '18px', cursor: 'pointer' }}>
-      ‹
-    </button>
-  )}
+              {selectedProduct.image_urls?.length > 1 && activeImageIndex > 0 && (
+                <button onClick={() => setActiveImageIndex(prev => prev - 1)}
+                  style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(26,26,26,0.35)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', color: 'white', fontSize: '18px', cursor: 'pointer' }}>
+                  ‹
+                </button>
+              )}
 
-  {/* Right arrow */}
-  {selectedProduct.image_urls?.length > 1 && activeImageIndex < selectedProduct.image_urls.length - 1 && (
-    <button onClick={() => setActiveImageIndex(prev => prev + 1)}
-      style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', color: 'white', fontSize: '18px', cursor: 'pointer' }}>
-      ›
-    </button>
-  )}
+              {selectedProduct.image_urls?.length > 1 && activeImageIndex < selectedProduct.image_urls.length - 1 && (
+                <button onClick={() => setActiveImageIndex(prev => prev + 1)}
+                  style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(26,26,26,0.35)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', color: 'white', fontSize: '18px', cursor: 'pointer' }}>
+                  ›
+                </button>
+              )}
 
-  {/* Dots */}
-  {selectedProduct.image_urls?.length > 1 && (
-    <div style={{ position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px' }}>
-      {selectedProduct.image_urls.map((_, i) => (
-        <div key={i} onClick={() => setActiveImageIndex(i)}
-          style={{ width: '8px', height: '8px', borderRadius: '50%', background: i === activeImageIndex ? '#5c2d91' : '#ddd', cursor: 'pointer' }} />
-      ))}
-    </div>
-  )}
-</div>
+              {selectedProduct.image_urls?.length > 1 && (
+                <div style={{ position: 'absolute', bottom: '14px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px' }}>
+                  {selectedProduct.image_urls.map((_, i) => (
+                    <div key={i} onClick={() => setActiveImageIndex(i)}
+                      style={{ width: '7px', height: '7px', borderRadius: '50%', background: i === activeImageIndex ? T.primary : T.border, cursor: 'pointer' }} />
+                  ))}
+                </div>
+              )}
+            </div>
 
-    {/* Product Info */}
-    <div style={{ padding: '20px 16px', paddingBottom: '100px' }}>
-      
-      {/* Shop & Category */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <span style={{ fontSize: '12px', color: '#5c2d91', fontWeight: '600', background: '#f0eeff', padding: '4px 10px', borderRadius: '20px' }}>
-          🏪 {selectedProduct.shop_name}
-        </span>
-        {selectedProduct.category && (
-          <span style={{ fontSize: '12px', color: '#666', background: '#f5f5f5', padding: '4px 10px', borderRadius: '20px' }}>
-            {selectedProduct.category}
-          </span>
-        )}
-      </div>
+            {/* Product Info */}
+            <div style={{ padding: '24px 20px', paddingBottom: '100px' }}>
 
-      {/* Product Name */}
-      <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: '800', color: '#1a1a2e', lineHeight: '1.3' }}>
-        {selectedProduct.name}
-      </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', color: T.primary, fontWeight: '600', background: T.primaryTint, padding: '5px 12px', borderRadius: T.radiusPill }}>
+                  {selectedProduct.shop_name}
+                </span>
+                {selectedProduct.category && (
+                  <span style={{ fontSize: '12px', color: T.textSoft, background: T.bg, padding: '5px 12px', borderRadius: T.radiusPill }}>
+                    {selectedProduct.category}
+                  </span>
+                )}
+              </div>
 
-      {/* Price & Unit Info */}
-<div style={{ background: '#f8f8f8', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
-  <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px' }}>
-    <span style={{ fontSize: '28px', fontWeight: '800', color: '#1a1a2e' }}>₹{selectedProduct.price}</span>
-    <span style={{ fontSize: '14px', color: '#666' }}>
-      per {selectedProduct.unit_type || 'piece'}
-      {selectedProduct.unit_weight && ` (${selectedProduct.unit_weight}g)`}
-    </span>
-  </div>
+              <h2 style={{ margin: '0 0 12px', fontSize: '21px', fontWeight: '800', color: T.text, lineHeight: '1.35', letterSpacing: '-0.01em' }}>
+                {selectedProduct.name}
+              </h2>
 
-  {/* Per KG rate if available */}
-  {selectedProduct.price_per_kg && (
-    <div style={{ background: '#fff3cd', borderRadius: '8px', padding: '8px 12px', marginBottom: '8px', display: 'inline-block' }}>
-      <span style={{ fontSize: '13px', fontWeight: '700', color: '#856404' }}>
-        ⚖️ ₹{selectedProduct.price_per_kg}/kg
-      </span>
-    </div>
-  )}
+              {/* Price & Unit Info */}
+              <div style={{ background: T.bg, borderRadius: T.radiusMd, padding: '18px', marginBottom: '18px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '28px', fontWeight: '800', color: T.text, letterSpacing: '-0.02em' }}>₹{selectedProduct.price}</span>
+                  <span style={{ fontSize: '14px', color: T.textSoft }}>
+                    per {selectedProduct.unit_type || 'piece'}
+                    {selectedProduct.unit_weight && ` (${selectedProduct.unit_weight}g)`}
+                  </span>
+                </div>
 
-  {/* Stock status */}
-  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: selectedProduct.stock > 10 ? '#00b894' : selectedProduct.stock > 0 ? '#e17055' : '#ff4444' }} />
-    <span style={{ fontSize: '13px', fontWeight: '600', color: selectedProduct.stock > 10 ? '#00b894' : selectedProduct.stock > 0 ? '#e17055' : '#ff4444' }}>
-  {selectedProduct.stock > 10 ? 'In Stock' :
-   selectedProduct.stock > 0 ? 'Limited Stock' : 'Out of Stock'}
-</span>
-  </div>
+                {selectedProduct.price_per_kg && (
+                  <div style={{ background: T.accentTint, borderRadius: T.radiusPill, padding: '7px 14px', marginBottom: '10px', display: 'inline-block' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#B45309' }}>
+                      ₹{selectedProduct.price_per_kg}/kg
+                    </span>
+                  </div>
+                )}
 
-  {/* Unit type badge */}
-  <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-    <span style={{ background: '#e8f4ff', color: '#0984e3', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}>
-      📦 Sold per {selectedProduct.unit_type || 'piece'}
-    </span>
-    {selectedProduct.unit_weight && (
-      <span style={{ background: '#e8fff8', color: '#00b894', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}>
-        ⚖️ {selectedProduct.unit_weight}g each
-      </span>
-    )}
-  </div>
-</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: selectedProduct.stock > 10 ? T.success : selectedProduct.stock > 0 ? T.accent : T.error }} />
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: selectedProduct.stock > 10 ? T.success : selectedProduct.stock > 0 ? '#B45309' : T.error }}>
+                    {selectedProduct.stock > 10 ? 'In stock' :
+                     selectedProduct.stock > 0 ? 'Limited stock' : 'Out of stock'}
+                  </span>
+                </div>
 
-     {/* Delivery info */}
-<div style={{ background: '#f0eeff', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-  <span style={{ fontSize: '20px' }}>⚡</span>
-  <div>
-    <div style={{ fontWeight: '700', color: '#5c2d91', fontSize: '14px' }}>30 min delivery</div>
-    <div style={{ fontSize: '12px', color: '#666' }}>₹20 for first 5km, ₹6/km after</div>
-  </div>
-</div>
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ background: T.primaryTint, color: T.primary, padding: '5px 14px', borderRadius: T.radiusPill, fontSize: '12px', fontWeight: '600' }}>
+                    Sold per {selectedProduct.unit_type || 'piece'}
+                  </span>
+                  {selectedProduct.unit_weight && (
+                    <span style={{ background: T.successTint, color: T.success, padding: '5px 14px', borderRadius: T.radiusPill, fontSize: '12px', fontWeight: '600' }}>
+                      {selectedProduct.unit_weight}g each
+                    </span>
+                  )}
+                </div>
+              </div>
 
-      {/* Description */}
-      {selectedProduct.description && (
-        <div style={{ marginBottom: '16px' }}>
-          <h4 style={{ margin: '0 0 8px', color: '#1a1a2e', fontSize: '15px' }}>About this product</h4>
-          <p style={{ margin: 0, color: '#666', fontSize: '14px', lineHeight: '1.6' }}>{selectedProduct.description}</p>
-        </div>
-      )}
+              {/* Delivery info */}
+              <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '14px 18px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>⚡</span>
+                <div>
+                  <div style={{ fontWeight: '700', color: T.primary, fontSize: '14px' }}>30 min delivery</div>
+                  <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '2px' }}>₹20 for first 5km, ₹6/km after</div>
+                </div>
+              </div>
 
-      {/* Shop Info */}
-      <div style={{ background: '#f8f8f8', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-        <h4 style={{ margin: '0 0 8px', color: '#1a1a2e', fontSize: '14px' }}>Sold by</h4>
-        <div style={{ fontWeight: '700', color: '#333' }}>🏪 {selectedProduct.shop_name}</div>
-        <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>📍 {selectedProduct.locality}</div>
-      </div>
+              {selectedProduct.description && (
+                <div style={{ marginBottom: '18px' }}>
+                  <h4 style={{ margin: '0 0 10px', color: T.text, fontSize: '15px', fontWeight: '700' }}>About this product</h4>
+                  <p style={{ margin: 0, color: T.textSoft, fontSize: '14px', lineHeight: '1.7' }}>{selectedProduct.description}</p>
+                </div>
+              )}
 
-      {/* Return Policy */}
-      {selectedProduct.return_policy && (
-        <div style={{ background: '#f0fff8', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px' }}>
-          <div style={{ fontSize: '13px', color: '#00b894', fontWeight: '600' }}>
-            🔄 Return Policy: {selectedProduct.return_policy.replace(/_/g, ' ')}
+              <div style={{ background: T.bg, borderRadius: T.radiusMd, padding: '16px 18px', marginBottom: '18px' }}>
+                <h4 style={{ margin: '0 0 10px', color: T.text, fontSize: '14px', fontWeight: '700' }}>Sold by</h4>
+                <div style={{ fontWeight: '700', color: T.text, fontSize: '14px' }}>{selectedProduct.shop_name}</div>
+                <div style={{ fontSize: '12px', color: T.textFaint, marginTop: '4px' }}>{selectedProduct.locality}</div>
+              </div>
+
+              {selectedProduct.return_policy && (
+                <div style={{ background: T.successTint, borderRadius: T.radiusMd, padding: '14px 18px', marginBottom: '18px' }}>
+                  <div style={{ fontSize: '13px', color: T.success, fontWeight: '600' }}>
+                    Return policy: {selectedProduct.return_policy.replace(/_/g, ' ')}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginBottom: '18px' }}>
+                <h4 style={{ margin: '0 0 10px', color: T.text, fontSize: '15px', fontWeight: '700' }}>Reviews</h4>
+                <ReviewSection type="product" id={selectedProduct?.id} />
+              </div>
+            </div>
+          </div>
+          {/* Bottom Add to Cart */}
+          <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', background: T.card, padding: '18px 20px', boxShadow: '0 -8px 24px rgba(17,17,39,0.08)', zIndex: 201 }}>
+            {getCartQty(selectedProduct.id) === 0 ? (
+              <motion.button {...btnTap}
+                onClick={() => addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id })}
+                disabled={selectedProduct.stock === 0}
+                style={{ width: '100%', padding: '17px', background: selectedProduct.stock === 0 ? T.textFaint : T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '800', fontSize: '16px', cursor: selectedProduct.stock === 0 ? 'not-allowed' : 'pointer' }}>
+                {selectedProduct.stock === 0 ? 'Out of stock' : 'Add to cart'}
+              </motion.button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: T.radiusPill, overflow: 'hidden', flex: 1 }}>
+                  <button onClick={() => updateQty(selectedProduct.id, getCartQty(selectedProduct.id) - 1)}
+                    style={{ flex: 1, padding: '16px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>-</button>
+                  <span style={{ color: 'white', fontWeight: '800', fontSize: '17px', minWidth: '40px', textAlign: 'center' }}>{getCartQty(selectedProduct.id)}</span>
+                  <button onClick={() => addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id })}
+                    style={{ flex: 1, padding: '16px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>+</button>
+                </div>
+                <motion.button {...btnTap} onClick={() => { setScreen('cart'); setSelectedProduct(null); }}
+                  style={{ padding: '16px 22px', background: T.successGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
+                  View cart
+                </motion.button>
+              </div>
+            )}
           </div>
         </div>
       )}
-    
-      <div style={{ marginBottom: '16px' }}>
-  <h4 style={{ margin: '0 0 8px', color: '#1a1a2e', fontSize: '15px' }}>⭐ Reviews</h4>
-  <ReviewSection type="product" id={selectedProduct?.id} />
-</div>
-</div>
- </div>
-    {/* Bottom Add to Cart */}
-    <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', background: 'white', padding: '16px', boxShadow: '0 -4px 16px rgba(0,0,0,0.08)', zIndex: 201 }}>
-      {getCartQty(selectedProduct.id) === 0 ? (
-        <button
-          onClick={() => addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id })}
-          disabled={selectedProduct.stock === 0}
-          style={{ width: '100%', padding: '16px', background: selectedProduct.stock === 0 ? '#ccc' : 'linear-gradient(135deg, #5c2d91, #7c3aed)', color: 'white', border: 'none', borderRadius: '14px', fontWeight: '800', fontSize: '16px', cursor: selectedProduct.stock === 0 ? 'not-allowed' : 'pointer' }}>
-          {selectedProduct.stock === 0 ? 'Out of Stock' : '🛒 Add to Cart'}
-        </button>
-      ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', background: '#5c2d91', borderRadius: '14px', overflow: 'hidden', flex: 1 }}>
-            <button onClick={() => updateQty(selectedProduct.id, getCartQty(selectedProduct.id) - 1)}
-              style={{ flex: 1, padding: '16px', background: 'none', border: 'none', color: 'white', fontSize: '22px', cursor: 'pointer' }}>-</button>
-            <span style={{ color: 'white', fontWeight: '800', fontSize: '18px', minWidth: '40px', textAlign: 'center' }}>{getCartQty(selectedProduct.id)}</span>
-            <button onClick={() => addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id })}
-              style={{ flex: 1, padding: '16px', background: 'none', border: 'none', color: 'white', fontSize: '22px', cursor: 'pointer' }}>+</button>
-          </div>
-          <button onClick={() => { setScreen('cart'); setSelectedProduct(null); }}
-            style={{ padding: '16px 20px', background: '#00b894', color: 'white', border: 'none', borderRadius: '14px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
-            View Cart
-          </button>
-        </div>
+
+      {trackingOrderId && (
+        <OrderTracking
+          orderId={trackingOrderId}
+          onClose={() => setTrackingOrderId(null)}
+        />
       )}
-    </div>
-  </div>
-)}
 
-{trackingOrderId && (
-  <OrderTracking
-    orderId={trackingOrderId}
-    onClose={() => setTrackingOrderId(null)}
-  />
-)}
- 
-
-      {/* Bottom Navigation */}
-      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', background: 'white', borderTop: '1px solid #f0f0e8', display: 'flex', boxShadow: '0 -4px 16px rgba(0,0,0,0.08)', zIndex: 100 }}>
+      {/* Bottom Navigation — floating, blurred */}
+      <div style={{
+        position: 'fixed', bottom: '14px', left: '50%', transform: 'translateX(-50%)',
+        width: 'calc(100% - 28px)', maxWidth: '452px', background: 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+        borderRadius: T.radiusPill, display: 'flex', boxShadow: T.shadowFloating,
+        zIndex: 100, border: `1px solid ${T.border}`, padding: '6px'
+      }}>
         {[
           { id: 'home', icon: '🏠', label: 'Home' },
           { id: 'shoplist', icon: '🏪', label: 'Shops', action: () => { API.get('/sellers/search?q=').then(r => { setShops(r.data); setScreen('shoplist'); }); } },
-          { id: 'cart', icon: '🛒', label: 'Cart', badge: cartCount, 
-  action: () => { getBuyerLocation(); setScreen('cart'); } },
+          { id: 'cart', icon: '🛒', label: 'Cart', badge: cartCount,
+            action: () => { getBuyerLocation(); setScreen('cart'); } },
           { id: 'orders', icon: '📦', label: 'Orders', action: () => { fetchMyOrders(); setScreen('orders'); } },
           { id: 'profile', icon: '👤', label: 'Profile' },
         ].map(item => (
-          <button key={item.id}
+          <motion.button whileTap={{ scale: 0.9 }} key={item.id}
             onClick={() => item.action ? item.action() : setScreen(item.id)}
-            style={{ flex: 1, padding: '10px 0', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', position: 'relative' }}>
-            <span style={{ fontSize: '22px' }}>{item.icon}</span>
-            <span style={{ fontSize: '10px', fontWeight: '600', color: screen === item.id ? '#5c2d91' : '#999' }}>{item.label}</span>
+            style={{ flex: 1, padding: '10px 0', background: screen === item.id ? T.primaryTint : 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', position: 'relative', borderRadius: T.radiusPill, margin: '0 2px' }}>
+            <span style={{ fontSize: '20px' }}>{item.icon}</span>
+            <span style={{ fontSize: '10px', fontWeight: '600', color: screen === item.id ? T.primary : T.textFaint }}>{item.label}</span>
             {item.badge > 0 && (
-              <span style={{ position: 'absolute', top: '6px', right: '14px', background: '#5c2d91', color: 'white', borderRadius: '50%', width: '16px', height: '16px', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>{item.badge}</span>
+              <span style={{ position: 'absolute', top: '2px', right: '14px', background: T.accent, color: T.text, borderRadius: '50%', width: '16px', height: '16px', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>{item.badge}</span>
             )}
-            {screen === item.id && <div style={{ position: 'absolute', bottom: 0, width: '24px', height: '3px', background: '#5c2d91', borderRadius: '2px' }} />}
-          </button>
+          </motion.button>
         ))}
       </div>
     </div>
