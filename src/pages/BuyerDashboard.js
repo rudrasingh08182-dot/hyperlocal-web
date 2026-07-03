@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import API from '../services/api';
+import TermsAndConditions from '../components/TermsAndConditions';
 
 /* ============================================================
    ZAPLO DESIGN SYSTEM
@@ -1093,6 +1094,7 @@ export default function BuyerDashboard() {
           <div style={{ background: T.card, margin: '0 20px', borderRadius: T.radiusMd, overflow: 'hidden', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
             {[
               { icon: '⭐', label: 'My reviews', action: () => setScreen('myreviews') },
+              { icon: '📜', label: 'Terms & Conditions', action: () => setScreen('terms') },
               { icon: 'ℹ️', label: 'About Zaplo', action: () => setScreen('help') },
             ].map((item, i, arr) => (
               <div key={i} onClick={item.action}
@@ -1259,6 +1261,11 @@ export default function BuyerDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TERMS & CONDITIONS SCREEN (shared component) */}
+      {screen === 'terms' && (
+        <TermsAndConditions onBack={() => setScreen('profile')} />
       )}
 
       {/* PRODUCT DETAIL MODAL */}
