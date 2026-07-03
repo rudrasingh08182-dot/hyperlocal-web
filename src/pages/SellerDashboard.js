@@ -628,6 +628,7 @@ const fetchShopSettings = async () => {
     <option value="FASHION">👕 Fashion (3 days - Wrong size/Damaged)</option>
     <option value="GROCERY">🛒 Grocery (1 day - Damaged/Expired)</option>
     <option value="FRESH">🥦 Fresh Produce (No returns)</option>
+    <option value="MEDICAL">💊 Medical (Return only if expired)</option>
   </select>
 </div>
                   </div>

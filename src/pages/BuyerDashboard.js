@@ -74,6 +74,7 @@ const categories = [
   { id: 'fashion', label: 'Fashion', emoji: '👕' },
   { id: 'food', label: 'Food', emoji: '🍔' },
   { id: 'stationery', label: 'Stationery', emoji: '📚' },
+  { id: 'medical', label: 'Medical', emoji: '💊' },
 ];
 
 const StarRating = ({ value, onChange, readonly = false }) => (
