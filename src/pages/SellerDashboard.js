@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { FiHome, FiPackage, FiShoppingBag, FiStar, FiTrendingUp, FiDollarSign, FiBell, FiSettings, FiLogOut, FiPlus, FiEdit2, FiTrash2, FiMenu, FiX } from 'react-icons/fi';
+import { FiHome, FiPackage, FiShoppingBag, FiStar, FiTrendingUp, FiDollarSign, FiBell, FiSettings, FiLogOut, FiPlus, FiEdit2, FiTrash2, FiMenu, FiX, FiFileText } from 'react-icons/fi';
 import API from '../services/api';
+import TermsAndConditions from '../components/TermsAndConditions';
 import { requestNotificationPermission } from '../firebase';
+
 
 function SellerReviews() {
   const [reviews, setReviews] = useState([]);
@@ -109,6 +111,8 @@ const [shopSettings, setShopSettings] = useState({
   shop_name: '', contact_phone: '', address: '', locality: '',
 });
 const [shopSaved, setShopSaved] = useState(false);
+const [revealedOrders, setRevealedOrders] = useState({});
+const toggleReveal = (id) => setRevealedOrders(prev => ({ ...prev, [id]: !prev[id] }));
 
 const uploadImage = async (file) => {
   setUploadingImage(true);
@@ -300,6 +304,7 @@ const fetchShopSettings = async () => {
   { id: 'reviews', icon: <FiStar />, label: 'Reviews' },
   { id: 'bank', icon: <FiDollarSign />, label: 'Bank Details' },
   { id: 'settings', icon: <FiSettings />, label: 'Shop Settings' },
+  { id: 'terms', icon: <FiFileText />, label: 'Terms & Conditions' },
 ];
 
   const s = dashboardData?.sales;
@@ -707,17 +712,57 @@ const fetchShopSettings = async () => {
             <div style={{ fontWeight: '700', color: '#6c63ff', fontSize: '15px' }}>#{order.id.slice(-6).toUpperCase()}</div>
             <div style={{ color: '#333', fontSize: '13px', marginTop: '4px' }}>{order.buyer_name} • {order.item_count} items</div>
             <div style={{ color: '#999', fontSize: '12px', marginTop: '2px' }}>{new Date(order.created_at).toLocaleString()}</div>
-            {/* Product Details */}
-{order.items && (
-  <div style={{ background: '#f8f8f0', borderRadius: '10px', padding: '10px 12px', marginTop: '10px' }}>
-    {order.items.map((item, i) => (
-      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '13px', borderBottom: i < order.items.length - 1 ? '1px solid #f0f0e8' : 'none' }}>
-        <span style={{ color: '#333', fontWeight: '600' }}>📦 {item.name}</span>
-        <span style={{ color: '#6c63ff', fontWeight: '700' }}>x{item.quantity} — ₹{item.unit_price * item.quantity}</span>
+           {/* Product Details + Buyer Contact — blurred until revealed */}
+<div style={{ marginTop: '12px', position: 'relative' }}>
+  <div style={{
+    filter: revealedOrders[order.id] ? 'none' : 'blur(5px)',
+    userSelect: revealedOrders[order.id] ? 'auto' : 'none',
+    transition: 'filter 0.2s',
+  }}>
+    {/* Product / Quantity Details */}
+    {order.items && (
+      <div style={{ background: '#f8f8f0', borderRadius: '10px', padding: '10px 12px', marginBottom: '10px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#6c63ff', marginBottom: '6px', textTransform: 'uppercase' }}>Order Items</div>
+        {order.items.map((item, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '13px', borderBottom: i < order.items.length - 1 ? '1px solid #f0f0e8' : 'none' }}>
+            <span style={{ color: '#333', fontWeight: '600' }}>📦 {item.name}</span>
+            <span style={{ color: '#6c63ff', fontWeight: '700' }}>x{item.quantity} — ₹{item.unit_price * item.quantity}</span>
+          </div>
+        ))}
       </div>
-    ))}
+    )}
+
+    {/* Buyer Contact & Delivery */}
+    <div style={{ background: '#fff8e8', borderRadius: '10px', padding: '12px' }}>
+      <div style={{ fontSize: '11px', fontWeight: '700', color: '#b45309', marginBottom: '6px', textTransform: 'uppercase' }}>Buyer Contact & Delivery</div>
+      <div style={{ fontSize: '13px', color: '#333' }}>📞 {order.delivery_phone || 'N/A'}</div>
+      <div style={{ fontSize: '13px', color: '#333', marginTop: '4px' }}>📍 {order.delivery_address || 'N/A'}</div>
+      {order.delivery_landmark && (
+        <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>Near: {order.delivery_landmark}</div>
+      )}
+    </div>
   </div>
-)}
+
+  <button onClick={() => toggleReveal(order.id)}
+    style={{
+      position: revealedOrders[order.id] ? 'static' : 'absolute',
+      top: '50%', left: '50%',
+      transform: revealedOrders[order.id] ? 'none' : 'translate(-50%, -50%)',
+      marginTop: revealedOrders[order.id] ? '10px' : 0,
+      background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px',
+      padding: '10px 20px', cursor: 'pointer', fontWeight: '700', fontSize: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 2,
+    }}>
+    {revealedOrders[order.id] ? '🙈 Hide Details' : '👁️ Reveal Order & Buyer Details'}
+  </button>
+
+  {revealedOrders[order.id] && order.delivery_phone && (
+    <a href={`tel:${order.delivery_phone}`}
+      style={{ display: 'inline-block', marginTop: '10px', marginLeft: '8px', background: '#00b894', color: 'white', borderRadius: '8px', padding: '10px 20px', textDecoration: 'none', fontWeight: '700', fontSize: '12px' }}>
+      📞 Call Buyer
+    </a>
+  )}
+</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontWeight: '700', fontSize: '18px', color: '#1a1a2e' }}>₹{order.total_amount}</div>
@@ -923,6 +968,12 @@ const fetchShopSettings = async () => {
     </button>
   </div>
 )}
+
+{/* TERMS & CONDITIONS TAB */}
+{activeTab === 'terms' && (
+  <TermsAndConditions onBack={() => setActiveTab('dashboard')} />
+)}
+
         </div>
       </div>
     </div>
