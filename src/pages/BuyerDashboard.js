@@ -77,6 +77,18 @@ const categories = [
   { id: 'medical', label: 'Medical', emoji: '💊' },
 ];
 
+const RETURN_POLICY_LABELS = {
+  PERISHABLE_FOOD: 'No returns',
+  PACKAGED_FOOD: '2 days — Damaged/Expired only',
+  STANDARD_ELECTRONICS: '7 days — Replacement only',
+  HIGH_VALUE_ELECTRONICS: '7 days — Approval required',
+  STATIONERY: '2 days — Damaged only',
+  FASHION: '3 days — Wrong size/Damaged',
+  GROCERY: '1 day — Damaged/Expired',
+  FRESH: 'No returns',
+  MEDICAL: 'Return only if expired',
+};
+
 const StarRating = ({ value, onChange, readonly = false }) => (
   <div style={{ display: 'flex', gap: '4px' }}>
     {[1, 2, 3, 4, 5].map(star => (
@@ -1394,13 +1406,12 @@ export default function BuyerDashboard() {
               </div>
 
               {selectedProduct.return_policy && (
-                <div style={{ background: T.successTint, borderRadius: T.radiusMd, padding: '14px 18px', marginBottom: '18px' }}>
-                  <div style={{ fontSize: '13px', color: T.success, fontWeight: '600' }}>
-                    Return policy: {selectedProduct.return_policy.replace(/_/g, ' ')}
-                  </div>
-                </div>
-              )}
-
+  <div style={{ background: T.successTint, borderRadius: T.radiusMd, padding: '14px 18px', marginBottom: '18px' }}>
+    <div style={{ fontSize: '13px', color: T.success, fontWeight: '600' }}>
+      Return policy: {RETURN_POLICY_LABELS[selectedProduct.return_policy] || selectedProduct.return_policy.replace(/_/g, ' ')}
+    </div>
+  </div>
+)}
               <div style={{ marginBottom: '18px' }}>
                 <h4 style={{ margin: '0 0 10px', color: T.text, fontSize: '15px', fontWeight: '700' }}>Reviews</h4>
                 <ReviewSection type="product" id={selectedProduct?.id} />
