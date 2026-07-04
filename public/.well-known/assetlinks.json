@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "in.zaplo.app",
+        "sha256_cert_fingerprints": ["8B:9E:D1:5A:87:96:29:AB:54:90:F2:C1:70:59:23:3C:68:30:55:CA:9F:F3:E4:C7:C9:14:DF:74:F3:8B:06:28"]
+      }
+    }]
