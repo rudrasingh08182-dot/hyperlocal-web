@@ -26,16 +26,15 @@ messaging.onBackgroundMessage((payload) => {
 
 
 
-const CACHE_NAME = 'zaplo-v1';
+const CACHE_NAME = 'zaplo-v2'; // ⬅️ bumped v1 → v2 to force-clear old stale cache once
 
 // Files to cache for offline use
 const STATIC_ASSETS = [
-  '/',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
 ];
-// Install event — cache static assets
+// Install event — cache static assets (NOT '/' anymore — see fetch handler below)
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
@@ -58,7 +57,7 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch event — serve from cache, fallback to network
+// Fetch event
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
@@ -68,20 +67,35 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For everything else — cache first, then network
+  // Navigation requests (page loads / index.html) — NETWORK FIRST
+  // This is the fix: always try to get the latest app shell,
+  // only fall back to cache if the network is unavailable.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request).then(cached => cached || caches.match('/')))
+    );
+    return;
+  }
+
+  // Everything else (JS/CSS/images with hashed filenames) — cache first is fine,
+  // since CRA gives each build unique filenames, so this never goes stale.
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) return cached;
 
       return fetch(request).then(response => {
-        // Cache successful GET responses
         if (request.method === 'GET' && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
         }
         return response;
       }).catch(() => {
-        // Offline fallback for navigation requests
         if (request.mode === 'navigate') {
           return caches.match('/');
         }
