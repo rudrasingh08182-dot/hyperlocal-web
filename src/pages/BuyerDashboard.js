@@ -36,6 +36,12 @@ const T = {
   font: "'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
 };
 
+// Optimizes Cloudinary image URLs for fast loading — resizes & compresses on the fly
+const optimizeImage = (url, width = 400) => {
+  if (!url || !url.includes('cloudinary.com')) return url; // non-Cloudinary URLs untouched
+  return url.replace('/upload/', `/upload/w_${width},q_auto,f_auto/`);
+};
+
 const FontLoader = () => (
   <style>{`
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -659,7 +665,13 @@ const openCategoryScreen = (catId) => {
         onClick={() => setSelectedProduct(product)}>
         <div style={{ position: 'relative' }}>
           {product.image_urls?.[0] || product.image_url ? (
-            <img src={product.image_urls?.[0] || product.image_url} alt={product.name} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
+            <img
+  src={optimizeImage(product.image_urls?.[0] || product.image_url, 400)}
+  alt={product.name}
+  loading="lazy"
+  decoding="async"
+  style={{ width: '100%', height: '140px', objectFit: 'cover' }}
+/>
           ) : (
             <div style={{ width: '100%', height: '140px', background: T.primaryTint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '44px' }}>📦</div>
           )}
@@ -785,7 +797,13 @@ const openCategoryScreen = (catId) => {
                         }}>
                         <div style={{ width: '100%', height: '120px', background: T.primaryTint, overflow: 'hidden' }}>
                           {cat.image ? (
-                            <img src={cat.image} alt={cat.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img
+  src={optimizeImage(cat.image, 300)}
+  alt={cat.label}
+  loading="lazy"
+  decoding="async"
+  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+/>
                           ) : (
                             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px' }}>{cat.emoji}</div>
                           )}
@@ -927,7 +945,7 @@ const openCategoryScreen = (catId) => {
                 {cart.map(item => (
                   <div key={item.id} style={{ background: T.card, borderRadius: T.radiusMd, padding: '16px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
                     <div style={{ width: '56px', height: '56px', background: T.primaryTint, borderRadius: T.radiusSm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', overflow: 'hidden' }}>
-                      {item.image_url ? <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📦'}
+                      {item.image_url ? <img src={optimizeImage(item.image_url, 120)} alt={item.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📦'}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: '700', fontSize: '14px', color: T.text }}>{item.name}</div>
@@ -1352,9 +1370,10 @@ const openCategoryScreen = (catId) => {
             {/* Product Image */}
             <div style={{ width: '100%', height: '320px', background: T.bg, position: 'relative' }}>
               {selectedProduct.image_urls?.[0] || selectedProduct.image_url ? (
-                <img src={selectedProduct.image_urls?.[activeImageIndex] || selectedProduct.image_url}
-                  alt={selectedProduct.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+               <img src={optimizeImage(selectedProduct.image_urls?.[activeImageIndex] || selectedProduct.image_url, 800)}
+  alt={selectedProduct.name}
+  decoding="async"
+  style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '80px' }}>📦</div>
               )}
