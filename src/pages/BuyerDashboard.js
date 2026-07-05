@@ -67,14 +67,14 @@ const useCart = () => {
 };
 
 const categories = [
-  { id: 'all', label: 'All', emoji: '🛍️' },
-  { id: 'grocery', label: 'Grocery', emoji: '🛒' },
-  { id: 'fresh', label: 'Fresh', emoji: '🥬' },
-  { id: 'electronics', label: 'Electronics', emoji: '🎧' },
-  { id: 'fashion', label: 'Fashion', emoji: '👕' },
-  { id: 'food', label: 'Food', emoji: '🍔' },
-  { id: 'stationery', label: 'Stationery', emoji: '📚' },
-  { id: 'medical', label: 'Medical', emoji: '💊' },
+  { id: 'all', label: 'All', emoji: '🛍️', image: null },
+  { id: 'grocery', label: 'Grocery', emoji: '🛒', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233795/maria-lin-kim-8RaUEd8zD-U-unsplash_qoqtal.jpg' },
+  { id: 'fresh', label: 'Fresh', emoji: '🥬', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233768/jonas-kakaroto-B77ypBmpYuw-unsplash_nfcdrd.jpg' },
+  { id: 'electronics', label: 'Electronics', emoji: '🎧', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233820/sebastian-banasiewcz-oXXc-s5nNy8-unsplash_ulul8x.jpg' },
+  { id: 'fashion', label: 'Fashion', emoji: '👕', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233681/artem-beliaikin-UdQt3FT6rxM-unsplash_atgfs1.jpg' },
+  { id: 'food', label: 'Food', emoji: '🍔', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233754/david-foodphototasty-E94j3rMcxlw-unsplash_qhm984.jpg' },
+  { id: 'stationery', label: 'Stationery', emoji: '📚', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233835/tim-gouw-KigTvXqetXA-unsplash_s4gm0v.jpg' },
+  { id: 'medical', label: 'Medical', emoji: '💊', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233743/christine-sandu-jwWtZrm67VI-unsplash_lsfqny.jpg' },
 ];
 
 const RETURN_POLICY_LABELS = {
@@ -748,37 +748,71 @@ export default function BuyerDashboard() {
           )}
 
           {/* Categories */}
-          {!query && (
-            <>
-              <div style={{ padding: '20px 20px 8px', overflowX: 'auto', display: 'flex', gap: '12px', scrollbarWidth: 'none' }}>
-                {categories.map(cat => (
-                  <motion.button {...btnTap} key={cat.id} onClick={() => filterByCategory(cat.id)}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: activeCategory === cat.id ? T.primary : T.card, border: `1px solid ${activeCategory === cat.id ? T.primary : T.border}`, borderRadius: T.radiusMd, padding: '12px 18px', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: T.shadowCard, minWidth: '72px' }}>
-                    <span style={{ fontSize: '22px' }}>{cat.emoji}</span>
-                    <span style={{ fontSize: '11px', fontWeight: '600', color: activeCategory === cat.id ? 'white' : T.textSoft }}>{cat.label}</span>
-                  </motion.button>
-                ))}
-              </div>
+{!query && (
+  <>
+    {/* Banners */}
+    <div style={{ padding: '20px 20px 8px', display: 'flex', gap: '12px' }}>
+      <div style={{ flex: 1, background: T.primaryGradient, borderRadius: T.radiusMd, padding: '18px', color: 'white' }}>
+        <div style={{ fontWeight: '800', fontSize: '18px', letterSpacing: '-0.01em' }}>₹20 delivery</div>
+        <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '4px' }}>First 5km • ₹6/km after</div>
+      </div>
+      <div style={{ flex: 1, background: `linear-gradient(135deg, ${T.accent}, #FFB300)`, borderRadius: T.radiusMd, padding: '18px', color: T.text }}>
+        <div style={{ fontWeight: '800', fontSize: '16px', letterSpacing: '-0.01em' }}>Lowest prices</div>
+        <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '4px' }}>Best deals near you</div>
+      </div>
+    </div>
 
-              {/* Banners */}
-              <div style={{ padding: '12px 20px', display: 'flex', gap: '12px' }}>
-                <div style={{ flex: 1, background: T.primaryGradient, borderRadius: T.radiusMd, padding: '18px', color: 'white' }}>
-                  <div style={{ fontWeight: '800', fontSize: '18px', letterSpacing: '-0.01em' }}>₹20 delivery</div>
-                  <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '4px' }}>First 5km • ₹6/km after</div>
-                </div>
-                <div style={{ flex: 1, background: `linear-gradient(135deg, ${T.accent}, #FFB300)`, borderRadius: T.radiusMd, padding: '18px', color: T.text }}>
-                  <div style={{ fontWeight: '800', fontSize: '16px', letterSpacing: '-0.01em' }}>Lowest prices</div>
-                  <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '4px' }}>Best deals near you</div>
-                </div>
-              </div>
-            </>
-          )}
+    {/* Browse Categories */}
+    <div style={{ padding: '20px 20px 8px' }}>
+      <h3 style={{ margin: '0 0 4px', color: T.text, fontSize: '18px', fontWeight: '800', letterSpacing: '-0.01em' }}>Browse Categories</h3>
+      <p style={{ margin: '0 0 16px', color: T.textSoft, fontSize: '13px' }}>Everything you need in one place</p>
 
-          {/* Products Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+        {categories.filter(c => c.id !== 'all').map(cat => {
+          const isSelected = activeCategory === cat.id;
+          const count = allProducts.filter(p => p.category?.toLowerCase() === cat.id).length;
+          return (
+            <motion.div whileTap={{ scale: 0.97 }} key={cat.id} onClick={() => filterByCategory(cat.id)}
+              style={{
+                background: T.card, borderRadius: '24px', overflow: 'hidden', cursor: 'pointer',
+                border: isSelected ? `2px solid ${T.primary}` : `1px solid ${T.border}`,
+                boxShadow: isSelected ? `0 8px 24px rgba(91,75,255,0.18)` : T.shadowCard,
+                transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+                transition: 'all 0.2s',
+              }}>
+              <div style={{ width: '100%', height: '120px', background: T.primaryTint, overflow: 'hidden' }}>
+                {cat.image ? (
+                  <img src={cat.image} alt={cat.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px' }}>{cat.emoji}</div>
+                )}
+              </div>
+              <div style={{ padding: '14px 16px' }}>
+                <div style={{ fontWeight: '700', fontSize: '15px', color: T.text }}>{cat.label}</div>
+                <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '3px' }}>{count} products</div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  </>
+)}
+{/* Products Grid */}
           <div style={{ padding: '8px 20px' }}>
-            {!query && <h3 style={{ margin: '12px 0 14px', color: T.text, fontSize: '16px', fontWeight: '700', letterSpacing: '-0.01em' }}>
-              {activeCategory === 'all' ? 'All products' : `${categories.find(c => c.id === activeCategory)?.label}`}
-            </h3>}
+            {!query && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '12px 0 14px' }}>
+                <h3 style={{ margin: 0, color: T.text, fontSize: '16px', fontWeight: '700', letterSpacing: '-0.01em' }}>
+                  {activeCategory === 'all' ? 'All products' : categories.find(c => c.id === activeCategory)?.label}
+                </h3>
+                {activeCategory !== 'all' && (
+                  <button onClick={() => filterByCategory('all')}
+                    style={{ background: T.primaryTint, color: T.primary, border: 'none', borderRadius: T.radiusPill, padding: '6px 14px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+                    Clear filter
+                  </button>
+                )}
+              </div>
+            )}
             {loading ? (
               <div style={{ textAlign: 'center', padding: '48px', color: T.textFaint }}>Loading...</div>
             ) : products.length === 0 ? (
@@ -788,13 +822,14 @@ export default function BuyerDashboard() {
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                {products.map(product => <ProductCard key={product.id} product={product} />)}
+                {products.map(product => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
               </div>
             )}
           </div>
         </div>
       )}
-
       {/* SHOP LIST SCREEN */}
       {screen === 'shoplist' && (
         <div style={{ paddingBottom: '104px' }}>
