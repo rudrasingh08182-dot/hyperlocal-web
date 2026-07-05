@@ -4,6 +4,7 @@ import { FiHome, FiPackage, FiShoppingBag, FiStar, FiTrendingUp, FiDollarSign, F
 import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
 import { requestNotificationPermission } from '../firebase';
+import { Toast, showToast } from '../components/Toast';
 
 
 function SellerReviews() {
