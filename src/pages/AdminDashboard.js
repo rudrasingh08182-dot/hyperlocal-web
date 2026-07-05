@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import * as THREE from 'three';
 import API from '../services/api';
+import { Toast, showToast } from '../components/Toast';
 
 function ThreeBackground() {
   const mountRef = useRef(null);
@@ -92,39 +93,39 @@ export default function AdminDashboard() {
   const approveSeller = async (id) => {
   try {
     await API.patch(`/admin/sellers/${id}/approve`);
-    alert('Seller approved successfully!');
+    showToast('Seller approved successfully!', 'success');
     fetchData();
   } catch (err) {
-    alert('Error: ' + err.response?.data?.error);
+    showToast(err.response?.data?.error || 'Error', 'error');
   }
 };
 
 const suspendSeller = async (id) => {
   try {
     await API.patch(`/admin/sellers/${id}/suspend`);
-    alert('Seller suspended!');
+    showToast('Seller suspended!', 'success');
     fetchData();
   } catch (err) {
-    alert('Error: ' + err.response?.data?.error);
+    showToast(err.response?.data?.error || 'Error', 'error');
   }
 };
  const approveDelivery = async (id) => {
   try {
     await API.patch(`/admin/delivery-boys/${id}/approve`);
-    alert('Delivery boy approved!');
+    showToast('Delivery boy approved!', 'success');
     fetchData();
   } catch (err) {
-    alert('Error: ' + err.response?.data?.error);
+    showToast(err.response?.data?.error || 'Error', 'error');
   }
 };
 
 const suspendDelivery = async (id) => {
   try {
     await API.patch(`/admin/delivery-boys/${id}/suspend`);
-    alert('Delivery boy suspended!');
+    showToast('Delivery boy suspended!', 'success');
     fetchData();
   } catch (err) {
-    alert('Error: ' + err.response?.data?.error);
+    showToast(err.response?.data?.error || 'Error', 'error');
   }
 };
   const logout = () => {
@@ -137,6 +138,7 @@ const suspendDelivery = async (id) => {
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a1a', color: 'white', fontFamily: 'sans-serif', position: 'relative' }}>
       <ThreeBackground />
+      <Toast />
       <div style={{ position: 'relative', zIndex: 1, padding: '24px' }}>
 
         {/* Header */}

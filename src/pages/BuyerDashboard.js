@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
+import { Toast, showToast } from '../components/Toast';
 
 /* ============================================================
    ZAPLO DESIGN SYSTEM
@@ -123,13 +124,13 @@ const ReviewSection = ({ type, id }) => {
   }, [id, type, submitted]);
 
   const submitReview = async () => {
-    if (rating === 0) { alert('Please select a star rating'); return; }
+    if (rating === 0) { showToast('Please select a star rating', 'error'); return; }
     setLoading(true);
     try {
       await API.post(`/reviews/${type}/${id}`, { rating, comment });
       setRating(0); setComment(''); setSubmitted(prev => !prev);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to submit review');
+      showToast(err.response?.data?.error || 'Failed to submit review', 'error');
     } finally { setLoading(false); }
   };
 
@@ -548,7 +549,7 @@ const openCategoryScreen = (catId) => {
 
   const placeOrder = async () => {
     if (!address.full_address || !address.phone) {
-      alert('Please fill address and phone');
+      showToast('Please fill address and phone', 'error');
       return;
     }
 
@@ -578,7 +579,7 @@ const openCategoryScreen = (catId) => {
 
       if (paymentMethod === 'COD') {
         clearCart();
-        alert('Order placed successfully! 🎉 Pay cash on delivery.');
+        showToast('Order placed successfully! 🎉 Pay cash on delivery.', 'success');
         setScreen('orders');
         fetchMyOrders();
         setCheckoutStep(1);
@@ -588,7 +589,7 @@ const openCategoryScreen = (catId) => {
       if (paymentMethod === 'ONLINE') {
         const loaded = await loadRazorpayScript();
         if (!loaded) {
-          alert('Failed to load payment gateway. Please try COD.');
+          showToast('Failed to load payment gateway. Please try COD.', 'error');
           return;
         }
 
@@ -619,14 +620,14 @@ const openCategoryScreen = (catId) => {
                   });
                   resolve();
                 } catch {
-                  alert('Payment done but verification failed. Contact support.');
+                  showToast('Payment done but verification failed. Contact support.', 'error');
                   resolve();
                 }
               },
 
               modal: {
                 ondismiss: () => {
-                  alert('Payment cancelled. Your order is saved. Go to My Orders to pay later.');
+                  showToast('Payment cancelled. Your order is saved. Go to My Orders to pay later.');
                   resolve();
                 },
               },
@@ -642,14 +643,14 @@ const openCategoryScreen = (catId) => {
         }
 
         clearCart();
-        alert('Payment successful! 🎉');
+        showToast('Payment successful! 🎉', 'success');
         setScreen('orders');
         fetchMyOrders();
         setCheckoutStep(1);
       }
 
     } catch (err) {
-      alert(err.response?.data?.error || 'Order failed');
+      showToast(err.response?.data?.error || 'Order failed', 'error');
     }
   };
 
@@ -708,6 +709,7 @@ const openCategoryScreen = (catId) => {
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.font, maxWidth: '480px', margin: '0 auto', position: 'relative', color: T.text }}>
       <FontLoader />
       <InstallBanner />
+      <Toast />
 
       {/* HOME SCREEN */}
       {screen === 'home' && (
@@ -1268,7 +1270,7 @@ const openCategoryScreen = (catId) => {
 
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <motion.button {...btnTap} onClick={() => {
-                    if (!newAddress.full_address) { alert('Please enter address'); return; }
+                    if (!newAddress.full_address) { showToast('Please enter address', 'error'); return; }
                     setSavedAddresses(prev => [...prev, { ...newAddress, id: Date.now() }]);
                     setNewAddress({ label: 'Home', full_address: '', landmark: '', phone: '' });
                     setShowAddAddress(false);

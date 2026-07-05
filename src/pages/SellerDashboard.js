@@ -125,7 +125,7 @@ const uploadImage = async (file) => {
     setProductImages(prev => [...prev, res.data.url]);
     setNewProduct(prev => ({ ...prev, image_urls: [...(prev.image_urls || []), res.data.url] }));
   } catch (err) {
-    alert('Image upload failed');
+    showToast('Image upload failed', 'error');
   } finally {
     setUploadingImage(false);
   }
@@ -150,7 +150,7 @@ const saveBankDetails = async () => {
     setBankSaved(true);
     setTimeout(() => setBankSaved(false), 3000);
   } catch (err) {
-    alert(err.response?.data?.error || 'Failed to save');
+    showToast(err.response?.data?.error || 'Failed to save', 'error');
   } finally {
     setBankLoading(false);
   }
@@ -260,7 +260,7 @@ const fetchShopSettings = async () => {
 
  const saveProduct = async () => {
   if (!newProduct.name || !newProduct.price || !newProduct.stock) {
-    alert('Please fill name, price and stock');
+    showToast('Please fill name, price and stock', 'error');
     return;
   }
   setLoading(true);
@@ -272,13 +272,13 @@ const fetchShopSettings = async () => {
       unit_weight: newProduct.unit_weight || null,
       price_per_kg: newProduct.price_per_kg || null,
     });
-    alert('Product added!');
+    showToast('Product added!', 'success');
     setShowAddProduct(false);
     setNewProduct({ name: '', description: '', sku: '', price: '', stock: '', category: '', return_policy: 'STANDARD_ELECTRONICS', image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: '' });
     fetchProducts();
     fetchDashboard();
   } catch (err) {
-    alert(err.response?.data?.error || 'Failed to add product');
+    showToast(err.response?.data?.error || 'Failed to add product', 'error');
   } finally {
     setLoading(false);
   }
@@ -289,7 +289,7 @@ const fetchShopSettings = async () => {
       await API.delete(`/products/${id}`);
       fetchProducts();
     } catch (err) {
-      alert('Failed to delete');
+      showToast('Failed to delete', 'error');
     }
   };
 
@@ -313,6 +313,7 @@ const fetchShopSettings = async () => {
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#fffef7', fontFamily: "'Inter', sans-serif", overflow: 'hidden' }}>
+         <Toast />
 
       {/* Sidebar */}
       <div style={{ width: sidebarOpen ? '240px' : '70px', background: 'white', borderRight: '1px solid #f0f0e8', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', boxShadow: '2px 0 12px rgba(0,0,0,0.06)', zIndex: 10 }}>
@@ -596,7 +597,7 @@ const fetchShopSettings = async () => {
                 image_urls: [...(prev.image_urls || []), res.data.url]
               }));
             } catch (err) {
-              alert('Upload failed. Check your internet connection.');
+              showToast('Upload failed. Check your internet connection.', 'error');
             } finally {
               setUploadingImage(false);
               e.target.value = '';
@@ -781,10 +782,10 @@ const fetchShopSettings = async () => {
             <button onClick={async () => {
               try {
                 await API.patch(`/sellers/orders/${order.id}/confirm`);
-                alert('Order confirmed!');
+                showToast('Order confirmed!', 'success');
                 fetchDashboard();
               } catch (err) {
-                alert(err.response?.data?.error || 'Failed');
+                showToast(err.response?.data?.error || 'Failed', 'error');
               }
             }}
               style={{ flex: 1, padding: '10px', background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
@@ -794,10 +795,10 @@ const fetchShopSettings = async () => {
               if (!window.confirm('Cancel this order?')) return;
               try {
                 await API.patch(`/sellers/orders/${order.id}/cancel`);
-                alert('Order cancelled');
+                showToast('Order cancelled');
                 fetchDashboard();
               } catch (err) {
-                alert(err.response?.data?.error || 'Failed');
+                showToast(err.response?.data?.error || 'Failed', 'error');
               }
             }}
               style={{ flex: 1, padding: '10px', background: '#ff444415', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
@@ -956,7 +957,7 @@ const fetchShopSettings = async () => {
         setShopSaved(true);
         setTimeout(() => setShopSaved(false), 3000);
       } catch (err) {
-        alert(err.response?.data?.error || 'Failed to save');
+        showToast(err.response?.data?.error || 'Failed to save', 'error');
       }
     }}
       style={{ marginTop: '20px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 32px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import API from '../services/api';
 
+
 export default function DeliveryDashboard() {
   const [tab, setTab] = useState('available');
   const [availableOrders, setAvailableOrders] = useState([]);
@@ -90,12 +91,12 @@ export default function DeliveryDashboard() {
   const acceptDelivery = async (id) => {
     try {
       await API.patch(`/orders/${id}/accept`);
-      alert('Delivery accepted!');
+      showToast('Delivery accepted!', 'success');
       fetchAvailableOrders(location?.lat, location?.lng);
       fetchMyDeliveries();
       setTab('mydeliveries');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to accept');
+      showToast(err.response?.data?.error || 'Failed to accept', 'error');
     }
   };
 
@@ -103,10 +104,10 @@ export default function DeliveryDashboard() {
   try {
     await API.patch(`/orders/${id}/delivered`);
     await API.patch(`/tracking/${id}/status`, { status: 'delivered' });
-    alert('Order marked as delivered!');
+    showToast('Order marked as delivered!', 'success');
     fetchMyDeliveries();
   } catch (err) {
-    alert(err.response?.data?.error || 'Failed to update');
+    showToast(err.response?.data?.error || 'Failed to update', 'error');
   }
 };
    const updateStatus = async (orderId, status) => {
@@ -115,27 +116,27 @@ export default function DeliveryDashboard() {
     alert(`Order marked as ${status}!`);
     fetchMyDeliveries();
   } catch (err) {
-    alert('Failed to update status');
+    showToast('Failed to update status', 'error');
   }
 };
 
 const shareLocation = async (orderId) => {
-  if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
+  if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
   navigator.geolocation.getCurrentPosition(async (pos) => {
     try {
       await API.patch(`/tracking/${orderId}/location`, {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
       });
-      alert('Location shared! ✅');
+      showToast('Location shared! ✅', 'success');
     } catch (err) {
-      alert('Failed to share location');
+      showToast('Failed to share location', 'error');
     }
   });
 };
   return (
     <div style={{ minHeight: '100vh', background: '#f8f9fa', fontFamily: "'Inter', sans-serif" }}>
-
+       <Toast />
       {/* Header */}
       <div style={{ background: 'white', padding: '16px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
