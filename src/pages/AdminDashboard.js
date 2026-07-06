@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import * as THREE from 'three';
 import API from '../services/api';
 import { Toast, showToast } from '../components/Toast';
+import BulkProductUpload from './BulkProductUpload';
 
 function ThreeBackground() {
   const mountRef = useRef(null);
@@ -166,13 +167,13 @@ const suspendDelivery = async (id) => {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-          {['sellers', 'buyers', 'delivery'].map(t => (
+         {['sellers', 'buyers', 'delivery', 'bulk-upload'].map(t => (
   <button key={t} onClick={() => setTab(t)}
     style={{
       padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold',
       background: tab === t ? '#6c63ff' : '#1a1a2e', color: 'white', fontSize: '14px',
     }}>
-    {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : '🚴 Delivery Boys'}
+    {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : t === 'delivery' ? '🚴 Delivery Boys' : '📦 Bulk Upload'}
   </button>
 ))}
         </div>
@@ -309,6 +310,12 @@ const suspendDelivery = async (id) => {
             )}
           </motion.div>
         )}
+
+{tab === 'bulk-upload' && (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+    <BulkProductUpload />
+  </motion.div>
+)}
       </div>
     </div>
   );
