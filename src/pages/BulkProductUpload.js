@@ -49,16 +49,16 @@ export default function BulkProductUpload() {
 
   // Step 1: Download Template
   const downloadTemplate = () => {
-    const ws = XLSX.utils.aoa_to_sheet([
-      ['Product Name', 'Price', 'Stock'],
-      ['Amul Gold Milk 500 ml', 35, 100],
-      ['Apple', '180/kg', 50],
-      ['Maggi 70 g', 15, 500],
-    ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Products');
-    XLSX.writeFile(wb, 'zaplo_bulk_upload_template.xlsx');
-  };
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Product Name', 'Price', 'Category', 'Stock Quantity', 'Sold By', 'Image File Name', 'Description', 'Return Policy'],
+    ['Amul Gold Milk 500 ml', 35, 'grocery', 100, 'litre', 'amul_milk.jpg', 'Fresh full cream milk rich in calcium and protein.', 'PERISHABLE_FOOD'],
+    ['Apple', 180, 'fresh', 50, 'kg', 'apple.jpg', 'Fresh, juicy apples sourced directly from the farm.', 'FRESH'],
+    ['Maggi 70 g', 15, 'grocery', 500, 'packet', 'maggi.jpg', 'Instant noodles ready in 2 minutes.', 'PACKAGED_FOOD'],
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Products');
+  XLSX.writeFile(wb, 'zaplo_bulk_upload_template.xlsx');
+};
 
   // Step 2: Seller search
   const searchSellers = async () => {
