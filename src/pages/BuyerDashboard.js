@@ -55,22 +55,35 @@ const btnTap = { whileTap: { scale: 0.96 } };
 
 const useCart = () => {
   const [cart, setCart] = useState([]);
-  const addToCart = (product) => {
+
+  const getCartKey = (productId, variantId) => variantId ? `${productId}::${variantId}` : productId;
+
+  const addToCart = (product, variant = null) => {
+    const cartKey = getCartKey(product.id, variant?.id);
     setCart(prev => {
-      const exists = prev.find(i => i.id === product.id);
-      if (exists) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...product, qty: 1 }];
+      const exists = prev.find(i => i.cartKey === cartKey);
+      if (exists) return prev.map(i => i.cartKey === cartKey ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, {
+        ...product,
+        cartKey,
+        variant: variant || null,
+        price: variant ? variant.price : product.price,
+        qty: 1,
+      }];
     });
   };
-  const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
-  const updateQty = (id, qty) => {
-    if (qty === 0) return removeFromCart(id);
-    setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i));
+
+  const removeFromCart = (cartKey) => setCart(prev => prev.filter(i => i.cartKey !== cartKey));
+
+  const updateQty = (cartKey, qty) => {
+    if (qty === 0) return removeFromCart(cartKey);
+    setCart(prev => prev.map(i => i.cartKey === cartKey ? { ...i, qty } : i));
   };
+
   const clearCart = () => setCart([]);
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
-  return { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount };
+  return { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount, getCartKey };
 };
 
 const categories = [
@@ -444,6 +457,16 @@ export default function BuyerDashboard() {
   const [newAddress, setNewAddress] = useState({ label: 'Home', full_address: '', landmark: '', phone: '' });
   const { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+
+useEffect(() => {
+  if (selectedProduct?.has_variants && selectedProduct.variants?.length > 0) {
+    const firstAvailable = selectedProduct.variants.find(v => v.stock > 0) || selectedProduct.variants[0];
+    setSelectedVariant(firstAvailable);
+  } else {
+    setSelectedVariant(null);
+  }
+}, [selectedProduct]);
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -566,7 +589,7 @@ const openCategoryScreen = (catId) => {
       for (const [seller_id, items] of Object.entries(sellerGroups)) {
         const res = await API.post('/orders', {
           seller_id,
-          items: items.map(i => ({ product_id: i.id, quantity: i.qty })),
+          items: items.map(i => ({ product_id: i.id, quantity: i.qty, variant_id: i.variant?.id || null })),
           payment_method: paymentMethod,
           delivery_address: address.full_address,
           delivery_phone: address.phone,
@@ -654,33 +677,41 @@ const openCategoryScreen = (catId) => {
     }
   };
 
-  const getCartQty = (productId) => {
-    const item = cart.find(i => i.id === productId);
-    return item ? item.qty : 0;
-  };
+  const getCartQty = (productId, variantId = null) => {
+  const cartKey = variantId ? `${productId}::${variantId}` : productId;
+  const item = cart.find(i => i.cartKey === cartKey);
+  return item ? item.qty : 0;
+};
 
   const ProductCard = ({ product }) => {
-    const qty = getCartQty(product.id);
+   const qty = product.has_variants ? 0 : getCartQty(product.id);
+const minVariantPrice = product.has_variants && product.variants?.length > 0
+  ? Math.min(...product.variants.map(v => parseFloat(v.price)))
+  : null;
     return (
       <motion.div whileTap={{ scale: 0.98 }} style={{ background: T.card, borderRadius: T.radiusMd, overflow: 'hidden', boxShadow: T.shadowCard, position: 'relative', cursor: 'pointer', border: `1px solid ${T.border}` }}
         onClick={() => setSelectedProduct(product)}>
         <div style={{ position: 'relative' }}>
           {product.image_urls?.[0] || product.image_url ? (
             <img
-  src={optimizeImage(product.image_urls?.[0] || product.image_url, 400)}
-  alt={product.name}
-  loading="lazy"
-  decoding="async"
-  style={{ width: '100%', height: '140px', objectFit: 'cover' }}
-/>
+              src={optimizeImage(product.image_urls?.[0] || product.image_url, 400)}
+              alt={product.name}
+              loading="lazy"
+              decoding="async"
+              style={{ width: '100%', height: '140px', objectFit: 'cover' }}
+            />
           ) : (
             <div style={{ width: '100%', height: '140px', background: T.primaryTint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '44px' }}>📦</div>
           )}
           <div style={{ position: 'absolute', bottom: '10px', right: '10px' }}
             onClick={e => e.stopPropagation()}>
-            {qty === 0 ? (
-              <motion.button {...btnTap} onClick={() => addToCart({ ...product, seller_id: product.shop_id || product.seller_id })}
-                disabled={product.stock === 0}
+           {product.has_variants ? (
+  <div onClick={e => e.stopPropagation()} style={{ width: '36px', height: '36px', background: T.primary, color: 'white', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', boxShadow: T.shadowFloating }}>
+    ⋯
+  </div>
+) : qty === 0 ? (
+  <motion.button {...btnTap} onClick={() => addToCart({ ...product, seller_id: product.shop_id || product.seller_id })}
+    disabled={product.stock === 0}
                 style={{ width: '34px', height: '34px', background: product.stock === 0 ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: '10px', fontSize: '20px', cursor: product.stock === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: T.shadowFloating, lineHeight: 0 }}>
                 +
               </motion.button>
@@ -699,7 +730,9 @@ const openCategoryScreen = (catId) => {
         <div style={{ padding: '12px 14px 14px' }}>
           <div style={{ fontSize: '13px', color: T.text, fontWeight: '600', marginBottom: '4px', lineHeight: '1.35' }}>{product.name}</div>
           <div style={{ fontSize: '11px', color: T.textFaint, marginBottom: '8px' }}>{product.shop_name}</div>
-          <div style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>₹{product.price}</div>
+          <div style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>
+  {product.has_variants ? `From ₹${minVariantPrice}` : `₹${product.price}`}
+</div>
         </div>
       </motion.div>
     );
@@ -707,11 +740,12 @@ const openCategoryScreen = (catId) => {
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.font, maxWidth: '480px', margin: '0 auto', position: 'relative', color: T.text }}>
-      <FontLoader />
-      <InstallBanner />
-      <Toast />
+        <FontLoader />
+        <InstallBanner />
+        <Toast />
 
-      {/* HOME SCREEN */}
+
+        {/* HOME SCREEN */}
       {screen === 'home' && (
         <div style={{ paddingBottom: '104px' }}>
 
@@ -950,13 +984,16 @@ const openCategoryScreen = (catId) => {
                       {item.image_url ? <img src={optimizeImage(item.image_url, 120)} alt={item.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📦'}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '700', fontSize: '14px', color: T.text }}>{item.name}</div>
+                     <div style={{ fontWeight: '700', fontSize: '14px', color: T.text }}>{item.name}</div>
+{item.variant && (
+  <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>{item.variant.variant_type}: {item.variant.variant_value}</div>
+)}
                       <div style={{ fontWeight: '800', color: T.primary, fontSize: '15px', marginTop: '3px' }}>₹{item.price}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: T.radiusSm, overflow: 'hidden' }}>
-                      <button onClick={() => updateQty(item.id, item.qty - 1)} style={{ width: '30px', height: '32px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer' }}>-</button>
+                      <button onClick={() => updateQty(item.cartKey, item.qty - 1)} style={{ width: '30px', height: '32px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer' }}>-</button>
                       <span style={{ color: 'white', fontWeight: '700', minWidth: '22px', textAlign: 'center', fontSize: '13px' }}>{item.qty}</span>
-                      <button onClick={() => updateQty(item.id, item.qty + 1)} style={{ width: '30px', height: '32px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer' }}>+</button>
+                      <button onClick={() => updateQty(item.cartKey, item.qty + 1)} style={{ width: '30px', height: '32px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer' }}>+</button>
                     </div>
                     <div style={{ fontWeight: '700', color: T.text, minWidth: '58px', textAlign: 'right' }}>₹{item.price * item.qty}</div>
                   </div>
@@ -1018,7 +1055,7 @@ const openCategoryScreen = (catId) => {
                 <div style={{ background: T.card, borderRadius: T.radiusLg, padding: '18px', marginBottom: '14px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
                   <h4 style={{ margin: '0 0 14px', color: T.text, fontSize: '15px', fontWeight: '700' }}>Order summary</h4>
                   {cart.map(item => (
-                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', fontSize: '13px', borderBottom: `1px solid ${T.border}` }}>
+                    <div key={item.cartKey} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', fontSize: '13px', borderBottom: `1px solid ${T.border}` }}>
                       <span style={{ color: T.textSoft }}>{item.name} x{item.qty}</span>
                       <span style={{ fontWeight: '600' }}>₹{item.price * item.qty}</span>
                     </div>
@@ -1459,7 +1496,55 @@ const openCategoryScreen = (catId) => {
                   )}
                 </div>
               </div>
+              {selectedProduct.has_variants && selectedProduct.variants?.length > 0 && (
+                <div style={{ marginBottom: '18px' }}>
+                  <h4 style={{ margin: '0 0 12px', color: T.text, fontSize: '15px', fontWeight: '700' }}>
+                    Choose {selectedProduct.variants[0].variant_type}
+                  </h4>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                    {selectedProduct.variants.map(v => {
+                      const isSelected = selectedVariant?.id === v.id;
+                      const isOutOfStock = v.stock === 0;
+                      return (
+                        <motion.button key={v.id} whileTap={{ scale: isOutOfStock ? 1 : 0.95 }}
+                          onClick={() => !isOutOfStock && setSelectedVariant(v)}
+                          disabled={isOutOfStock}
+                          style={{
+                            padding: '10px 20px', borderRadius: T.radiusPill,
+                            border: isSelected ? `2px solid ${T.primary}` : `1.5px solid ${T.border}`,
+                            background: isOutOfStock ? T.bg : isSelected ? T.primary : 'white',
+                            color: isOutOfStock ? T.textFaint : isSelected ? 'white' : T.text,
+                            fontWeight: '700', fontSize: '13px', cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                            boxShadow: isSelected ? T.shadowFloating : 'none',
+                            transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                            transition: 'all 0.15s',
+                          }}>
+                          {v.variant_value}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
 
+                  {selectedVariant && (
+                    <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '16px 18px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
+                        <span style={{ color: T.textSoft }}>Selected {selectedVariant.variant_type}</span>
+                        <span style={{ fontWeight: '700', color: T.text }}>{selectedVariant.variant_value}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
+                        <span style={{ color: T.textSoft }}>Price</span>
+                        <span style={{ fontWeight: '800', color: T.primary, fontSize: '16px' }}>₹{selectedVariant.price}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                        <span style={{ color: T.textSoft }}>Stock</span>
+                        <span style={{ fontWeight: '600', color: selectedVariant.stock > 0 ? T.success : T.error }}>
+                          {selectedVariant.stock > 0 ? `${selectedVariant.stock} Available` : 'Out of Stock'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               {/* Delivery info */}
               <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '14px 18px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '20px' }}>⚡</span>
@@ -1495,40 +1580,47 @@ const openCategoryScreen = (catId) => {
               </div>
             </div>
           </div>
-          {/* Bottom Add to Cart */}
-          <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', background: T.card, padding: '18px 20px', boxShadow: '0 -8px 24px rgba(17,17,39,0.08)', zIndex: 201 }}>
-            {getCartQty(selectedProduct.id) === 0 ? (
-              <motion.button {...btnTap}
-                onClick={() => addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id })}
-                disabled={selectedProduct.stock === 0}
-                style={{ width: '100%', padding: '17px', background: selectedProduct.stock === 0 ? T.textFaint : T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '800', fontSize: '16px', cursor: selectedProduct.stock === 0 ? 'not-allowed' : 'pointer' }}>
-                {selectedProduct.stock === 0 ? 'Out of stock' : 'Add to cart'}
-              </motion.button>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: T.radiusPill, overflow: 'hidden', flex: 1 }}>
-                  <button onClick={() => updateQty(selectedProduct.id, getCartQty(selectedProduct.id) - 1)}
-                    style={{ flex: 1, padding: '16px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>-</button>
-                  <span style={{ color: 'white', fontWeight: '800', fontSize: '17px', minWidth: '40px', textAlign: 'center' }}>{getCartQty(selectedProduct.id)}</span>
-                  <button onClick={() => addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id })}
-                    style={{ flex: 1, padding: '16px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>+</button>
-                </div>
-                <motion.button {...btnTap} onClick={() => { setScreen('cart'); setSelectedProduct(null); }}
-                  style={{ padding: '16px 22px', background: T.successGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
-                  View cart
-                </motion.button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+{/* Bottom Add to Cart */}
+<div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', background: T.card, padding: '18px 20px', boxShadow: '0 -8px 24px rgba(17,17,39,0.08)', zIndex: 201 }}>
+  {(() => {
+    const isVariantProduct = selectedProduct.has_variants && selectedProduct.variants?.length > 0;
+    const effectiveStock = isVariantProduct ? (selectedVariant?.stock ?? 0) : selectedProduct.stock;
+    const currentQty = getCartQty(selectedProduct.id, isVariantProduct ? selectedVariant?.id : null);
+    const canAdd = !isVariantProduct || (isVariantProduct && selectedVariant);
 
-      {trackingOrderId && (
-        <OrderTracking
-          orderId={trackingOrderId}
-          onClose={() => setTrackingOrderId(null)}
-        />
-      )}
+    return currentQty === 0 ? (
+      <motion.button {...btnTap}
+        onClick={() => canAdd && addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id }, isVariantProduct ? selectedVariant : null)}
+        disabled={effectiveStock === 0 || !canAdd}
+        style={{ width: '100%', padding: '17px', background: effectiveStock === 0 ? T.textFaint : T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '800', fontSize: '16px', cursor: effectiveStock === 0 ? 'not-allowed' : 'pointer' }}>
+        {effectiveStock === 0 ? 'Out of stock' : 'Add to cart'}
+      </motion.button>
+    ) : (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: T.radiusPill, overflow: 'hidden', flex: 1 }}>
+          <button onClick={() => updateQty(isVariantProduct ? `${selectedProduct.id}::${selectedVariant.id}` : selectedProduct.id, currentQty - 1)}
+            style={{ flex: 1, padding: '16px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>-</button>
+          <span style={{ color: 'white', fontWeight: '800', fontSize: '17px', minWidth: '40px', textAlign: 'center' }}>{currentQty}</span>
+          <button onClick={() => addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id }, isVariantProduct ? selectedVariant : null)}
+            style={{ flex: 1, padding: '16px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>+</button>
+        </div>
+        <motion.button {...btnTap} onClick={() => { setScreen('cart'); setSelectedProduct(null); }}
+          style={{ padding: '16px 22px', background: T.successGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
+          View cart
+        </motion.button>
+      </div>
+    );
+  })()}
+</div>
+</div>
+)}
+
+{trackingOrderId && (
+  <OrderTracking
+    orderId={trackingOrderId}
+    onClose={() => setTrackingOrderId(null)}
+  />
+)}
 
       {/* Bottom Navigation — floating, blurred */}
       <div style={{
