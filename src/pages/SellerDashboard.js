@@ -93,6 +93,22 @@ export default function SellerDashboard() {
   stock: '', category: '', return_policy: 'STANDARD_ELECTRONICS',
   image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: ''
 });
+const [hasVariants, setHasVariants] = useState(false);
+const [variantType, setVariantType] = useState('Size');
+const [customVariantType, setCustomVariantType] = useState('');
+const [variantRows, setVariantRows] = useState([
+  { variant_value: '', price: '', stock: '', display_order: 1 }
+]);
+
+const addVariantRow = () => {
+  setVariantRows(prev => [...prev, { variant_value: '', price: '', stock: '', display_order: prev.length + 1 }]);
+};
+const removeVariantRow = (idx) => {
+  setVariantRows(prev => prev.filter((_, i) => i !== idx).map((row, i) => ({ ...row, display_order: i + 1 })));
+};
+const updateVariantRow = (idx, field, value) => {
+  setVariantRows(prev => prev.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+};
   const [bankDetails, setBankDetails] = useState({
   account_holder_name: '',
   account_number: '',
@@ -259,11 +275,33 @@ const fetchShopSettings = async () => {
   }
 };
 
- const saveProduct = async () => {
+const saveProduct = async () => {
   if (!newProduct.name || !newProduct.price || !newProduct.stock) {
     showToast('Please fill name, price and stock', 'error');
     return;
   }
+
+  let variantsPayload = [];
+  if (hasVariants) {
+    const finalVariantType = variantType === 'Custom' ? customVariantType.trim() : variantType;
+    if (!finalVariantType) {
+      showToast('Please enter a custom variant type name', 'error');
+      return;
+    }
+    const incomplete = variantRows.some(r => !r.variant_value || !r.price || r.stock === '');
+    if (incomplete) {
+      showToast('Please fill all variant fields (value, price, stock)', 'error');
+      return;
+    }
+    variantsPayload = variantRows.map((r, i) => ({
+      variant_type: finalVariantType,
+      variant_value: r.variant_value,
+      price: parseFloat(r.price),
+      stock: parseInt(r.stock),
+      display_order: i + 1,
+    }));
+  }
+
   setLoading(true);
   try {
     await API.post('/products', {
@@ -272,10 +310,15 @@ const fetchShopSettings = async () => {
       unit_type: newProduct.unit_type || 'piece',
       unit_weight: newProduct.unit_weight || null,
       price_per_kg: newProduct.price_per_kg || null,
+      variants: variantsPayload,
     });
     showToast('Product added!', 'success');
     setShowAddProduct(false);
     setNewProduct({ name: '', description: '', sku: '', price: '', stock: '', category: '', return_policy: 'STANDARD_ELECTRONICS', image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: '' });
+    setHasVariants(false);
+    setVariantType('Size');
+    setCustomVariantType('');
+    setVariantRows([{ variant_value: '', price: '', stock: '', display_order: 1 }]);
     fetchProducts();
     fetchDashboard();
   } catch (err) {
@@ -633,6 +676,64 @@ const fetchShopSettings = async () => {
     <option value="MEDICAL">💊 Medical (Return only if expired)</option>
   </select>
 </div>
+<div style={{ gridColumn: 'span 2', marginTop: '8px', borderTop: '1px solid #f0f0e8', paddingTop: '16px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '14px', color: '#1a1a2e' }}>
+                      <input type="checkbox" checked={hasVariants} onChange={e => setHasVariants(e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                      This Product Has Variants (e.g. different sizes, weights, colors)
+                    </label>
+
+                    {hasVariants && (
+                      <div style={{ marginTop: '16px', background: '#f8f7ff', borderRadius: '12px', padding: '16px', border: '1px solid #e8e0ff' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                          <div>
+                            <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Variant Type</label>
+                            <select value={variantType} onChange={e => setVariantType(e.target.value)}
+                              style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+                              {['Size', 'Weight', 'Volume', 'Storage', 'Color', 'RAM', 'Flavor', 'Pack Size', 'Material', 'Custom'].map(t => (
+                                <option key={t} value={t}>{t}</option>
+                              ))}
+                            </select>
+                          </div>
+                          {variantType === 'Custom' && (
+                            <div>
+                              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Custom Variant Type Name</label>
+                              <input placeholder="e.g. Spice Level" value={customVariantType}
+                                onChange={e => setCustomVariantType(e.target.value)}
+                                style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ fontWeight: '700', fontSize: '13px', color: '#1a1a2e', marginBottom: '10px' }}>
+                          {variantType === 'Custom' ? (customVariantType || 'Custom') : variantType} Options
+                        </div>
+
+                        {variantRows.map((row, i) => (
+                          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                            <input placeholder={`e.g. ${variantType === 'Size' ? '7 Inch' : 'Value'}`} value={row.variant_value}
+                              onChange={e => updateVariantRow(i, 'variant_value', e.target.value)}
+                              style={{ padding: '10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
+                            <input placeholder="Price ₹" type="number" value={row.price}
+                              onChange={e => updateVariantRow(i, 'price', e.target.value)}
+                              style={{ padding: '10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
+                            <input placeholder="Stock" type="number" value={row.stock}
+                              onChange={e => updateVariantRow(i, 'stock', e.target.value)}
+                              style={{ padding: '10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
+                            <button onClick={() => removeVariantRow(i)} disabled={variantRows.length === 1}
+                              style={{ background: '#fff0f0', color: '#ff4444', border: 'none', borderRadius: '8px', padding: '10px 12px', cursor: variantRows.length === 1 ? 'not-allowed' : 'pointer', opacity: variantRows.length === 1 ? 0.4 : 1 }}>
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+
+                        <button onClick={addVariantRow}
+                          style={{ marginTop: '8px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
+                          + Add Another Option
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   </div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                     <button onClick={saveProduct} disabled={loading}
