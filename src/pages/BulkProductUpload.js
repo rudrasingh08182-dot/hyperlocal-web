@@ -139,24 +139,35 @@ export default function BulkProductUpload() {
       </div>
 
       {/* STEP 0: Template */}
-      {step === 0 && (
-        <div>
-          <div style={{ background: '#f8f7ff', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #e8e0ff' }}>
-            <p style={{ fontSize: '13px', color: '#666', margin: '0 0 14px' }}>
-              The Excel file only needs <strong>3 columns</strong>: Product Name, Price, Stock. Everything else (category, description, return policy) is generated automatically.
-              For weight-based pricing, write price like <code>180/kg</code>.
-            </p>
-            <button onClick={downloadTemplate}
-              style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
-              ⬇️ Download Excel Template
-            </button>
-          </div>
-          <button onClick={() => setStep(1)}
-            style={{ background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 28px', cursor: 'pointer', fontWeight: '700' }}>
-            Next: Select Seller →
-          </button>
-        </div>
-      )}
+     {/* STEP 0: Template */}
+{step === 0 && (
+  <div>
+    <div style={{ background: '#f8f7ff', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #e8e0ff' }}>
+      <p style={{ fontSize: '13px', color: '#666', margin: '0 0 14px' }}>
+        The Excel file needs these <strong>8 columns</strong>: Product Name, Price, Category, Stock Quantity, Sold By, Image File Name, Description, Return Policy.
+      </p>
+      <button onClick={downloadTemplate}
+        style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
+        ⬇️ Download Products Template
+      </button>
+    </div>
+
+    <div style={{ background: '#fff8e8', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #ffe0a3' }}>
+      <p style={{ fontSize: '13px', color: '#666', margin: '0 0 14px' }}>
+        <strong>Optional:</strong> if a product has multiple sizes/weights/colors (e.g. a pizza with 7", 9", 12" options), list them in a separate Variants file. Products without variants don't need this file at all.
+      </p>
+      <button onClick={downloadVariantsTemplate}
+        style={{ background: '#B45309', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
+        ⬇️ Download Variants Template (Optional)
+      </button>
+    </div>
+
+    <button onClick={() => setStep(1)}
+      style={{ background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 28px', cursor: 'pointer', fontWeight: '700' }}>
+      Next: Select Seller →
+    </button>
+  </div>
+)}
 
       {/* STEP 1: Select Seller */}
       {step === 1 && (
@@ -225,6 +236,19 @@ export default function BulkProductUpload() {
               Each image should be named after the product, lowercase, spaces as underscores — e.g. "Amul Gold Milk 500 ml" → <code>amul_gold_milk_500_ml.jpg</code>
             </p>
           </div>
+          <div style={{ marginBottom: '20px' }}>
+  <div style={{ fontWeight: '700', fontSize: '13px', marginBottom: '8px' }}>Variants File (Optional)</div>
+  <label style={{ display: 'block', padding: '16px', border: '2px dashed #B45309', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', background: '#fff8e8', color: '#B45309', fontWeight: '600', fontSize: '13px' }}>
+    {variantsFile ? `📄 ${variantsFile.name}` : '📁 Choose Variants.xlsx (only if some products have sizes/colors/etc)'}
+    <input type="file" accept=".xlsx,.xls" onChange={e => setVariantsFile(e.target.files[0])} style={{ display: 'none' }} />
+  </label>
+  {variantsFile && (
+    <button onClick={() => setVariantsFile(null)}
+      style={{ marginTop: '8px', background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline' }}>
+      Remove file
+    </button>
+  )}
+</div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => setStep(1)} style={{ background: '#f0f0e8', color: '#666', border: 'none', borderRadius: '10px', padding: '12px 24px', cursor: 'pointer' }}>← Back</button>
@@ -239,20 +263,43 @@ export default function BulkProductUpload() {
       {/* STEP 3: Preview */}
       {step === 3 && summary && (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ background: '#f8f7ff', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: '700', color: '#6c63ff' }}>{summary.totalRows}</div>
-              <div style={{ fontSize: '12px', color: '#999' }}>Products Found</div>
-            </div>
-            <div style={{ background: '#e8fff8', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: '700', color: '#00b894' }}>{summary.validCount}</div>
-              <div style={{ fontSize: '12px', color: '#999' }}>Valid</div>
-            </div>
-            <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: '700', color: '#ff4444' }}>{summary.invalidCount}</div>
-              <div style={{ fontSize: '12px', color: '#999' }}>Errors</div>
-            </div>
-          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
+  <div style={{ background: '#f8f7ff', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#6c63ff' }}>{summary.totalRows}</div>
+    <div style={{ fontSize: '12px', color: '#999' }}>Products Found</div>
+  </div>
+  <div style={{ background: '#e8fff8', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#00b894' }}>{summary.validCount}</div>
+    <div style={{ fontSize: '12px', color: '#999' }}>Valid</div>
+  </div>
+  <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#ff4444' }}>{summary.invalidCount}</div>
+    <div style={{ fontSize: '12px', color: '#999' }}>Errors</div>
+  </div>
+</div>
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+  <div style={{ background: '#f8f8f0', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#333' }}>{summary.simpleCount}</div>
+    <div style={{ fontSize: '12px', color: '#999' }}>Simple Products</div>
+  </div>
+  <div style={{ background: '#fff8e8', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#B45309' }}>{summary.variantProductCount}</div>
+    <div style={{ fontSize: '12px', color: '#999' }}>Variant Products</div>
+  </div>
+  <div style={{ background: '#f0eeff', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#6c63ff' }}>{summary.totalVariants}</div>
+    <div style={{ fontSize: '12px', color: '#999' }}>Total Variants</div>
+  </div>
+</div>
+
+{orphanVariantErrors.length > 0 && (
+  <div style={{ background: '#fff8e8', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+    <div style={{ fontWeight: '700', color: '#B45309', fontSize: '13px', marginBottom: '8px' }}>⚠️ Variants file notice:</div>
+    <ul style={{ margin: 0, paddingLeft: '18px' }}>
+      {orphanVariantErrors.map((e, i) => <li key={i} style={{ fontSize: '12px', color: '#666' }}>{e}</li>)}
+    </ul>
+  </div>
+)}
 
           {invalidRows.length > 0 && (
             <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '14px', marginBottom: '20px' }}>
@@ -284,7 +331,10 @@ export default function BulkProductUpload() {
                 <tbody>
                   {preview.slice(0, 10).map((p, i) => (
                     <tr key={i} style={{ borderTop: '1px solid #f8f8f0' }}>
-                      <td style={{ padding: '8px 10px' }}>{p.name}{p.warnings?.length > 0 && ' ⚠️'}</td>
+                     <td style={{ padding: '8px 10px' }}>
+  {p.name}{p.warnings?.length > 0 && ' ⚠️'}
+  {p.variants && <span style={{ marginLeft: '6px', fontSize: '10px', background: '#fff8e8', color: '#B45309', padding: '2px 6px', borderRadius: '6px', fontWeight: '700' }}>{p.variants.length} variants</span>}
+</td>
                       <td style={{ padding: '8px 10px', textTransform: 'capitalize' }}>{p.category}</td>
                       <td style={{ padding: '8px 10px' }}>₹{p.price}</td>
                       <td style={{ padding: '8px 10px' }}>{p.stock}</td>
