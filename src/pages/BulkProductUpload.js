@@ -27,6 +27,7 @@ export default function BulkProductUpload() {
   // Files
   const [excelFile, setExcelFile] = useState(null);
   const [zipFile, setZipFile] = useState(null);
+  const [variantsFile, setVariantsFile] = useState(null);
 
   // Validation / preview
   const [validating, setValidating] = useState(false);
@@ -34,18 +35,30 @@ export default function BulkProductUpload() {
   const [summary, setSummary] = useState(null);
   const [preview, setPreview] = useState([]);
   const [invalidRows, setInvalidRows] = useState([]);
+  const [orphanVariantErrors, setOrphanVariantErrors] = useState([]);
 
   // Import
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
 
   const resetAll = () => {
-    setStep(0);
-    setSellerQuery(''); setSellers([]); setSelectedSeller(null);
-    setExcelFile(null); setZipFile(null);
-    setUploadId(null); setSummary(null); setPreview([]); setInvalidRows([]);
-    setImportResult(null);
-  };
+  setStep(0);
+  setSellerQuery('');
+  setSellers([]);
+  setSelectedSeller(null);
+
+  setExcelFile(null);
+  setZipFile(null);
+  setVariantsFile(null);
+
+  setUploadId(null);
+  setSummary(null);
+  setPreview([]);
+  setInvalidRows([]);
+  setOrphanVariantErrors([]);
+
+  setImportResult(null);
+};
 
   // Step 1: Download Template
   const downloadTemplate = () => {
@@ -110,20 +123,35 @@ const downloadVariantsTemplate = () => {
 
   // Step 3 -> 4: Validate
   const runValidation = async () => {
-    if (!excelFile || !zipFile) { alert('Please choose both the Excel file and the ZIP file'); return; }
-    setValidating(true);
-    try {
-      const formData = new FormData();
-      formData.append('sellerId', selectedSeller.id);
-      formData.append('excel', excelFile);
-      formData.append('zip', zipFile);
-      const res = await API.post('/admin/bulk-upload/validate', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+  if (!excelFile || !zipFile) {
+    alert('Please choose both the Excel file and the ZIP file');
+    return;
+  }
+
+  setValidating(true);
+
+  try {
+    const formData = new FormData();
+
+    formData.append('sellerId', selectedSeller.id);
+    formData.append('excel', excelFile);
+    formData.append('zip', zipFile);
+
+    // 👇 YEH LINE YAHAN ADD KARO
+    if (variantsFile) {
+      formData.append('variants', variantsFile);
+    }
+
+    const res = await API.post('/admin/bulk-upload/validate', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    
       setUploadId(res.data.uploadId);
       setSummary(res.data.summary);
       setPreview(res.data.preview);
       setInvalidRows(res.data.invalid);
+      setOrphanVariantErrors(res.data.orphanVariantErrors || []);
       setStep(3);
     } catch (err) {
       alert(err.response?.data?.error || 'Validation failed');
