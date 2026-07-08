@@ -226,6 +226,8 @@ const downloadVariantsTemplate = () => {
     <div style={{ background: '#f8f7ff', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #e8e0ff' }}>
       <p style={{ fontSize: '13px', color: '#666', margin: '0 0 14px' }}>
         The Excel file needs these <strong>8 columns</strong>: Product Name, Price, Category, Stock Quantity, Sold By, Image File Name, Description, Return Policy.
+        <br />
+        <strong>Note:</strong> Price and Stock Quantity can be left blank for products that have variants (their price/stock get calculated automatically from the Variants file).
       </p>
       <button onClick={downloadTemplate}
         style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
