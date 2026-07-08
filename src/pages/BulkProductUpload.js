@@ -75,41 +75,57 @@ export default function BulkProductUpload() {
 const downloadVariantsTemplate = () => {
   const ws = XLSX.utils.aoa_to_sheet([
     [
-      "Product Name",
-      "Variant Name",
-      "Price",
-      "Stock",
-      "SKU"
+      'Product Name',
+      'Variant Type',
+      'Variant Value',
+      'Price',
+      'Stock',
+      'Display Order'
     ],
+
     [
-      "Pizza",
-      "7 Inch",
+      'Veg Cheese Pizza',
+      'Size',
+      '7 Inch',
       199,
       20,
-      "PIZZA-7"
+      1
     ],
+
     [
-      "Pizza",
-      "9 Inch",
+      'Veg Cheese Pizza',
+      'Size',
+      '9 Inch',
       299,
       20,
-      "PIZZA-9"
+      2
     ],
+
     [
-      "Pizza",
-      "12 Inch",
+      'Veg Cheese Pizza',
+      'Size',
+      '12 Inch',
       399,
       15,
-      "PIZZA-12"
+      3
     ]
   ]);
 
+  // Column Width
+  ws['!cols'] = [
+    { wch: 28 }, // Product Name
+    { wch: 18 }, // Variant Type
+    { wch: 18 }, // Variant Value
+    { wch: 12 }, // Price
+    { wch: 12 }, // Stock
+    { wch: 18 }  // Display Order
+  ];
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Variants");
+  XLSX.utils.book_append_sheet(wb, ws, 'Variants');
 
-  XLSX.writeFile(wb, "zaplo_variants_template.xlsx");
+  XLSX.writeFile(wb, 'zaplo_variants_template.xlsx');
 };
-
   // Step 2: Seller search
   const searchSellers = async () => {
     if (!sellerQuery.trim()) return;
