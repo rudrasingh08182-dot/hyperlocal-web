@@ -59,6 +59,43 @@ export default function BulkProductUpload() {
   XLSX.utils.book_append_sheet(wb, ws, 'Products');
   XLSX.writeFile(wb, 'zaplo_bulk_upload_template.xlsx');
 };
+const downloadVariantsTemplate = () => {
+  const ws = XLSX.utils.aoa_to_sheet([
+    [
+      "Product Name",
+      "Variant Name",
+      "Price",
+      "Stock",
+      "SKU"
+    ],
+    [
+      "Pizza",
+      "7 Inch",
+      199,
+      20,
+      "PIZZA-7"
+    ],
+    [
+      "Pizza",
+      "9 Inch",
+      299,
+      20,
+      "PIZZA-9"
+    ],
+    [
+      "Pizza",
+      "12 Inch",
+      399,
+      15,
+      "PIZZA-12"
+    ]
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Variants");
+
+  XLSX.writeFile(wb, "zaplo_variants_template.xlsx");
+};
 
   // Step 2: Seller search
   const searchSellers = async () => {
