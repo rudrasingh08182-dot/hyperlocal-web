@@ -486,9 +486,17 @@ useEffect(() => {
       return;
     }
     
-    // 4. Checkout step back
-    if (checkoutStep > 1) {
-      setCheckoutStep(checkoutStep - 1);
+    // 4. Checkout flow back navigation
+    // If on payment step (step 3), go back to address step (step 2)
+    if (checkoutStep === 3) {
+      setCheckoutStep(2);
+      window.history.pushState({ noBack: true }, '', '');
+      return;
+    }
+    
+    // If on address step (step 2), go back to cart
+    if (checkoutStep === 2) {
+      setCheckoutStep(1);
       window.history.pushState({ noBack: true }, '', '');
       return;
     }
@@ -538,7 +546,6 @@ useEffect(() => {
   window.addEventListener('popstate', handleBack);
   return () => window.removeEventListener('popstate', handleBack);
 }, [screen, selectedProduct, trackingOrderId, checkoutStep, showAddAddress]);
-// ============================
 
 useEffect(() => {
   if (selectedProduct?.has_variants && selectedProduct.variants?.length > 0) {
