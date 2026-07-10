@@ -461,47 +461,54 @@ export default function BuyerDashboard() {
 
 useEffect(() => {
   let exitCount = 0;
-  let toastTimer;
+  let toastTimer = null;
+  
+  const pushWall = () => {
+    window.history.pushState({ z: 1 }, '', '');
+    window.history.pushState({ z: 1 }, '', '');
+    window.history.pushState({ z: 1 }, '', '');
+  };
+  
+  pushWall();
 
   const handleBack = () => {
-    // 1. Close product modal first
+    // Priority 1: Checkout step 3 → step 2
+    if (checkoutStep === 3) {
+      setCheckoutStep(2);
+      pushWall();
+      return;
+    }
+    
+    // Priority 2: Checkout step 2 → step 1 (cart)
+    if (checkoutStep === 2) {
+      setCheckoutStep(1);
+      pushWall();
+      return;
+    }
+    
+    // Priority 3: Close product modal
     if (selectedProduct) {
       setSelectedProduct(null);
       setActiveImageIndex(0);
-      window.history.pushState({ noBack: true }, '', '');
+      pushWall();
       return;
     }
     
-    // 2. Close tracking modal
+    // Priority 4: Close tracking modal
     if (trackingOrderId) {
       setTrackingOrderId(null);
-      window.history.pushState({ noBack: true }, '', '');
+      pushWall();
       return;
     }
     
-    // 3. Close add address form
+    // Priority 5: Close add address
     if (showAddAddress) {
       setShowAddAddress(false);
-      window.history.pushState({ noBack: true }, '', '');
+      pushWall();
       return;
     }
     
-    // 4. Checkout flow back navigation
-    // If on payment step (step 3), go back to address step (step 2)
-    if (checkoutStep === 3) {
-      setCheckoutStep(2);
-      window.history.pushState({ noBack: true }, '', '');
-      return;
-    }
-    
-    // If on address step (step 2), go back to cart
-    if (checkoutStep === 2) {
-      setCheckoutStep(1);
-      window.history.pushState({ noBack: true }, '', '');
-      return;
-    }
-    
-    // 5. Screen back navigation
+    // Priority 6: Screen back navigation
     const backMap = {
       'shoplist': 'home',
       'categoryProducts': 'home',
@@ -518,31 +525,26 @@ useEffect(() => {
     const target = backMap[screen];
     if (target && target !== screen) {
       setScreen(target);
-      window.history.pushState({ noBack: true }, '', '');
+      pushWall();
       return;
     }
     
-    // 6. Exit confirmation (double tap)
+    // Priority 7: Exit confirmation
     exitCount++;
     if (exitCount === 1) {
       const toast = document.createElement('div');
-      toast.id = 'zaplo-exit-toast';
-      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1f2937;color:white;padding:12px 24px;border-radius:24px;z-index:9999;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
+      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1f2937;color:white;padding:12px 24px;border-radius:24px;z-index:9999;font-size:14px;font-family:sans-serif;';
       toast.textContent = 'Press back again to exit';
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 2000);
       
       toastTimer = setTimeout(() => exitCount = 0, 2000);
-      window.history.pushState({ noBack: true }, '', '');
+      pushWall();
     } else {
-      clearTimeout(toastTimer);
-      window.history.back();
+      window.location.href = 'about:blank';
     }
   };
 
-  // Push initial state to prevent immediate exit
-  window.history.pushState({ noBack: true }, '', '');
-  
   window.addEventListener('popstate', handleBack);
   return () => window.removeEventListener('popstate', handleBack);
 }, [screen, selectedProduct, trackingOrderId, checkoutStep, showAddAddress]);
