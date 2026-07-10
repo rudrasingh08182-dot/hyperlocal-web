@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
 import { Toast, showToast } from '../components/Toast';
-import { useScreenHistory } from '../hooks/useScreenHistory';
 
 /* ============================================================
    ZAPLO DESIGN SYSTEM
@@ -460,18 +459,86 @@ export default function BuyerDashboard() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
 
-useScreenHistory({
-  currentScreen: screen,
-  setScreen,
-  selectedProduct,
-  setSelectedProduct,
-  trackingOrderId,
-  setTrackingOrderId,
-  checkoutStep,
-  setCheckoutStep,
-  showAddAddress,
-  setShowAddAddress,
-});
+useEffect(() => {
+  let exitCount = 0;
+  let toastTimer;
+
+  const handleBack = () => {
+    // 1. Close product modal first
+    if (selectedProduct) {
+      setSelectedProduct(null);
+      setActiveImageIndex(0);
+      window.history.pushState({ noBack: true }, '', '');
+      return;
+    }
+    
+    // 2. Close tracking modal
+    if (trackingOrderId) {
+      setTrackingOrderId(null);
+      window.history.pushState({ noBack: true }, '', '');
+      return;
+    }
+    
+    // 3. Close add address form
+    if (showAddAddress) {
+      setShowAddAddress(false);
+      window.history.pushState({ noBack: true }, '', '');
+      return;
+    }
+    
+    // 4. Checkout step back
+    if (checkoutStep > 1) {
+      setCheckoutStep(checkoutStep - 1);
+      window.history.pushState({ noBack: true }, '', '');
+      return;
+    }
+    
+    // 5. Screen back navigation
+    const backMap = {
+      'shoplist': 'home',
+      'categoryProducts': 'home',
+      'shop': 'home',
+      'cart': 'home',
+      'orders': 'profile',
+      'profile': 'home',
+      'help': 'profile',
+      'terms': 'profile',
+      'addresses': 'profile',
+      'myreviews': 'profile',
+    };
+    
+    const target = backMap[screen];
+    if (target && target !== screen) {
+      setScreen(target);
+      window.history.pushState({ noBack: true }, '', '');
+      return;
+    }
+    
+    // 6. Exit confirmation (double tap)
+    exitCount++;
+    if (exitCount === 1) {
+      const toast = document.createElement('div');
+      toast.id = 'zaplo-exit-toast';
+      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1f2937;color:white;padding:12px 24px;border-radius:24px;z-index:9999;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;';
+      toast.textContent = 'Press back again to exit';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+      
+      toastTimer = setTimeout(() => exitCount = 0, 2000);
+      window.history.pushState({ noBack: true }, '', '');
+    } else {
+      clearTimeout(toastTimer);
+      window.history.back();
+    }
+  };
+
+  // Push initial state to prevent immediate exit
+  window.history.pushState({ noBack: true }, '', '');
+  
+  window.addEventListener('popstate', handleBack);
+  return () => window.removeEventListener('popstate', handleBack);
+}, [screen, selectedProduct, trackingOrderId, checkoutStep, showAddAddress]);
+// ============================
 
 useEffect(() => {
   if (selectedProduct?.has_variants && selectedProduct.variants?.length > 0) {
