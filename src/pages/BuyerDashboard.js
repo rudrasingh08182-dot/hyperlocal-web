@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
@@ -459,95 +459,76 @@ export default function BuyerDashboard() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
 
-useEffect(() => {
-  let exitCount = 0;
-  let toastTimer = null;
-  
-  const pushWall = () => {
-    window.history.pushState({ z: 1 }, '', '');
-    window.history.pushState({ z: 1 }, '', '');
-    window.history.pushState({ z: 1 }, '', '');
-  };
-  
-  pushWall();
+  // ---- Real navigation history (drives phone back button) ----
+  const buildNavState = () => ({
+    screen, selectedProduct, selectedShop, activeCategory,
+    checkoutStep, trackingOrderId, showAddAddress,
+  });
 
-  const handleBack = () => {
-    // Priority 1: Checkout step 3 → step 2
-    if (checkoutStep === 3) {
-      setCheckoutStep(2);
-      pushWall();
+  const applyNavState = async (state) => {
+    setScreen(state.screen);
+    setSelectedProduct(state.selectedProduct);
+    setSelectedShop(state.selectedShop);
+    setActiveCategory(state.activeCategory);
+    setCheckoutStep(state.checkoutStep);
+    setTrackingOrderId(state.trackingOrderId);
+    setShowAddAddress(state.showAddAddress);
+    setActiveImageIndex(0);
+
+    if (state.screen === 'categoryProducts') {
+      if (state.activeCategory === 'all') setProducts(allProducts);
+      else setProducts(allProducts.filter(p => p.category?.toLowerCase() === state.activeCategory.toLowerCase()));
+    }
+    if (state.screen === 'shop' && state.selectedShop) {
+      try {
+        const res = await API.get(`/sellers/${state.selectedShop.id}/products`);
+        setShopProducts(res.data);
+      } catch (err) { console.error(err); }
+    }
+    if (state.screen === 'orders') fetchMyOrders();
+  };
+
+  const navigate = (updates) => {
+    const newState = { ...buildNavState(), ...updates };
+    window.history.pushState(newState, '');
+    applyNavState(newState);
+  };
+
+  // Keep a ref to the latest applyNavState so the popstate listener
+  // (attached once on mount) never uses stale closures over state
+  // like allProducts.
+  const applyNavStateRefObj = useRef(applyNavState);
+  applyNavStateRefObj.current = applyNavState;
+
+useEffect(() => {
+  window.history.replaceState(buildNavState(), '');
+  let exitArmed = false;
+  let exitTimer = null;
+
+  const handlePopState = (event) => {
+    if (event.state) {
+      applyNavStateRefObj.current(event.state);
       return;
     }
-    
-    // Priority 2: Checkout step 2 → step 1 (cart)
-    if (checkoutStep === 2) {
-      setCheckoutStep(1);
-      pushWall();
-      return;
-    }
-    
-    // Priority 3: Close product modal
-    if (selectedProduct) {
-      setSelectedProduct(null);
-      setActiveImageIndex(0);
-      pushWall();
-      return;
-    }
-    
-    // Priority 4: Close tracking modal
-    if (trackingOrderId) {
-      setTrackingOrderId(null);
-      pushWall();
-      return;
-    }
-    
-    // Priority 5: Close add address
-    if (showAddAddress) {
-      setShowAddAddress(false);
-      pushWall();
-      return;
-    }
-    
-    // Priority 6: Screen back navigation
-    const backMap = {
-      'shoplist': 'home',
-      'categoryProducts': 'home',
-      'shop': 'home',
-      'cart': 'home',
-      'orders': 'profile',
-      'profile': 'home',
-      'help': 'profile',
-      'terms': 'profile',
-      'addresses': 'profile',
-      'myreviews': 'profile',
-    };
-    
-    const target = backMap[screen];
-    if (target && target !== screen) {
-      setScreen(target);
-      pushWall();
-      return;
-    }
-    
-    // Priority 7: Exit confirmation
-    exitCount++;
-    if (exitCount === 1) {
-      const toast = document.createElement('div');
-      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1f2937;color:white;padding:12px 24px;border-radius:24px;z-index:9999;font-size:14px;font-family:sans-serif;';
-      toast.textContent = 'Press back again to exit';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
-      
-      toastTimer = setTimeout(() => exitCount = 0, 2000);
-      pushWall();
+    // Popped past the root → real exit intent
+    if (!exitArmed) {
+      exitArmed = true;
+      showToast('Press back again to exit');
+      window.history.pushState(buildNavState(), '');
+      exitTimer = setTimeout(() => { exitArmed = false; }, 2000);
     } else {
+      clearTimeout(exitTimer);
       window.location.href = 'about:blank';
     }
   };
 
-  window.addEventListener('popstate', handleBack);
-  return () => window.removeEventListener('popstate', handleBack);
-}, [screen, selectedProduct, trackingOrderId, checkoutStep, showAddAddress]);
+  window.addEventListener('popstate', handlePopState);
+  return () => {
+    window.removeEventListener('popstate', handlePopState);
+    if (exitTimer) clearTimeout(exitTimer);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
 useEffect(() => {
   if (selectedProduct?.has_variants && selectedProduct.variants?.length > 0) {
@@ -595,7 +576,7 @@ useEffect(() => {
       if (searchMode === 'shops') {
         const res = await API.get(`/sellers/search?q=${query}`);
         setShops(res.data);
-        setScreen('shoplist');
+        navigate({ screen: 'shoplist' });
       } else {
         const res = await API.get(`/products/search?q=${query}`);
         setProducts(res.data);
@@ -618,14 +599,13 @@ useEffect(() => {
 
 const openCategoryScreen = (catId) => {
   filterByCategory(catId);
-  setScreen('categoryProducts');
+  navigate({ screen: 'categoryProducts', activeCategory: catId });
 };
 
 
   const openShop = async (shop) => {
-    setSelectedShop(shop);
-    setScreen('shop');
     setLoading(true);
+    navigate({ screen: 'shop', selectedShop: shop });
     try {
       const res = await API.get(`/sellers/${shop.id}/products`);
       setShopProducts(res.data);
@@ -693,9 +673,8 @@ const openCategoryScreen = (catId) => {
       if (paymentMethod === 'COD') {
         clearCart();
         showToast('Order placed successfully! 🎉 Pay cash on delivery.', 'success');
-        setScreen('orders');
+        navigate({ screen: 'orders', checkoutStep: 1 });
         fetchMyOrders();
-        setCheckoutStep(1);
         return;
       }
 
@@ -757,9 +736,8 @@ const openCategoryScreen = (catId) => {
 
         clearCart();
         showToast('Payment successful! 🎉', 'success');
-        setScreen('orders');
+        navigate({ screen: 'orders', checkoutStep: 1 });
         fetchMyOrders();
-        setCheckoutStep(1);
       }
 
     } catch (err) {
@@ -780,7 +758,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
   : null;
     return (
       <motion.div whileTap={{ scale: 0.98 }} style={{ background: T.card, borderRadius: T.radiusMd, overflow: 'hidden', boxShadow: T.shadowCard, position: 'relative', cursor: 'pointer', border: `1px solid ${T.border}` }}
-        onClick={() => setSelectedProduct(product)}>
+        onClick={() => navigate({ selectedProduct: product })}>
         <div style={{ position: 'relative' }}>
           {product.image_urls?.[0] || product.image_url ? (
             <img
@@ -846,7 +824,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                 <div style={{ color: 'white', fontWeight: '800', fontSize: '19px', letterSpacing: '-0.01em' }}>⚡ 30 minutes</div>
                 <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '12px', marginTop: '2px' }}>Delivering to your location</div>
               </div>
-              <motion.div {...btnTap} onClick={() => { setScreen('profile'); }} style={{ width: '42px', height: '42px', background: 'rgba(255,255,255,0.18)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <motion.div {...btnTap} onClick={() => navigate({ screen: 'profile' })} style={{ width: '42px', height: '42px', background: 'rgba(255,255,255,0.18)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <span style={{ fontSize: '19px' }}>👤</span>
               </motion.div>
             </div>
@@ -971,7 +949,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
       {screen === 'shoplist' && (
         <div style={{ paddingBottom: '104px' }}>
           <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
-            <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <motion.button {...btnTap} onClick={() => window.history.back()} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
             <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>Shops near you</h2>
           </div>
           <div style={{ padding: '20px' }}>
@@ -995,7 +973,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
       {screen === 'categoryProducts' && (
         <div style={{ paddingBottom: '104px' }}>
           <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
-            <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <motion.button {...btnTap} onClick={() => window.history.back()} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
             <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>
               {categories.find(c => c.id === activeCategory)?.label || 'Category'}
             </h2>
@@ -1023,7 +1001,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
       {screen === 'shop' && selectedShop && (
         <div style={{ paddingBottom: '104px' }}>
           <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
-            <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <motion.button {...btnTap} onClick={() => window.history.back()} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
             <h2 style={{ color: 'white', margin: '0 0 6px', fontSize: '20px', fontWeight: '800' }}>{selectedShop.shop_name}</h2>
             <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '13px' }}>{selectedShop.address}</div>
             <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '13px' }}>{selectedShop.contact_phone}</div>
@@ -1054,7 +1032,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
       {screen === 'cart' && (
         <div style={{ paddingBottom: '104px' }}>
           <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
-            <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <motion.button {...btnTap} onClick={() => window.history.back()} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
             <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>My cart</h2>
           </div>
 
@@ -1064,7 +1042,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                 <div style={{ fontSize: '56px', marginBottom: '18px' }}>🛒</div>
                 <div style={{ fontWeight: '700', fontSize: '18px', color: T.text, marginBottom: '8px' }}>Your cart is empty</div>
                 <p style={{ color: T.textSoft, marginBottom: '22px' }}>Add items to get started</p>
-                <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '13px 30px', fontWeight: '700', cursor: 'pointer' }}>Start shopping</motion.button>
+                <motion.button {...btnTap} onClick={() => navigate({ screen: 'home' })} style={{ background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '13px 30px', fontWeight: '700', cursor: 'pointer' }}>Start shopping</motion.button>
               </div>
             ) : checkoutStep === 1 ? (
               <>
@@ -1106,7 +1084,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                       First 5km: ₹20 | Extra: ₹6/km • Pay to delivery partner
                     </div>
                   </div>
-                  <motion.button {...btnTap} onClick={() => setCheckoutStep(2)} style={{ width: '100%', padding: '16px', background: T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', fontSize: '16px', cursor: 'pointer' }}>
+                  <motion.button {...btnTap} onClick={() => navigate({ checkoutStep: 2 })} style={{ width: '100%', padding: '16px', background: T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', fontSize: '16px', cursor: 'pointer' }}>
                     Proceed to checkout →
                   </motion.button>
                 </div>
@@ -1135,8 +1113,8 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <motion.button {...btnTap} onClick={() => setCheckoutStep(1)} style={{ flex: 1, padding: '15px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer' }}>← Back</motion.button>
-                  <motion.button {...btnTap} onClick={() => setCheckoutStep(3)} style={{ flex: 2, padding: '15px', background: T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer' }}>Continue →</motion.button>
+                  <motion.button {...btnTap} onClick={() => window.history.back()} style={{ flex: 1, padding: '15px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer' }}>← Back</motion.button>
+                  <motion.button {...btnTap} onClick={() => navigate({ checkoutStep: 3 })} style={{ flex: 2, padding: '15px', background: T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer' }}>Continue →</motion.button>
                 </div>
               </div>
             ) : (
@@ -1187,7 +1165,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <motion.button {...btnTap} onClick={() => setCheckoutStep(2)} style={{ flex: 1, padding: '15px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer' }}>← Back</motion.button>
+                  <motion.button {...btnTap} onClick={() => window.history.back()} style={{ flex: 1, padding: '15px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer' }}>← Back</motion.button>
                   <motion.button {...btnTap} onClick={placeOrder} style={{ flex: 2, padding: '15px', background: T.successGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '15px' }}>
                     Place order
                   </motion.button>
@@ -1209,7 +1187,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
               <div style={{ textAlign: 'center', padding: '64px 20px', background: T.card, borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
                 <div style={{ fontSize: '56px', marginBottom: '18px' }}>📭</div>
                 <div style={{ fontWeight: '700', fontSize: '18px', color: T.text, marginBottom: '8px' }}>No orders yet</div>
-                <motion.button {...btnTap} onClick={() => setScreen('home')} style={{ background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '13px 30px', fontWeight: '700', cursor: 'pointer', marginTop: '10px' }}>Start shopping</motion.button>
+                <motion.button {...btnTap} onClick={() => navigate({ screen: 'home' })} style={{ background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '13px 30px', fontWeight: '700', cursor: 'pointer', marginTop: '10px' }}>Start shopping</motion.button>
               </div>
             ) : myOrders.map(order => (
               <div key={order.id} style={{ background: T.card, borderRadius: T.radiusMd, padding: '18px', marginBottom: '14px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
@@ -1234,7 +1212,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                 </div>
                 {order.status !== 'delivered' && order.status !== 'cancelled' && (
                   <motion.button {...btnTap}
-                    onClick={() => setTrackingOrderId(order.id)}
+                    onClick={() => navigate({ trackingOrderId: order.id })}
                     style={{ width: '100%', marginTop: '12px', padding: '12px', background: T.primaryTint, color: T.primary, border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
                     Track order
                   </motion.button>
@@ -1242,7 +1220,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
 
                 {order.status === 'delivered' && (
                   <motion.button {...btnTap}
-                    onClick={() => setTrackingOrderId(order.id)}
+                    onClick={() => navigate({ trackingOrderId: order.id })}
                     style={{ width: '100%', marginTop: '12px', padding: '12px', background: T.successTint, color: T.success, border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
                     View order details & return
                   </motion.button>
@@ -1271,10 +1249,10 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
           {/* Quick Actions */}
           <div style={{ background: T.card, margin: '16px 20px', borderRadius: T.radiusMd, padding: '18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
             {[
-              { icon: '📦', label: 'Your orders', action: () => { fetchMyOrders(); setScreen('orders'); } },
-              { icon: '💬', label: 'Help & support', action: () => setScreen('help') },
-              { icon: '📍', label: 'Saved addresses', action: () => setScreen('addresses') },
-              { icon: '⭐', label: 'My reviews', action: () => setScreen('myreviews') },
+              { icon: '📦', label: 'Your orders', action: () => { fetchMyOrders(); navigate({ screen: 'orders' }); } },
+              { icon: '💬', label: 'Help & support', action: () => navigate({ screen: 'help' }) },
+              { icon: '📍', label: 'Saved addresses', action: () => navigate({ screen: 'addresses' }) },
+              { icon: '⭐', label: 'My reviews', action: () => navigate({ screen: 'myreviews' }) },
             ].map((item, i) => (
               <motion.div whileTap={{ scale: 0.97 }} key={i} onClick={item.action}
                 style={{ background: T.bg, borderRadius: T.radiusSm, padding: '18px', textAlign: 'center', cursor: 'pointer', border: `1px solid ${T.border}` }}>
@@ -1288,10 +1266,10 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
           <div style={{ margin: '20px 20px 10px', fontWeight: '700', fontSize: '15px', color: T.text }}>Your information</div>
           <div style={{ background: T.card, margin: '0 20px', borderRadius: T.radiusMd, overflow: 'hidden', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
             {[
-              { icon: '📦', label: 'My orders', sub: '', action: () => { fetchMyOrders(); setScreen('orders'); } },
-              { icon: '📍', label: 'Saved addresses', sub: `${savedAddresses.length} address${savedAddresses.length !== 1 ? 'es' : ''}`, action: () => setScreen('addresses') },
-              { icon: '💳', label: 'Payment history', sub: '', action: () => { fetchMyOrders(); setScreen('orders'); } },
-              { icon: '💬', label: 'Help & support', sub: '', action: () => setScreen('help') },
+              { icon: '📦', label: 'My orders', sub: '', action: () => { fetchMyOrders(); navigate({ screen: 'orders' }); } },
+              { icon: '📍', label: 'Saved addresses', sub: `${savedAddresses.length} address${savedAddresses.length !== 1 ? 'es' : ''}`, action: () => navigate({ screen: 'addresses' }) },
+              { icon: '💳', label: 'Payment history', sub: '', action: () => { fetchMyOrders(); navigate({ screen: 'orders' }); } },
+              { icon: '💬', label: 'Help & support', sub: '', action: () => navigate({ screen: 'help' }) },
             ].map((item, i, arr) => (
               <div key={i} onClick={item.action}
                 style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '17px 18px', cursor: 'pointer', borderBottom: i < arr.length - 1 ? `1px solid ${T.border}` : 'none' }}>
@@ -1309,9 +1287,9 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
           <div style={{ margin: '20px 20px 10px', fontWeight: '700', fontSize: '15px', color: T.text }}>Other information</div>
           <div style={{ background: T.card, margin: '0 20px', borderRadius: T.radiusMd, overflow: 'hidden', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
             {[
-              { icon: '⭐', label: 'My reviews', action: () => setScreen('myreviews') },
-              { icon: '📜', label: 'Terms & Conditions', action: () => setScreen('terms') },
-              { icon: 'ℹ️', label: 'About Zaplo', action: () => setScreen('help') },
+              { icon: '⭐', label: 'My reviews', action: () => navigate({ screen: 'myreviews' }) },
+              { icon: '📜', label: 'Terms & Conditions', action: () => navigate({ screen: 'terms' }) },
+              { icon: 'ℹ️', label: 'About Zaplo', action: () => navigate({ screen: 'help' }) },
             ].map((item, i, arr) => (
               <div key={i} onClick={item.action}
                 style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '17px 18px', cursor: 'pointer', borderBottom: i < arr.length - 1 ? `1px solid ${T.border}` : 'none' }}>
@@ -1340,14 +1318,14 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
       {screen === 'myreviews' && (
         <div style={{ paddingBottom: '104px' }}>
           <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
-            <motion.button {...btnTap} onClick={() => setScreen('profile')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <motion.button {...btnTap} onClick={() => window.history.back()} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
             <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>My reviews</h2>
           </div>
           <div style={{ padding: '20px' }}>
             <div style={{ textAlign: 'center', padding: '48px', background: T.card, borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
               <div style={{ fontSize: '48px', marginBottom: '14px' }}>⭐</div>
               <p style={{ color: T.textSoft }}>Your reviews on products and shops will appear here</p>
-              <motion.button {...btnTap} onClick={() => setScreen('home')}
+              <motion.button {...btnTap} onClick={() => navigate({ screen: 'home' })}
                 style={{ marginTop: '14px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '11px 26px', cursor: 'pointer', fontWeight: '600' }}>
                 Start shopping
               </motion.button>
@@ -1360,11 +1338,11 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
       {screen === 'addresses' && (
         <div style={{ paddingBottom: '104px' }}>
           <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
-            <motion.button {...btnTap} onClick={() => setScreen('profile')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <motion.button {...btnTap} onClick={() => window.history.back()} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
             <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>My addresses</h2>
           </div>
           <div style={{ padding: '20px' }}>
-            <motion.button {...btnTap} onClick={() => setShowAddAddress(!showAddAddress)}
+            <motion.button {...btnTap} onClick={() => showAddAddress ? window.history.back() : navigate({ showAddAddress: true })}
               style={{ width: '100%', padding: '16px', background: T.primaryTint, color: T.primary, border: `2px dashed ${T.primary}`, borderRadius: T.radiusMd, fontWeight: '700', cursor: 'pointer', fontSize: '14px', marginBottom: '18px' }}>
               + Add new address
             </motion.button>
@@ -1400,11 +1378,11 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                     if (!newAddress.full_address) { showToast('Please enter address', 'error'); return; }
                     setSavedAddresses(prev => [...prev, { ...newAddress, id: Date.now() }]);
                     setNewAddress({ label: 'Home', full_address: '', landmark: '', phone: '' });
-                    setShowAddAddress(false);
+                    window.history.back();
                   }} style={{ flex: 2, padding: '13px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer' }}>
                     Save address
                   </motion.button>
-                  <motion.button {...btnTap} onClick={() => setShowAddAddress(false)}
+                  <motion.button {...btnTap} onClick={() => window.history.back()}
                     style={{ flex: 1, padding: '13px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, cursor: 'pointer' }}>
                     Cancel
                   </motion.button>
@@ -1433,8 +1411,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                 {addr.phone && <div style={{ fontSize: '12px', color: T.textFaint, marginTop: '2px' }}>{addr.phone}</div>}
                 <motion.button {...btnTap} onClick={() => {
                   setAddress({ full_address: addr.full_address, landmark: addr.landmark, phone: addr.phone });
-                  setScreen('cart');
-                  setCheckoutStep(2);
+                  navigate({ screen: 'cart', checkoutStep: 2 });
                 }} style={{ marginTop: '12px', width: '100%', padding: '10px', background: T.primaryTint, color: T.primary, border: 'none', borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}>
                   Use this address
                 </motion.button>
@@ -1448,7 +1425,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
       {screen === 'help' && (
         <div style={{ paddingBottom: '104px' }}>
           <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px' }}>
-            <motion.button {...btnTap} onClick={() => setScreen('profile')} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
+            <motion.button {...btnTap} onClick={() => window.history.back()} style={{ background: 'rgba(255,255,255,0.18)', border: 'none', borderRadius: T.radiusPill, color: 'white', padding: '9px 16px', cursor: 'pointer', marginBottom: '14px', fontWeight: '600', fontSize: '13px' }}>← Back</motion.button>
             <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>Help & support</h2>
           </div>
           <div style={{ padding: '20px' }}>
@@ -1481,7 +1458,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
 
       {/* TERMS & CONDITIONS SCREEN (shared component) */}
       {screen === 'terms' && (
-        <TermsAndConditions onBack={() => setScreen('profile')} />
+        <TermsAndConditions onBack={() => window.history.back()} />
       )}
 
       {/* PRODUCT DETAIL MODAL */}
@@ -1490,7 +1467,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
           <div style={{ height: 'calc(100vh - 90px)', overflowY: 'auto' }}>
             {/* Back button */}
             <div style={{ position: 'absolute', top: '18px', left: '18px', zIndex: 10 }}>
-              <motion.button {...btnTap} onClick={() => setSelectedProduct(null)}
+              <motion.button {...btnTap} onClick={() => window.history.back()}
                 style={{ width: '40px', height: '40px', background: 'white', border: 'none', borderRadius: '50%', boxShadow: T.shadowFloating, cursor: 'pointer', fontSize: '17px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 ←
               </motion.button>
@@ -1694,7 +1671,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
           <button onClick={() => addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id }, isVariantProduct ? selectedVariant : null)}
             style={{ flex: 1, padding: '16px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>+</button>
         </div>
-        <motion.button {...btnTap} onClick={() => { setScreen('cart'); setSelectedProduct(null); }}
+        <motion.button {...btnTap} onClick={() => { navigate({ screen: 'cart', selectedProduct: null }); }}
           style={{ padding: '16px 22px', background: T.successGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
           View cart
         </motion.button>
@@ -1708,7 +1685,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
 {trackingOrderId && (
   <OrderTracking
     orderId={trackingOrderId}
-    onClose={() => setTrackingOrderId(null)}
+    onClose={() => window.history.back()}
   />
 )}
 
@@ -1722,14 +1699,14 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
       }}>
         {[
           { id: 'home', icon: '🏠', label: 'Home' },
-          { id: 'shoplist', icon: '🏪', label: 'Shops', action: () => { API.get('/sellers/search?q=').then(r => { setShops(r.data); setScreen('shoplist'); }); } },
+          { id: 'shoplist', icon: '🏪', label: 'Shops', action: () => { API.get('/sellers/search?q=').then(r => { setShops(r.data); navigate({ screen: 'shoplist' }); }); } },
           { id: 'cart', icon: '🛒', label: 'Cart', badge: cartCount,
-            action: () => { getBuyerLocation(); setScreen('cart'); } },
-          { id: 'orders', icon: '📦', label: 'Orders', action: () => { fetchMyOrders(); setScreen('orders'); } },
+            action: () => { getBuyerLocation(); navigate({ screen: 'cart' }); } },
+          { id: 'orders', icon: '📦', label: 'Orders', action: () => { fetchMyOrders(); navigate({ screen: 'orders' }); } },
           { id: 'profile', icon: '👤', label: 'Profile' },
         ].map(item => (
           <motion.button whileTap={{ scale: 0.9 }} key={item.id}
-            onClick={() => item.action ? item.action() : setScreen(item.id)}
+            onClick={() => item.action ? item.action() : navigate({ screen: item.id })}
             style={{ flex: 1, padding: '10px 0', background: screen === item.id ? T.primaryTint : 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', position: 'relative', borderRadius: T.radiusPill, margin: '0 2px' }}>
             <span style={{ fontSize: '20px' }}>{item.icon}</span>
             <span style={{ fontSize: '10px', fontWeight: '600', color: screen === item.id ? T.primary : T.textFaint }}>{item.label}</span>
