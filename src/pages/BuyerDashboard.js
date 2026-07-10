@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
 import { Toast, showToast } from '../components/Toast';
+import { useScreenHistory } from '../hooks/useScreenHistory';
 
 /* ============================================================
    ZAPLO DESIGN SYSTEM
@@ -458,6 +459,19 @@ export default function BuyerDashboard() {
   const { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
+
+useScreenHistory({
+  currentScreen: screen,
+  setScreen,
+  selectedProduct,
+  setSelectedProduct,
+  trackingOrderId,
+  setTrackingOrderId,
+  checkoutStep,
+  setCheckoutStep,
+  showAddAddress,
+  setShowAddAddress,
+});
 
 useEffect(() => {
   if (selectedProduct?.has_variants && selectedProduct.variants?.length > 0) {

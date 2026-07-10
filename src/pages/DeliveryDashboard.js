@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import API from '../services/api';
+import { useTabHistory } from '../hooks/useTabHistory';
 
 
 export default function DeliveryDashboard() {
@@ -10,6 +11,9 @@ export default function DeliveryDashboard() {
   const [locationError, setLocationError] = useState('');
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
+
+  useTabHistory(tab, setTab, ['available', 'mydeliveries']);
+
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 

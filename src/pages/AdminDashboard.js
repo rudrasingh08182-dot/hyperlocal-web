@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import API from '../services/api';
 import { Toast, showToast } from '../components/Toast';
 import BulkProductUpload from './BulkProductUpload';
+import { useTabHistory } from '../hooks/useTabHistory';
 
 function ThreeBackground() {
   const mountRef = useRef(null);
@@ -65,6 +66,8 @@ export default function AdminDashboard() {
   const [buyers, setBuyers] = useState([]);
   const [tab, setTab] = useState('sellers');
   const [loading, setLoading] = useState(true);
+ 
+  useTabHistory(tab, setTab, ['sellers', 'buyers', 'delivery', 'bulk-upload']);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 

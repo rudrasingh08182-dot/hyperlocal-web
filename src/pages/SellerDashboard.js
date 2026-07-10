@@ -5,7 +5,7 @@ import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
 import { requestNotificationPermission } from '../firebase';
 import { Toast, showToast } from '../components/Toast';
-
+import { useTabHistory } from '../hooks/useTabHistory';
 
 function SellerReviews() {
   const [reviews, setReviews] = useState([]);
@@ -79,6 +79,8 @@ export default function SellerDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNotif, setShowNotif] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useTabHistory(activeTab, setActiveTab, ['dashboard', 'products', 'orders', 'analytics', 'earnings', 'reviews', 'bank', 'settings', 'terms']);
 
   // Real data states
   const [dashboardData, setDashboardData] = useState(null);
