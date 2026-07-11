@@ -459,10 +459,23 @@ export default function BuyerDashboard() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
 
+  // ---- Temporary QR-based payment flow state ----
+  // (Replacement until Razorpay is fully live — see paymentVerification.controller.js)
+  const [qrPaymentActive, setQrPaymentActive] = useState(false);
+  const [qrOrderIds, setQrOrderIds] = useState([]);       // orders in this checkout batch awaiting QR payment
+  const [qrCurrentIndex, setQrCurrentIndex] = useState(0); // which order in the batch we're currently paying
+  const [qrPaymentDetails, setQrPaymentDetails] = useState(null); // { order_id, amount, shop_name, upi_id, qr_code_url }
+  const [qrLoadingDetails, setQrLoadingDetails] = useState(false);
+  const [qrStep, setQrStep] = useState('pay_and_confirm'); // 'pay_and_confirm' | 'upload' | 'submitted'
+  const [qrScreenshot, setQrScreenshot] = useState(null);
+  const [qrScreenshotPreview, setQrScreenshotPreview] = useState(null);
+  const [qrTransactionId, setQrTransactionId] = useState('');
+  const [qrSubmitting, setQrSubmitting] = useState(false);
+
   // ---- Real navigation history (drives phone back button) ----
   const buildNavState = () => ({
     screen, selectedProduct, selectedShop, activeCategory,
-    checkoutStep, trackingOrderId, showAddAddress,
+    checkoutStep, trackingOrderId, showAddAddress, qrPaymentActive,
   });
 
   const applyNavState = async (state) => {
@@ -473,6 +486,7 @@ export default function BuyerDashboard() {
     setCheckoutStep(state.checkoutStep);
     setTrackingOrderId(state.trackingOrderId);
     setShowAddAddress(state.showAddAddress);
+    setQrPaymentActive(!!state.qrPaymentActive);
     setActiveImageIndex(0);
 
     if (state.screen === 'categoryProducts') {
@@ -539,15 +553,91 @@ useEffect(() => {
   }
 }, [selectedProduct]);
 
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      if (window.Razorpay) return resolve(true);
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
+  // ── Temporary QR-based payment flow helpers ──────────────────────
+  // (Replacement until Razorpay is fully live. Kept modular and separate
+  // from order-status management so it can be swapped out cleanly later.)
+  const loadQrPaymentDetails = async (orderId) => {
+    setQrLoadingDetails(true);
+    try {
+      const res = await API.get(`/payments/qr/order/${orderId}`);
+      setQrPaymentDetails(res.data);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to load payment details', 'error');
+    } finally {
+      setQrLoadingDetails(false);
+    }
+  };
+
+  const startQrPayment = (orderIds) => {
+    setQrOrderIds(orderIds);
+    setQrCurrentIndex(0);
+    setQrStep('pay_and_confirm');
+    setQrScreenshot(null);
+    setQrScreenshotPreview(null);
+    setQrTransactionId('');
+    navigate({ qrPaymentActive: true });
+    loadQrPaymentDetails(orderIds[0]);
+  };
+
+  const buildUpiDeepLink = () => {
+    if (!qrPaymentDetails?.upi_id) return null;
+    const params = new URLSearchParams({
+      pa: qrPaymentDetails.upi_id,
+      pn: qrPaymentDetails.shop_name || 'Zaplo Seller',
+      am: String(qrPaymentDetails.amount),
+      tn: `Order ${qrPaymentDetails.order_id.slice(-6).toUpperCase()}`,
+      cu: 'INR',
     });
+    return `upi://pay?${params.toString()}`;
+  };
+
+  const openUpiApp = () => {
+    const link = buildUpiDeepLink();
+    if (!link) {
+      showToast('UPI ID not available — please scan the QR code instead', 'error');
+      return;
+    }
+    window.location.href = link;
+  };
+
+  const submitQrPaymentProof = async () => {
+    if (!qrScreenshot) {
+      showToast('Please upload a payment screenshot', 'error');
+      return;
+    }
+    setQrSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('screenshot', qrScreenshot);
+      if (qrTransactionId.trim()) formData.append('transaction_id', qrTransactionId.trim());
+      await API.post(`/payments/qr/verify/${qrPaymentDetails.order_id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showToast('Payment proof submitted!', 'success');
+      setQrStep('submitted');
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to submit payment proof', 'error');
+    } finally {
+      setQrSubmitting(false);
+    }
+  };
+
+  // Moves to the next order in this checkout batch (multi-seller cart),
+  // or closes the flow and returns to Orders once all are done.
+  const advanceQrFlow = () => {
+    const next = qrCurrentIndex + 1;
+    if (next < qrOrderIds.length) {
+      setQrCurrentIndex(next);
+      setQrStep('pay_and_confirm');
+      setQrScreenshot(null);
+      setQrScreenshotPreview(null);
+      setQrTransactionId('');
+      loadQrPaymentDetails(qrOrderIds[next]);
+    } else {
+      window.history.back(); // closes the QR overlay
+      navigate({ screen: 'orders', checkoutStep: 1 });
+      fetchMyOrders();
+    }
   };
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -655,12 +745,16 @@ const openCategoryScreen = (catId) => {
 
     try {
       const placedOrderIds = [];
+      // Backend distinguishes the temporary QR flow from COD via a distinct
+      // payment_method value, so the order starts at 'pending_payment' instead
+      // of 'pending' (see order.controller.js).
+      const backendPaymentMethod = paymentMethod === 'ONLINE' ? 'ONLINE_QR' : paymentMethod;
 
       for (const [seller_id, items] of Object.entries(sellerGroups)) {
         const res = await API.post('/orders', {
           seller_id,
           items: items.map(i => ({ product_id: i.id, quantity: i.qty, variant_id: i.variant?.id || null })),
-          payment_method: paymentMethod,
+          payment_method: backendPaymentMethod,
           delivery_address: address.full_address,
           delivery_phone: address.phone,
           delivery_landmark: address.landmark,
@@ -679,65 +773,11 @@ const openCategoryScreen = (catId) => {
       }
 
       if (paymentMethod === 'ONLINE') {
-        const loaded = await loadRazorpayScript();
-        if (!loaded) {
-          showToast('Failed to load payment gateway. Please try COD.', 'error');
-          return;
-        }
-
-        for (const orderId of placedOrderIds) {
-          const { data } = await API.post(`/payments/create-order/${orderId}`);
-
-          await new Promise((resolve, reject) => {
-            const options = {
-              key: data.key,
-              amount: data.amount,
-              currency: 'INR',
-              name: 'HyperLocal App',
-              description: `Order #${orderId.slice(-6).toUpperCase()}`,
-              order_id: data.razorpay_order_id,
-              prefill: {
-                name: user.name,
-                contact: user.phone,
-              },
-              theme: { color: T.primary },
-
-              handler: async (response) => {
-                try {
-                  await API.post('/payments/verify', {
-                    razorpay_order_id: response.razorpay_order_id,
-                    razorpay_payment_id: response.razorpay_payment_id,
-                    razorpay_signature: response.razorpay_signature,
-                    order_id: orderId,
-                  });
-                  resolve();
-                } catch {
-                  showToast('Payment done but verification failed. Contact support.', 'error');
-                  resolve();
-                }
-              },
-
-              modal: {
-                ondismiss: () => {
-                  showToast('Payment cancelled. Your order is saved. Go to My Orders to pay later.');
-                  resolve();
-                },
-              },
-            };
-
-            const rzp = new window.Razorpay(options);
-            rzp.on('payment.failed', (response) => {
-              alert(`Payment failed: ${response.error.description}`);
-              resolve();
-            });
-            rzp.open();
-          });
-        }
-
+        // Orders exist now (status: pending_payment) — cart can safely clear,
+        // same as COD. The order is NOT successful/confirmed yet; that only
+        // happens once the seller approves the uploaded payment proof.
         clearCart();
-        showToast('Payment successful! 🎉', 'success');
-        navigate({ screen: 'orders', checkoutStep: 1 });
-        fetchMyOrders();
+        startQrPayment(placedOrderIds);
       }
 
     } catch (err) {
@@ -1160,7 +1200,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                   </div>
                   {paymentMethod === 'ONLINE' && (
                     <div style={{ marginTop: '12px', padding: '12px', background: T.successTint, borderRadius: T.radiusSm, fontSize: '12px', color: T.success, fontWeight: '600' }}>
-                      You'll be redirected to Razorpay secure payment after placing your order.
+                      You'll scan the seller's UPI QR code and upload a payment screenshot after placing your order. The order is confirmed once the seller verifies your payment.
                     </div>
                   )}
                 </div>
@@ -1198,9 +1238,20 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                   </div>
                   <span style={{
                     padding: '5px 12px', borderRadius: T.radiusPill, fontSize: '11px', fontWeight: '700', height: 'fit-content',
-                    background: order.status === 'delivered' ? T.successTint : order.status === 'pending' ? T.accentTint : T.primaryTint,
-                    color: order.status === 'delivered' ? T.success : order.status === 'pending' ? '#B45309' : T.primary,
-                  }}>{order.status?.toUpperCase()}</span>
+                    background: order.status === 'delivered' ? T.successTint
+                      : order.status === 'payment_rejected' ? T.errorTint
+                      : ['pending', 'pending_payment', 'payment_verification_pending'].includes(order.status) ? T.accentTint
+                      : T.primaryTint,
+                    color: order.status === 'delivered' ? T.success
+                      : order.status === 'payment_rejected' ? T.error
+                      : ['pending', 'pending_payment', 'payment_verification_pending'].includes(order.status) ? '#B45309'
+                      : T.primary,
+                  }}>
+                    {order.status === 'pending_payment' ? 'PAYMENT PENDING'
+                      : order.status === 'payment_verification_pending' ? 'VERIFYING PAYMENT'
+                      : order.status === 'payment_rejected' ? 'PAYMENT REJECTED'
+                      : order.status?.toUpperCase()}
+                  </span>
                 </div>
                 <div style={{ fontSize: '13px', color: T.textSoft, marginBottom: '10px' }}>{order.shop_name}</div>
                 {order.items?.map((item, i) => (
@@ -1210,7 +1261,29 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
                   <span style={{ color: T.textSoft, fontSize: '13px' }}>{order.payment_method}</span>
                   <span style={{ fontWeight: '800', color: T.primary, fontSize: '16px' }}>₹{order.total_amount}</span>
                 </div>
-                {order.status !== 'delivered' && order.status !== 'cancelled' && (
+
+                {/* Temporary QR payment flow — buyer must complete/retry payment before the order can move forward */}
+                {order.status === 'pending_payment' && (
+                  <motion.button {...btnTap}
+                    onClick={() => startQrPayment([order.id])}
+                    style={{ width: '100%', marginTop: '12px', padding: '12px', background: T.accent, color: T.text, border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                    Complete Payment →
+                  </motion.button>
+                )}
+                {order.status === 'payment_verification_pending' && (
+                  <div style={{ marginTop: '12px', padding: '12px', textAlign: 'center', background: T.accentTint, color: '#B45309', borderRadius: T.radiusPill, fontWeight: '600', fontSize: '13px' }}>
+                    Payment proof submitted — waiting for seller to verify
+                  </div>
+                )}
+                {order.status === 'payment_rejected' && (
+                  <motion.button {...btnTap}
+                    onClick={() => startQrPayment([order.id])}
+                    style={{ width: '100%', marginTop: '12px', padding: '12px', background: T.error, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                    Payment Rejected — Retry Payment
+                  </motion.button>
+                )}
+
+                {!['delivered', 'cancelled', 'pending_payment', 'payment_verification_pending', 'payment_rejected'].includes(order.status) && (
                   <motion.button {...btnTap}
                     onClick={() => navigate({ trackingOrderId: order.id })}
                     style={{ width: '100%', marginTop: '12px', padding: '12px', background: T.primaryTint, color: T.primary, border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
@@ -1434,7 +1507,7 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
               { q: 'How do I track my order?', a: 'Go to My Orders and tap "Track Order" on any active order to see live status and delivery partner location.' },
               { q: 'How do I cancel an order?', a: 'You can cancel an order within 2 minutes of placing it. Go to My Orders and tap Cancel. After confirmation by seller, cancellation is not possible.' },
               { q: 'What is the delivery charge?', a: 'Delivery charge is ₹20 for first 5km. For every extra km beyond 5km, ₹6 is added. The charge is paid directly to the delivery partner.' },
-              { q: 'How does payment work?', a: 'You can pay via Cash on Delivery (pay to delivery partner) or Online (Razorpay secure payment). 10% platform fee applies on all orders.' },
+              { q: 'How does payment work?', a: 'You can pay via Cash on Delivery (pay to delivery partner) or Online (scan the seller\'s UPI QR code and upload a payment screenshot — the order is confirmed once the seller verifies it). 10% platform fee applies on all orders.' },
               { q: 'What is the return policy?', a: 'Return policy varies by product category. Fresh food cannot be returned. Electronics have 7-day replacement. Fashion has 3-day return window.' },
               { q: 'How do I become a seller?', a: 'Register as a seller from the login page. After admin approval, you can start listing products and receiving orders.' },
             ].map((faq, i) => (
@@ -1687,6 +1760,150 @@ const minVariantPrice = product.has_variants && product.variants?.length > 0
     orderId={trackingOrderId}
     onClose={() => window.history.back()}
   />
+)}
+
+{/* ── Temporary QR Payment Flow ──────────────────────────────────
+    Replacement until Razorpay is fully live. IMPORTANT: nothing in
+    this overlay ever marks an order as confirmed/successful — that
+    only happens after the seller approves the uploaded screenshot
+    (see SellerDashboard.js "Pending Payment Verifications" tab). */}
+{qrPaymentActive && (
+  <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', height: '100vh', background: T.bg, zIndex: 400, overflowY: 'auto', fontFamily: T.font }}>
+    <div style={{ background: T.primaryGradient, padding: '20px', borderRadius: '0 0 28px 28px', position: 'sticky', top: 0, zIndex: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ color: 'white', margin: 0, fontSize: '18px', fontWeight: '800' }}>
+          {qrStep === 'upload' ? 'Upload Payment Proof' : qrStep === 'submitted' ? 'Payment Submitted' : 'Scan & Pay'}
+        </h2>
+        {qrOrderIds.length > 1 && (
+          <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px', fontWeight: '600' }}>
+            Order {qrCurrentIndex + 1} of {qrOrderIds.length}
+          </span>
+        )}
+      </div>
+    </div>
+
+    <div style={{ padding: '20px' }}>
+      {qrLoadingDetails || !qrPaymentDetails ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: T.textFaint }}>Loading payment details...</div>
+      ) : qrStep === 'pay_and_confirm' ? (
+        <>
+          <div style={{ background: T.card, borderRadius: T.radiusLg, padding: '20px', boxShadow: T.shadowCard, border: `1px solid ${T.border}`, marginBottom: '16px', textAlign: 'center' }}>
+            <div style={{ fontSize: '13px', color: T.textSoft, marginBottom: '4px' }}>Pay to</div>
+            <div style={{ fontSize: '17px', fontWeight: '800', color: T.text, marginBottom: '10px' }}>{qrPaymentDetails.shop_name}</div>
+            <div style={{ fontSize: '28px', fontWeight: '800', color: T.primary, marginBottom: '16px' }}>₹{qrPaymentDetails.amount}</div>
+
+            {qrPaymentDetails.qr_code_url ? (
+              <img src={qrPaymentDetails.qr_code_url} alt="UPI QR Code"
+                style={{ width: '220px', height: '220px', objectFit: 'contain', borderRadius: T.radiusMd, border: `1px solid ${T.border}`, margin: '0 auto 14px', display: 'block' }} />
+            ) : (
+              <div style={{ width: '220px', height: '220px', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.bg, borderRadius: T.radiusMd, color: T.textFaint, fontSize: '13px' }}>
+                QR code not available
+              </div>
+            )}
+
+            <div style={{ fontSize: '13px', fontWeight: '700', color: T.text, marginBottom: '2px' }}>📷 Scan & Pay using any UPI app</div>
+            {qrPaymentDetails.upi_id && (
+              <div style={{ fontSize: '13px', color: T.textSoft, marginTop: '4px' }}>UPI ID: <strong style={{ color: T.text }}>{qrPaymentDetails.upi_id}</strong></div>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+            {[
+              { label: '📱 PhonePe' },
+              { label: '💳 Google Pay' },
+              { label: '🅿️ Paytm' },
+              { label: '➕ Other UPI Apps' },
+            ].map((btn) => (
+              <motion.button {...btnTap} key={btn.label} onClick={openUpiApp}
+                style={{ padding: '14px', background: T.card, border: `1.5px solid ${T.border}`, borderRadius: T.radiusSm, fontWeight: '700', fontSize: '13px', color: T.text, cursor: 'pointer' }}>
+                {btn.label}
+              </motion.button>
+            ))}
+          </div>
+
+          <div style={{ background: T.accentTint, borderRadius: T.radiusMd, padding: '16px', marginBottom: '18px' }}>
+            <div style={{ fontSize: '13px', color: '#B45309', lineHeight: '1.6' }}>
+              Opening a UPI app does <strong>not</strong> mean your payment is complete. Please make sure the payment actually went through before confirming below.
+            </div>
+          </div>
+
+          <div style={{ background: T.card, borderRadius: T.radiusLg, padding: '18px', boxShadow: T.shadowCard, border: `1px solid ${T.border}` }}>
+            <div style={{ fontWeight: '700', fontSize: '14px', color: T.text, marginBottom: '14px', textAlign: 'center' }}>
+              Have you completed the payment?
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <motion.button {...btnTap} onClick={() => window.history.back()}
+                style={{ flex: 1, padding: '14px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}>
+                Cancel Payment
+              </motion.button>
+              <motion.button {...btnTap} onClick={() => setQrStep('upload')}
+                style={{ flex: 2, padding: '14px', background: T.successGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                Yes, I Have Paid
+              </motion.button>
+            </div>
+          </div>
+        </>
+      ) : qrStep === 'upload' ? (
+        <>
+          <div style={{ background: T.card, borderRadius: T.radiusLg, padding: '20px', boxShadow: T.shadowCard, border: `1px solid ${T.border}`, marginBottom: '18px' }}>
+            <div style={{ fontWeight: '700', fontSize: '14px', color: T.text, marginBottom: '14px' }}>Upload Payment Screenshot *</div>
+
+            {qrScreenshotPreview ? (
+              <div style={{ position: 'relative', marginBottom: '14px' }}>
+                <img src={qrScreenshotPreview} alt="Payment screenshot"
+                  style={{ width: '100%', maxHeight: '280px', objectFit: 'contain', borderRadius: T.radiusMd, border: `1px solid ${T.border}` }} />
+                <button onClick={() => { setQrScreenshot(null); setQrScreenshotPreview(null); }}
+                  style={{ position: 'absolute', top: '8px', right: '8px', background: T.error, color: 'white', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '14px' }}>
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <label style={{ display: 'block', padding: '32px 16px', border: `2px dashed ${T.primary}`, borderRadius: T.radiusMd, textAlign: 'center', cursor: 'pointer', background: T.primaryTint, color: T.primary, fontWeight: '600', fontSize: '13px', marginBottom: '14px' }}>
+                📷 Tap to upload payment screenshot
+                <input type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    setQrScreenshot(file);
+                    const reader = new FileReader();
+                    reader.onload = () => setQrScreenshotPreview(reader.result);
+                    reader.readAsDataURL(file);
+                  }} />
+              </label>
+            )}
+
+            <div style={{ fontWeight: '700', fontSize: '13px', color: T.text, marginBottom: '8px', marginTop: '10px' }}>Transaction ID (optional)</div>
+            <input placeholder="UTR / Transaction ID from your UPI app" value={qrTransactionId}
+              onChange={e => setQrTransactionId(e.target.value)}
+              style={{ width: '100%', padding: '13px 14px', border: `1.5px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', outline: 'none', boxSizing: 'border-box', fontFamily: T.font, background: T.bg }} />
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <motion.button {...btnTap} onClick={() => setQrStep('pay_and_confirm')}
+              style={{ flex: 1, padding: '15px', background: T.bg, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusPill, fontWeight: '600', cursor: 'pointer' }}>
+              ← Back
+            </motion.button>
+            <motion.button {...btnTap} onClick={submitQrPaymentProof} disabled={!qrScreenshot || qrSubmitting}
+              style={{ flex: 2, padding: '15px', background: (!qrScreenshot || qrSubmitting) ? T.textFaint : T.successGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, fontWeight: '700', cursor: (!qrScreenshot || qrSubmitting) ? 'not-allowed' : 'pointer', fontSize: '14px' }}>
+              {qrSubmitting ? 'Submitting...' : 'Submit Payment Proof'}
+            </motion.button>
+          </div>
+        </>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: '56px', marginBottom: '18px' }}>✅</div>
+          <div style={{ fontWeight: '800', fontSize: '18px', color: T.text, marginBottom: '10px' }}>Payment proof submitted!</div>
+          <p style={{ color: T.textSoft, fontSize: '13px', lineHeight: '1.7', marginBottom: '24px' }}>
+            Your order status is now <strong>Payment Verification Pending</strong>. The seller will review your screenshot and confirm your order shortly.
+          </p>
+          <motion.button {...btnTap} onClick={advanceQrFlow}
+            style={{ background: T.primaryGradient, color: 'white', border: 'none', borderRadius: T.radiusPill, padding: '15px 32px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
+            {qrCurrentIndex + 1 < qrOrderIds.length ? 'Next: Pay for Next Order →' : 'Done — View My Orders'}
+          </motion.button>
+        </div>
+      )}
+    </div>
+  </div>
 )}
 
       {/* Bottom Navigation — floating, blurred */}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { FiHome, FiPackage, FiShoppingBag, FiStar, FiTrendingUp, FiDollarSign, FiBell, FiSettings, FiLogOut, FiPlus, FiEdit2, FiTrash2, FiMenu, FiX, FiFileText } from 'react-icons/fi';
+import { FiHome, FiPackage, FiShoppingBag, FiStar, FiTrendingUp, FiDollarSign, FiBell, FiSettings, FiLogOut, FiPlus, FiEdit2, FiTrash2, FiMenu, FiX, FiFileText, FiCheckCircle } from 'react-icons/fi';
 import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
 import { requestNotificationPermission } from '../firebase';
@@ -80,7 +80,7 @@ export default function SellerDashboard() {
   const [showNotif, setShowNotif] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useTabHistory(activeTab, setActiveTab, ['dashboard', 'products', 'orders', 'analytics', 'earnings', 'reviews', 'bank', 'settings', 'terms']);
+  useTabHistory(activeTab, setActiveTab, ['dashboard', 'products', 'orders', 'analytics', 'earnings', 'reviews', 'bank', 'paymentVerifications', 'settings', 'terms']);
 
   // Real data states
   const [dashboardData, setDashboardData] = useState(null);
@@ -122,6 +122,12 @@ const updateVariantRow = (idx, field, value) => {
 const [bankLoading, setBankLoading] = useState(false);
 const [bankSaved, setBankSaved] = useState(false);
 
+// ── Temporary QR-based payment system state ──
+const [qrCodeUrl, setQrCodeUrl] = useState(null);
+const [qrUploading, setQrUploading] = useState(false);
+const [pendingVerifications, setPendingVerifications] = useState([]);
+const [verificationsLoading, setVerificationsLoading] = useState(false);
+
 // Fetch bank details on load
 // Add this state at top
 const [uploadingImage, setUploadingImage] = useState(false);
@@ -156,7 +162,10 @@ useEffect(() => {
 const fetchBankDetails = async () => {
   try {
     const res = await API.get('/sellers/bank-details');
-    if (res.data) setBankDetails(res.data);
+    if (res.data) {
+      setBankDetails(res.data);
+      setQrCodeUrl(res.data.qr_code_url || null);
+    }
   } catch (err) {
     console.error('Bank details fetch failed');
   }
@@ -172,6 +181,69 @@ const saveBankDetails = async () => {
     showToast(err.response?.data?.error || 'Failed to save', 'error');
   } finally {
     setBankLoading(false);
+  }
+};
+
+// ── Temporary QR-based payment system: seller-side handlers ──
+const uploadQrCode = async (file) => {
+  setQrUploading(true);
+  try {
+    const formData = new FormData();
+    formData.append('qr', file);
+    const res = await API.post('/sellers/payment-qr', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    setQrCodeUrl(res.data.qr_code_url);
+    showToast('QR code uploaded!', 'success');
+  } catch (err) {
+    showToast(err.response?.data?.error || 'QR upload failed', 'error');
+  } finally {
+    setQrUploading(false);
+  }
+};
+
+const deleteQrCode = async () => {
+  if (!window.confirm('Remove your payment QR code?')) return;
+  try {
+    await API.delete('/sellers/payment-qr');
+    setQrCodeUrl(null);
+    showToast('QR code removed');
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to remove QR code', 'error');
+  }
+};
+
+const fetchPendingVerifications = async () => {
+  setVerificationsLoading(true);
+  try {
+    const res = await API.get('/payments/qr/pending');
+    setPendingVerifications(res.data);
+  } catch (err) {
+    console.error('Pending verifications fetch failed');
+  } finally {
+    setVerificationsLoading(false);
+  }
+};
+
+const approvePaymentVerification = async (verificationId) => {
+  try {
+    await API.patch(`/payments/qr/${verificationId}/approve`);
+    showToast('Payment approved, order confirmed!', 'success');
+    fetchPendingVerifications();
+    fetchDashboard();
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to approve', 'error');
+  }
+};
+
+const rejectPaymentVerification = async (verificationId) => {
+  if (!window.confirm('Reject this payment? The buyer will be asked to retry.')) return;
+  try {
+    await API.patch(`/payments/qr/${verificationId}/reject`);
+    showToast('Payment rejected');
+    fetchPendingVerifications();
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to reject', 'error');
   }
 };
 
@@ -203,6 +275,10 @@ const saveBankDetails = async () => {
     }
   });
 }, []);
+
+useEffect(() => {
+  if (activeTab === 'paymentVerifications') fetchPendingVerifications();
+}, [activeTab]);
   
   // Add this useEffect after existing useEffects
 useEffect(() => {
@@ -349,6 +425,7 @@ const saveProduct = async () => {
   { id: 'earnings', icon: <FiDollarSign />, label: 'Earnings' },
   { id: 'reviews', icon: <FiStar />, label: 'Reviews' },
   { id: 'bank', icon: <FiDollarSign />, label: 'Bank Details' },
+  { id: 'paymentVerifications', icon: <FiCheckCircle />, label: 'Payment Verifications' },
   { id: 'settings', icon: <FiSettings />, label: 'Shop Settings' },
   { id: 'terms', icon: <FiFileText />, label: 'Terms & Conditions' },
 ];
@@ -1010,6 +1087,37 @@ const saveProduct = async () => {
       </div>
     </div>
 
+    {/* Payment QR Code — temporary QR-based payment system */}
+    <div style={{ marginTop: '24px', background: '#fff8e8', borderRadius: '12px', padding: '20px', border: '1px solid #ffe0a3' }}>
+      <h4 style={{ margin: '0 0 6px', color: '#B45309' }}>📷 Payment QR Code</h4>
+      <p style={{ fontSize: '13px', color: '#666', margin: '0 0 16px' }}>
+        Buyers will scan this QR code (or use your UPI ID above) to pay you directly for online orders, until Razorpay is fully live.
+      </p>
+
+      {qrCodeUrl ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <img src={qrCodeUrl} alt="Payment QR" style={{ width: '140px', height: '140px', objectFit: 'contain', borderRadius: '10px', border: '1px solid #e8e8e0', background: 'white' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 18px', cursor: qrUploading ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '13px', textAlign: 'center' }}>
+              {qrUploading ? 'Uploading...' : '🔄 Change QR Code'}
+              <input type="file" accept="image/*" style={{ display: 'none' }} disabled={qrUploading}
+                onChange={(e) => { const file = e.target.files[0]; if (file) uploadQrCode(file); e.target.value = ''; }} />
+            </label>
+            <button onClick={deleteQrCode}
+              style={{ background: '#fff0f0', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
+              🗑️ Delete QR Code
+            </button>
+          </div>
+        </div>
+      ) : (
+        <label style={{ display: 'block', padding: '24px', border: '2px dashed #B45309', borderRadius: '10px', textAlign: 'center', cursor: qrUploading ? 'not-allowed' : 'pointer', background: 'white', color: '#B45309', fontWeight: '600', fontSize: '13px' }}>
+          {qrUploading ? '⏳ Uploading...' : '📁 Upload your UPI QR code image'}
+          <input type="file" accept="image/*" style={{ display: 'none' }} disabled={qrUploading}
+            onChange={(e) => { const file = e.target.files[0]; if (file) uploadQrCode(file); e.target.value = ''; }} />
+        </label>
+      )}
+    </div>
+
     {/* Commission Info */}
     <div style={{ marginTop: '24px', background: '#f8f7ff', borderRadius: '12px', padding: '16px', border: '1px solid #e8e0ff' }}>
       <h4 style={{ margin: '0 0 12px', color: '#6c63ff' }}>💡 How Payouts Work</h4>
@@ -1028,6 +1136,58 @@ const saveProduct = async () => {
     </button>
   </div>
 )}
+
+          {/* PENDING PAYMENT VERIFICATIONS TAB — temporary QR-based payment system */}
+          {activeTab === 'paymentVerifications' && (
+            <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h2 style={{ margin: 0, color: '#1a1a2e' }}>💳 Pending Payment Verifications</h2>
+                <button onClick={fetchPendingVerifications}
+                  style={{ background: '#6c63ff15', color: '#6c63ff', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: '600' }}>
+                  🔄 Refresh
+                </button>
+              </div>
+              <p style={{ color: '#999', fontSize: '13px', marginBottom: '24px' }}>
+                Review each buyer's payment screenshot before approving. Approving confirms the order; rejecting lets the buyer retry.
+              </p>
+
+              {verificationsLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>Loading...</div>
+              ) : pendingVerifications.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
+                  <p>No payment verifications waiting right now.</p>
+                </div>
+              ) : pendingVerifications.map(v => (
+                <div key={v.id} style={{ padding: '18px', border: '1px solid #f0f0e8', borderRadius: '12px', marginBottom: '14px', display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+                  <img src={v.screenshot_url} alt="Payment screenshot"
+                    onClick={() => window.open(v.screenshot_url, '_blank')}
+                    style={{ width: '140px', height: '140px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e8e8e0', cursor: 'pointer', flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: '220px' }}>
+                    <div style={{ fontWeight: '700', color: '#6c63ff', fontSize: '15px' }}>#{v.order_id.slice(-6).toUpperCase()}</div>
+                    <div style={{ color: '#333', fontSize: '13px', marginTop: '4px' }}>👤 {v.buyer_name} {v.buyer_phone ? `• ${v.buyer_phone}` : ''}</div>
+                    <div style={{ color: '#1a1a2e', fontWeight: '700', fontSize: '18px', marginTop: '6px' }}>₹{v.grand_total || v.total_amount}</div>
+                    {v.transaction_id && (
+                      <div style={{ color: '#666', fontSize: '12px', marginTop: '4px' }}>Transaction ID: {v.transaction_id}</div>
+                    )}
+                    <div style={{ color: '#999', fontSize: '11px', marginTop: '4px' }}>
+                      Order placed: {new Date(v.order_time).toLocaleString()} • Submitted: {new Date(v.submitted_at).toLocaleString()}
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
+                      <button onClick={() => approvePaymentVerification(v.id)}
+                        style={{ flex: 1, padding: '10px', background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                        ✅ Approve Payment
+                      </button>
+                      <button onClick={() => rejectPaymentVerification(v.id)}
+                        style={{ flex: 1, padding: '10px', background: '#ff444415', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                        ❌ Reject Payment
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
   <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
