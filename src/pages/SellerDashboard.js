@@ -1193,7 +1193,7 @@ const saveProduct = async () => {
                   <div style={{ flex: 1, minWidth: '220px' }}>
                     <div style={{ fontWeight: '700', color: '#6c63ff', fontSize: '15px' }}>#{v.order_id.slice(-6).toUpperCase()}</div>
                     <div style={{ color: '#333', fontSize: '13px', marginTop: '4px' }}>👤 {v.buyer_name} {v.buyer_phone ? `• ${v.buyer_phone}` : ''}</div>
-                    <div style={{ color: '#1a1a2e', fontWeight: '700', fontSize: '18px', marginTop: '6px' }}>₹{v.grand_total || v.total_amount}</div>
+                    <div style={{ color: '#1a1a2e', fontWeight: '700', fontSize: '18px', marginTop: '6px' }}>₹{v.total_amount}</div>
                     {v.transaction_id && (
                       <div style={{ color: '#666', fontSize: '12px', marginTop: '4px' }}>Transaction ID: {v.transaction_id}</div>
                     )}
@@ -1287,7 +1287,7 @@ const saveProduct = async () => {
               style={{ width: '100%', maxHeight: '320px', objectFit: 'contain', borderRadius: '10px', border: '1px solid #e8e8e0', cursor: 'pointer', marginBottom: '16px' }} />
 
             <div style={{ fontSize: '13px', color: '#333', marginBottom: '4px' }}>👤 {selectedVerification.buyer_name} {selectedVerification.buyer_phone ? `• ${selectedVerification.buyer_phone}` : ''}</div>
-            <div style={{ fontWeight: '800', fontSize: '20px', color: '#1a1a2e', marginBottom: '8px' }}>₹{selectedVerification.grand_total || selectedVerification.total_amount}</div>
+            <div style={{ fontWeight: '800', fontSize: '20px', color: '#1a1a2e', marginBottom: '8px' }}>₹{selectedVerification.total_amount}</div>
             {selectedVerification.transaction_id && (
               <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>Transaction ID: {selectedVerification.transaction_id}</div>
             )}
