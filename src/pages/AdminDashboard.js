@@ -76,6 +76,9 @@ export default function AdminDashboard() {
   }, []);
 
   const [deliveryBoys, setDeliveryBoys] = useState([]);
+  const [salesModalOpen, setSalesModalOpen] = useState(false);
+  const [salesLoading, setSalesLoading] = useState(false);
+  const [sellerSalesData, setSellerSalesData] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -111,6 +114,21 @@ const suspendSeller = async (id) => {
     fetchData();
   } catch (err) {
     showToast(err.response?.data?.error || 'Error', 'error');
+  }
+};
+
+const viewSellerSales = async (id) => {
+  setSalesModalOpen(true);
+  setSalesLoading(true);
+  setSellerSalesData(null);
+  try {
+    const res = await API.get(`/admin/sellers/${id}/sales-last-7-days`);
+    setSellerSalesData(res.data);
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to load sales data', 'error');
+    setSalesModalOpen(false);
+  } finally {
+    setSalesLoading(false);
   }
 };
  const approveDelivery = async (id) => {
@@ -238,6 +256,12 @@ const suspendDelivery = async (id) => {
                             Suspend
                           </button>
                         )}
+                        {s.status === 'approved' && (
+                          <button onClick={() => viewSellerSales(s.id)}
+                            style={{ padding: '4px 12px', background: '#ff0055', color: 'white', border: '1px solid #ff0055', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
+                            📊 Selling
+                          </button>
+                        )}
                       </div>
                     </td>
                   </motion.tr>
@@ -320,6 +344,65 @@ const suspendDelivery = async (id) => {
   </motion.div>
 )}
       </div>
+
+      {/* Seller Last-7-Days Sales Modal */}
+      {salesModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '20px' }}
+          onClick={() => setSalesModalOpen(false)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '16px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: '#ff0055' }}>
+                📊 Last 7 Days — {sellerSalesData?.shop_name || 'Loading...'}
+              </h3>
+              <button onClick={() => setSalesModalOpen(false)}
+                style={{ background: '#2a2a4a', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', color: 'white', fontSize: '16px' }}>✕</button>
+            </div>
+
+            {salesLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>Loading...</div>
+            ) : sellerSalesData ? (
+              <>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                  <thead>
+                    <tr style={{ background: '#6c63ff22' }}>
+                      <th style={th}>Date</th>
+                      <th style={th}>Orders</th>
+                      <th style={th}>Revenue</th>
+                      <th style={th}>10% Commission</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sellerSalesData.days.map((d, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #2a2a4a' }}>
+                        <td style={td}>{new Date(d.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
+                        <td style={td}>{d.order_count}</td>
+                        <td style={td}>₹{d.revenue.toFixed(0)}</td>
+                        <td style={td}>₹{d.commission.toFixed(0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div style={{ background: '#ff005522', border: '1px solid #ff0055', borderRadius: '10px', padding: '16px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#aaa' }}>Total Orders</div>
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>{sellerSalesData.total_orders}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#aaa' }}>Total Revenue</div>
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: '#00ff88' }}>₹{sellerSalesData.total_revenue.toFixed(0)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#aaa' }}>Total 10% Commission</div>
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: '#ff0055' }}>₹{sellerSalesData.total_commission.toFixed(0)}</div>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
