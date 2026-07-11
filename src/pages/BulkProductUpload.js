@@ -36,6 +36,7 @@ export default function BulkProductUpload() {
   const [preview, setPreview] = useState([]);
   const [invalidRows, setInvalidRows] = useState([]);
   const [orphanVariantErrors, setOrphanVariantErrors] = useState([]);
+  const [rowWarnings, setRowWarnings] = useState([]);
 
   // Import
   const [importing, setImporting] = useState(false);
@@ -56,6 +57,7 @@ export default function BulkProductUpload() {
   setPreview([]);
   setInvalidRows([]);
   setOrphanVariantErrors([]);
+  setRowWarnings([]);
 
   setImportResult(null);
 };
@@ -64,7 +66,7 @@ export default function BulkProductUpload() {
   const downloadTemplate = () => {
   const ws = XLSX.utils.aoa_to_sheet([
     ['Product Name', 'Price', 'Category', 'Stock Quantity', 'Sold By', 'Image File Name', 'Description', 'Return Policy'],
-    ['Amul Gold Milk 500 ml', 35, 'grocery', 100, 'litre', 'amul_milk.jpg', 'Fresh full cream milk rich in calcium and protein.', 'PERISHABLE_FOOD'],
+    ['Amul Gold Milk 500 ml', 35, 'grocery', 100, 'litre', 'amul_milk.jpg, amul_milk_side.jpg', 'Fresh full cream milk rich in calcium and protein.', 'PERISHABLE_FOOD'],
     ['Apple', 180, 'fresh', 50, 'kg', 'apple.jpg', 'Fresh, juicy apples sourced directly from the farm.', 'FRESH'],
     ['Maggi 70 g', 15, 'grocery', 500, 'packet', 'maggi.jpg', 'Instant noodles ready in 2 minutes.', 'PACKAGED_FOOD'],
   ]);
@@ -168,6 +170,7 @@ const downloadVariantsTemplate = () => {
       setPreview(res.data.preview);
       setInvalidRows(res.data.invalid);
       setOrphanVariantErrors(res.data.orphanVariantErrors || []);
+      setRowWarnings(res.data.rowWarnings || []);
       setStep(3);
     } catch (err) {
       alert(err.response?.data?.error || 'Validation failed');
@@ -228,6 +231,8 @@ const downloadVariantsTemplate = () => {
         The Excel file needs these <strong>8 columns</strong>: Product Name, Price, Category, Stock Quantity, Sold By, Image File Name, Description, Return Policy.
         <br />
         <strong>Note:</strong> Price and Stock Quantity can be left blank for products that have variants (their price/stock get calculated automatically from the Variants file).
+        <br />
+        <strong>Images:</strong> "Image File Name" accepts one filename, or several separated by commas (e.g. <code>amul_milk.jpg, amul_milk_side.jpg</code>). The first image is required; up to 4 more are optional.
       </p>
       <button onClick={downloadTemplate}
         style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
@@ -316,7 +321,9 @@ const downloadVariantsTemplate = () => {
               <input type="file" accept=".zip" onChange={e => setZipFile(e.target.files[0])} style={{ display: 'none' }} />
             </label>
             <p style={{ fontSize: '11px', color: '#999', marginTop: '8px' }}>
-              Each image should be named after the product, lowercase, spaces as underscores — e.g. "Amul Gold Milk 500 ml" → <code>amul_gold_milk_500_ml.jpg</code>
+              Each image should be named after the product, lowercase, spaces as underscores — e.g. "Amul Gold Milk 500 ml" → <code>amul_gold_milk_500_ml.jpg</code>.
+              <br />
+              Need more than one photo for a product? List several filenames in the Excel cell, separated by commas — e.g. <code>amul_milk.jpg, amul_milk_side.jpg</code>. The first is required, the rest (up to 4 more) are optional.
             </p>
           </div>
           <div style={{ marginBottom: '20px' }}>
@@ -384,6 +391,17 @@ const downloadVariantsTemplate = () => {
   </div>
 )}
 
+{rowWarnings.length > 0 && (
+  <div style={{ background: '#fff8e8', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+    <div style={{ fontWeight: '700', color: '#B45309', fontSize: '13px', marginBottom: '8px' }}>⚠️ {rowWarnings.length} product(s) had an optional image that couldn't be matched (product still imports fine with its remaining images):</div>
+    <ul style={{ margin: 0, paddingLeft: '18px', maxHeight: '150px', overflowY: 'auto' }}>
+      {rowWarnings.map((r, i) => (
+        <li key={i} style={{ fontSize: '12px', color: '#666' }}>Row {r.row} ({r.name}): {r.warnings.join('; ')}</li>
+      ))}
+    </ul>
+  </div>
+)}
+
           {invalidRows.length > 0 && (
             <div style={{ background: '#fff0f0', borderRadius: '10px', padding: '14px', marginBottom: '20px' }}>
               <div style={{ fontWeight: '700', color: '#e17055', fontSize: '13px', marginBottom: '8px' }}>⚠️ {invalidRows.length} row(s) will be skipped:</div>
@@ -408,6 +426,7 @@ const downloadVariantsTemplate = () => {
                     <th style={{ padding: '8px 10px', textAlign: 'left' }}>Category</th>
                     <th style={{ padding: '8px 10px', textAlign: 'left' }}>Price</th>
                     <th style={{ padding: '8px 10px', textAlign: 'left' }}>Stock</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'left' }}>Images</th>
                     <th style={{ padding: '8px 10px', textAlign: 'left' }}>Return Policy</th>
                   </tr>
                 </thead>
@@ -421,6 +440,9 @@ const downloadVariantsTemplate = () => {
                       <td style={{ padding: '8px 10px', textTransform: 'capitalize' }}>{p.category}</td>
                       <td style={{ padding: '8px 10px' }}>₹{p.price}</td>
                       <td style={{ padding: '8px 10px' }}>{p.stock}</td>
+                      <td style={{ padding: '8px 10px' }}>
+                        🖼️ {p.imageKeys?.length || 1}
+                      </td>
                       <td style={{ padding: '8px 10px' }}>
   <div style={{ fontWeight: '600' }}>{p.return_policy}</div>
   <div style={{ fontSize: '10px', color: '#999' }}>{RETURN_POLICY_LABELS[p.return_policy] || ''}</div>
