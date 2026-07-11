@@ -163,9 +163,11 @@ useEffect(() => {
 const fetchBankDetails = async () => {
   try {
     const res = await API.get('/sellers/bank-details');
-    if (res.data) {
-      setBankDetails(res.data);
-      setQrCodeUrl(res.data.qr_code_url || null);
+    // bank.controller.js wraps the row as { bank_details: {...} }, not flat
+    const details = res.data?.bank_details;
+    if (details) {
+      setBankDetails(details);
+      setQrCodeUrl(details.qr_code_url || null);
     }
   } catch (err) {
     console.error('Bank details fetch failed');
