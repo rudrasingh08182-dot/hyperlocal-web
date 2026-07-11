@@ -127,6 +127,7 @@ const [qrCodeUrl, setQrCodeUrl] = useState(null);
 const [qrUploading, setQrUploading] = useState(false);
 const [pendingVerifications, setPendingVerifications] = useState([]);
 const [verificationsLoading, setVerificationsLoading] = useState(false);
+const [selectedVerification, setSelectedVerification] = useState(null);
 
 // Fetch bank details on load
 // Add this state at top
@@ -242,8 +243,25 @@ const rejectPaymentVerification = async (verificationId) => {
     await API.patch(`/payments/qr/${verificationId}/reject`);
     showToast('Payment rejected');
     fetchPendingVerifications();
+    fetchDashboard();
   } catch (err) {
     showToast(err.response?.data?.error || 'Failed to reject', 'error');
+  }
+};
+
+// Fetches fresh payment-verification data for one order and opens the modal
+const viewPaymentForOrder = async (orderId) => {
+  try {
+    const res = await API.get('/payments/qr/pending');
+    setPendingVerifications(res.data);
+    const match = res.data.find(v => v.order_id === orderId);
+    if (match) {
+      setSelectedVerification(match);
+    } else {
+      showToast('Payment details not found — try refreshing', 'error');
+    }
+  } catch (err) {
+    showToast('Failed to load payment details', 'error');
   }
 };
 
@@ -957,7 +975,7 @@ const saveProduct = async () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
+       {/* Action Buttons */}
         {order.status === 'pending' && (
           <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
             <button onClick={async () => {
@@ -987,11 +1005,20 @@ const saveProduct = async () => {
             </button>
           </div>
         )}
+
+        {/* Blue button — only shows when buyer has submitted online payment proof for this order */}
+        {order.status === 'payment_verification_pending' && (
+          <div style={{ marginTop: '12px' }}>
+            <button onClick={() => viewPaymentForOrder(order.id)}
+              style={{ width: '100%', padding: '10px', background: '#0984e3', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
+              💳 View Payment Details
+            </button>
+          </div>
+        )}
       </div>
     ))}
   </div>
 )}
-
           {/* ANALYTICS TAB */}
           {activeTab === 'analytics' && (
             <div>
@@ -1242,6 +1269,45 @@ const saveProduct = async () => {
 
         </div>
       </div>
+
+      {/* Payment Details Modal — opened from the blue button in Orders tab */}
+      {selectedVerification && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '20px' }}
+          onClick={() => setSelectedVerification(null)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: 'white', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#1a1a2e' }}>💳 Payment Details</h3>
+              <button onClick={() => setSelectedVerification(null)}
+                style={{ background: '#f0f0e8', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+            </div>
+
+            <img src={selectedVerification.screenshot_url} alt="Payment screenshot"
+              onClick={() => window.open(selectedVerification.screenshot_url, '_blank')}
+              style={{ width: '100%', maxHeight: '320px', objectFit: 'contain', borderRadius: '10px', border: '1px solid #e8e8e0', cursor: 'pointer', marginBottom: '16px' }} />
+
+            <div style={{ fontSize: '13px', color: '#333', marginBottom: '4px' }}>👤 {selectedVerification.buyer_name} {selectedVerification.buyer_phone ? `• ${selectedVerification.buyer_phone}` : ''}</div>
+            <div style={{ fontWeight: '800', fontSize: '20px', color: '#1a1a2e', marginBottom: '8px' }}>₹{selectedVerification.grand_total || selectedVerification.total_amount}</div>
+            {selectedVerification.transaction_id && (
+              <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>Transaction ID: {selectedVerification.transaction_id}</div>
+            )}
+            <div style={{ fontSize: '11px', color: '#999', marginBottom: '20px' }}>
+              Submitted: {new Date(selectedVerification.submitted_at).toLocaleString()}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={async () => { await approvePaymentVerification(selectedVerification.id); setSelectedVerification(null); }}
+                style={{ flex: 1, padding: '12px', background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                ✅ Approve Payment
+              </button>
+              <button onClick={async () => { await rejectPaymentVerification(selectedVerification.id); setSelectedVerification(null); }}
+                style={{ flex: 1, padding: '12px', background: '#ff444415', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                ❌ Reject Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
