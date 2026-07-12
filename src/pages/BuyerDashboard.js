@@ -43,6 +43,18 @@ const optimizeImage = (url, width = 400) => {
   return url.replace('/upload/', `/upload/w_${width},q_auto,f_auto/`);
 };
 
+// Fisher-Yates shuffle — randomizes product order on every load, so products
+// from every seller get a fair chance near the top instead of whichever
+// seller added their product first always sitting at the top.
+const shuffleArray = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
 const FontLoader = () => (
   <style>{`
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
@@ -647,19 +659,19 @@ useEffect(() => {
     loadAllProducts();
   }, []);
 
-  const loadAllProducts = async () => {
+ const loadAllProducts = async () => {
     setLoading(true);
     try {
       const res = await API.get('/products/search?q=');
-      setAllProducts(res.data);
-      setProducts(res.data);
+      const shuffled = shuffleArray(res.data);
+      setAllProducts(shuffled);
+      setProducts(shuffled);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
-
   const search = useCallback(async () => {
     setLoading(true);
     try {
