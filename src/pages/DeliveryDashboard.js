@@ -339,7 +339,7 @@ const shareLocation = async (orderId) => {
                     </a>
                   </div>
 
-                  {/* Deliver */}
+                 {/* Deliver */}
                   <div style={{ background: '#f0fff8', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
                     <div style={{ fontSize: '11px', fontWeight: '700', color: '#00b894', marginBottom: '6px' }}>🏠 DELIVER TO</div>
                     <div style={{ fontWeight: '600', color: '#1a1a2e' }}>{order.buyer_name}</div>
@@ -351,6 +351,31 @@ const shareLocation = async (orderId) => {
                       📞 {order.delivery_phone}
                     </a>
                   </div>
+
+                  {/* Route Map — exact pickup-to-drop path between seller and buyer.
+                      Only renders if both coordinate pairs exist (old orders placed
+                      before this feature won't have delivery_lat/delivery_lng, so
+                      this safely just hides the map instead of breaking). */}
+                  {order.seller_lat && order.seller_lng && order.delivery_lat && order.delivery_lng && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>🗺️ Route: Pickup → Drop</div>
+                      <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #f0f0e8' }}>
+                        <iframe
+                          title={`route-${order.id}`}
+                          width="100%"
+                          height="220"
+                          frameBorder="0"
+                          style={{ display: 'block' }}
+                          src={`https://maps.google.com/maps?saddr=${order.seller_lat},${order.seller_lng}&daddr=${order.delivery_lat},${order.delivery_lng}&z=13&output=embed`}
+                        />
+                      </div>
+                      <a href={`https://www.google.com/maps/dir/?api=1&origin=${order.seller_lat},${order.seller_lng}&destination=${order.delivery_lat},${order.delivery_lng}&travelmode=driving`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'block', textAlign: 'center', marginTop: '8px', padding: '10px', background: '#667eea', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: '700', fontSize: '13px' }}>
+                        🧭 Navigate (Seller → Buyer)
+                      </a>
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
   <div style={{ fontWeight: '700', fontSize: '18px' }}>₹{order.total_amount}
