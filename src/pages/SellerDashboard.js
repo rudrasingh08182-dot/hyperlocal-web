@@ -649,12 +649,27 @@ const saveProduct = async () => {
       <option value="piece">📦 Per Piece</option>
       <option value="kg">⚖️ Per KG</option>
       <option value="gram">🔢 Per Gram</option>
+      <option value="quintal">🌾 Per Quintal</option>
       <option value="litre">💧 Per Litre</option>
       <option value="ml">🧪 Per ML</option>
       <option value="dozen">🥚 Per Dozen</option>
       <option value="packet">📫 Per Packet</option>
       <option value="box">📦 Per Box</option>
       <option value="bundle">🎁 Per Bundle</option>
+      <option value="plate">🍽️ Per Plate</option>
+      <option value="bowl">🥣 Per Bowl</option>
+      <option value="cup">☕ Per Cup</option>
+      <option value="tray">🍱 Per Tray</option>
+      <option value="pair">👟 Per Pair</option>
+      <option value="set">🎽 Per Set</option>
+      <option value="roll">🧻 Per Roll</option>
+      <option value="sheet">📄 Per Sheet</option>
+      <option value="bottle">🍾 Per Bottle</option>
+      <option value="jar">🫙 Per Jar</option>
+      <option value="can">🥫 Per Can</option>
+      <option value="sachet">🧂 Per Sachet</option>
+      <option value="strip">💊 Per Strip</option>
+      <option value="meter">📏 Per Meter</option>
     </select>
   </div>
   <div>
