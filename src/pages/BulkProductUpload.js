@@ -193,9 +193,25 @@ const downloadVariantsTemplate = () => {
     }
   };
 
-  const downloadErrorReport = (rows) => {
-    const encoded = encodeURIComponent(JSON.stringify(rows));
-    window.open(`${API.defaults.baseURL}/admin/bulk-upload/error-report?rows=${encoded}`, '_blank');
+  const downloadErrorReport = async (rows) => {
+    try {
+      const encoded = encodeURIComponent(JSON.stringify(rows));
+      // Use the authenticated API instance (not window.open) so the JWT
+      // token actually gets sent — window.open bypasses axios headers entirely.
+      const res = await API.get(`/admin/bulk-upload/error-report?rows=${encoded}`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'bulk_upload_errors.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Failed to download error report');
+    }
   };
 
   return (
