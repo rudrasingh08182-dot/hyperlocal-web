@@ -16,11 +16,11 @@ const T = {
   primaryGradient: 'linear-gradient(135deg, #0C831F 0%, #16A34A 100%)',
 
   // Header / accent
-  headerYellow: '#F8CB46',      // Blinkit signature yellow
-  headerYellowDark: '#F0B429',
-  headerGradient: 'linear-gradient(180deg, #F8D247 0%, #F0B429 100%)',
+  headerYellow: '#7C3AED',      // Blinkit signature yellow
+  headerYellowDark: '#6D28D9',
+  headerGradient: 'linear-gradient(180deg, #8B5CF6 0%, #7C3AED 100%)',
 
-  accent: '#FFC83D',
+  accent: '#A78BFA',
   success: '#0C831F',
   successGradient: 'linear-gradient(135deg, #0C831F 0%, #16A34A 100%)',
   error: '#E11D48',
@@ -39,7 +39,7 @@ const T = {
 
   // Tints
   primaryTint: '#EAF6EC',
-  accentTint: '#FFF6DA',
+  accentTint: '#EDE9FE',
   successTint: '#EAF6EC',
   errorTint: '#FDECEF',
 
@@ -53,7 +53,7 @@ const T = {
   shadowSoft: '0 2px 8px rgba(17, 17, 39, 0.05)',
   shadowCard: '0 1px 3px rgba(17, 17, 39, 0.06), 0 1px 2px rgba(17,17,39,0.04)',
   shadowFloating: '0 8px 20px rgba(12, 131, 31, 0.22)',
-  shadowHeader: '0 4px 12px rgba(240, 180, 41, 0.25)',
+  shadowHeader: '0 4px 12px rgba(124, 58, 237, 0.25)',
 
   font: "'Okra', 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
 };
@@ -335,7 +335,7 @@ function OrderTracking({ orderId, onClose }) {
         <div style={{ background: T.primary, color: 'white', padding: '14px 16px', borderRadius: T.radiusMd, marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '22px' }}>⚡</span>
           <div>
-            <div style={{ fontWeight: '800', fontSize: '15px' }}>Arriving in ~30 min</div>
+            <div style={{ fontWeight: '800', fontSize: '15px' }}>Arriving in ~45 min</div>
             <div style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px' }}>Live updates every 30s</div>
           </div>
         </div>
@@ -427,13 +427,13 @@ function OrderTracking({ orderId, onClose }) {
 
         {currentStatus === 'delivered' && (
           <div style={{ background: T.accentTint, borderRadius: T.radiusMd, padding: '14px 16px', marginTop: '14px' }}>
-            <div style={{ fontWeight: '700', color: '#8B5A00', fontSize: '13px', marginBottom: '6px' }}>Return policy</div>
+            <div style={{ fontWeight: '700', color: '#5B21B6', fontSize: '13px', marginBottom: '6px' }}>Return policy</div>
             <div style={{ fontSize: '12px', color: T.textSoft, marginBottom: '12px', lineHeight: '1.6' }}>
               Return window applies as per product policy. Contact the shop to initiate a return.
             </div>
             {tracking?.order?.shop_phone ? (
               <a href={`tel:${tracking.order.shop_phone}`}
-                style={{ display: 'block', textAlign: 'center', padding: '11px', background: T.headerYellowDark, color: T.text, borderRadius: T.radiusSm, fontWeight: '700', fontSize: '13px', textDecoration: 'none' }}>
+                style={{ display: 'block', textAlign: 'center', padding: '11px', background: T.headerYellowDark, color: '#F5F3FF', borderRadius: T.radiusSm, fontWeight: '700', fontSize: '13px', textDecoration: 'none' }}>
                 Call shop: {tracking.order.shop_phone}
               </a>
             ) : (
@@ -480,7 +480,7 @@ function InstallBanner() {
       <img src="/icons/icon-72x72.png" alt="Zaplo" style={{ width: '36px', height: '36px', borderRadius: '8px' }} />
       <div style={{ flex: 1 }}>
         <div style={{ color: 'white', fontWeight: '700', fontSize: '13px' }}>Install Zaplo</div>
-        <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '11px' }}>Get delivery in 30 min. Every time.</div>
+        <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '11px' }}>Get delivery in 45 min. Every time.</div>
       </div>
       <motion.button {...btnTap}
         onClick={async () => {
@@ -488,7 +488,7 @@ function InstallBanner() {
           const accepted = await promptInstall();
           if (accepted) setShowBanner(false);
         }}
-        style={{ background: T.headerYellow, color: T.text, border: 'none', borderRadius: T.radiusSm, padding: '8px 14px', fontWeight: '800', cursor: 'pointer', fontSize: '12px' }}>
+        style={{ background: T.headerYellow, color: '#F5F3FF', border: 'none', borderRadius: T.radiusSm, padding: '8px 14px', fontWeight: '800', cursor: 'pointer', fontSize: '12px' }}>
         Install
       </motion.button>
       <button onClick={() => setShowBanner(false)}
@@ -870,7 +870,7 @@ export default function BuyerDashboard() {
 
           {/* 30-min badge */}
           <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(255,255,255,0.95)', color: T.text, padding: '3px 7px', borderRadius: '6px', fontSize: '9px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '3px', boxShadow: T.shadowCard }}>
-            <span style={{ color: T.primary }}>⚡</span> 30 MIN
+            <span style={{ color: T.primary }}>⚡</span> 45 MIN
           </div>
 
           {product.stock === 0 && (
@@ -964,8 +964,8 @@ export default function BuyerDashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <div style={{ background: T.text, color: T.headerYellow, padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '900', letterSpacing: '0.03em' }}>
-                    ⚡ 30 MINS
+                  <div style={{ background: T.text, color: '#F5F3FF', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '900', letterSpacing: '0.03em' }}>
+                    ⚡ 45 MINS
                   </div>
                 </div>
                 <div style={{ color: T.text, fontWeight: '800', fontSize: '17px', letterSpacing: '-0.01em' }}>Delivery to your door</div>
@@ -1222,7 +1222,7 @@ export default function BuyerDashboard() {
                 <div style={{ background: T.primary, color: 'white', padding: '12px 14px', borderRadius: T.radiusMd, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '20px' }}>⚡</span>
                   <div>
-                    <div style={{ fontWeight: '800', fontSize: '14px' }}>Delivery in ~30 mins</div>
+                    <div style={{ fontWeight: '800', fontSize: '14px' }}>Delivery in ~45 mins</div>
                     <div style={{ fontSize: '11px', opacity: 0.9 }}>Shipment of {cartCount} item{cartCount > 1 ? 's' : ''}</div>
                   </div>
                 </div>
@@ -1267,7 +1267,7 @@ export default function BuyerDashboard() {
                     <span style={{ fontWeight: '800', fontSize: '14px' }}>To Pay</span>
                     <span style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>₹{total + deliveryCharge}</span>
                   </div>
-                  <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '10px 12px', marginTop: '12px', fontSize: '11px', color: '#8B5A00' }}>
+                  <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '10px 12px', marginTop: '12px', fontSize: '11px', color: '#5B21B6' }}>
                     Delivery: ₹20 for first 5km · ₹6/km after. Pay to delivery partner.
                   </div>
                   <motion.button {...btnTap} onClick={() => navigate({ checkoutStep: 2 })}
@@ -1320,7 +1320,7 @@ export default function BuyerDashboard() {
                     <span style={{ fontWeight: '800' }}>Total</span>
                     <span style={{ fontWeight: '800', color: T.text, fontSize: '15px' }}>₹{total}</span>
                   </div>
-                  <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '10px 12px', marginTop: '10px', fontSize: '11px', color: '#8B5A00' }}>
+                  <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '10px 12px', marginTop: '10px', fontSize: '11px', color: '#5B21B6' }}>
                     Delivery ₹{deliveryCharge} — paid directly to delivery partner
                   </div>
                 </div>
@@ -1385,7 +1385,7 @@ export default function BuyerDashboard() {
                 if (order.status === 'payment_rejected') return { bg: T.errorTint, color: T.error, text: 'PAYMENT REJECTED' };
                 if (['pending', 'pending_payment', 'payment_verification_pending'].includes(order.status)) {
                   return {
-                    bg: T.accentTint, color: '#8B5A00',
+                    bg: T.accentTint, color: '#5B21B6',
                     text: order.status === 'pending_payment' ? 'PAYMENT PENDING'
                       : order.status === 'payment_verification_pending' ? 'VERIFYING' : 'PENDING'
                   };
@@ -1421,12 +1421,12 @@ export default function BuyerDashboard() {
 
                   {order.status === 'pending_payment' && (
                     <motion.button {...btnTap} onClick={() => startQrPayment([order.id])}
-                      style={{ width: '100%', marginTop: '10px', padding: '11px', background: T.headerYellow, color: T.text, border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '13px' }}>
+                      style={{ width: '100%', marginTop: '10px', padding: '11px', background: T.headerYellow, color: '#F5F3FF', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '13px' }}>
                       Complete Payment →
                     </motion.button>
                   )}
                   {order.status === 'payment_verification_pending' && (
-                    <div style={{ marginTop: '10px', padding: '10px', textAlign: 'center', background: T.accentTint, color: '#8B5A00', borderRadius: T.radiusSm, fontWeight: '600', fontSize: '12px' }}>
+                    <div style={{ marginTop: '10px', padding: '10px', textAlign: 'center', background: T.accentTint, color: '#5B21B6', borderRadius: T.radiusSm, fontWeight: '600', fontSize: '12px' }}>
                       Waiting for seller to verify payment
                     </div>
                   )}
@@ -1716,7 +1716,7 @@ export default function BuyerDashboard() {
 
               {/* 30-min badge */}
               <div style={{ position: 'absolute', top: '16px', right: '16px', background: T.text, color: T.headerYellow, padding: '5px 10px', borderRadius: '8px', fontSize: '10px', fontWeight: '900', letterSpacing: '0.03em' }}>
-                ⚡ 30 MIN DELIVERY
+                ⚡ 45 MIN DELIVERY
               </div>
             </div>
 
@@ -1749,7 +1749,7 @@ export default function BuyerDashboard() {
 
                 {selectedProduct.price_per_kg && (
                   <div style={{ background: T.accentTint, borderRadius: '6px', padding: '5px 10px', marginBottom: '8px', display: 'inline-block' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#8B5A00' }}>₹{selectedProduct.price_per_kg}/kg</span>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#5B21B6' }}>₹{selectedProduct.price_per_kg}/kg</span>
                   </div>
                 )}
 
@@ -1809,7 +1809,7 @@ export default function BuyerDashboard() {
               <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '20px' }}>⚡</span>
                 <div>
-                  <div style={{ fontWeight: '800', color: T.primary, fontSize: '13px' }}>30 min delivery</div>
+                  <div style={{ fontWeight: '800', color: T.primary, fontSize: '13px' }}>45 min delivery</div>
                   <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>₹20 for first 5km, ₹6/km after</div>
                 </div>
               </div>
@@ -1932,7 +1932,7 @@ export default function BuyerDashboard() {
                 </div>
 
                 <div style={{ background: T.accentTint, borderRadius: T.radiusMd, padding: '14px', marginBottom: '14px' }}>
-                  <div style={{ fontSize: '12px', color: '#8B5A00', lineHeight: '1.6' }}>
+                  <div style={{ fontSize: '12px', color: '#5B21B6', lineHeight: '1.6' }}>
                     Opening a UPI app does <strong>not</strong> mean your payment is complete. Confirm below only after your payment actually went through.
                   </div>
                 </div>
