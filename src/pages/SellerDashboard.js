@@ -140,6 +140,52 @@ const [shopSaved, setShopSaved] = useState(false);
 const [revealedOrders, setRevealedOrders] = useState({});
 const toggleReveal = (id) => setRevealedOrders(prev => ({ ...prev, [id]: !prev[id] }));
 
+// ── Edit Product Modal ──
+const [editingProduct, setEditingProduct] = useState(null); // holds the product being edited, or null
+const [editForm, setEditForm] = useState(null);
+const [editSaving, setEditSaving] = useState(false);
+const [editUploadingImage, setEditUploadingImage] = useState(false);
+
+const openEditModal = (product) => {
+  setEditingProduct(product);
+  setEditForm({
+    name: product.name || '',
+    description: product.description || '',
+    price: product.price || '',
+    stock: product.stock ?? '',
+    category: product.category || '',
+    return_policy: product.return_policy || 'STANDARD_ELECTRONICS',
+    unit_type: product.unit_type || 'piece',
+    unit_weight: product.unit_weight || '',
+    price_per_kg: product.price_per_kg || '',
+    image_urls: product.image_urls || [],
+  });
+};
+
+const closeEditModal = () => {
+  setEditingProduct(null);
+  setEditForm(null);
+};
+
+const saveEditedProduct = async () => {
+  if (!editForm.name || !editForm.price || editForm.stock === '') {
+    showToast('Please fill name, price and stock', 'error');
+    return;
+  }
+  setEditSaving(true);
+  try {
+    await API.put(`/products/${editingProduct.id}`, editForm);
+    showToast('Product updated!', 'success');
+    closeEditModal();
+    fetchProducts();
+    fetchDashboard();
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to update product', 'error');
+  } finally {
+    setEditSaving(false);
+  }
+};
+
 const uploadImage = async (file) => {
   setUploadingImage(true);
   try {
@@ -899,7 +945,7 @@ const saveProduct = async () => {
                             </td>
                             <td style={{ padding: '14px 16px' }}>
                               <div style={{ display: 'flex', gap: '8px' }}>
-                                <button style={{ background: '#e8f4ff', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#0984e3' }}><FiEdit2 /></button>
+                                <button onClick={() => openEditModal(p)} style={{ background: '#e8f4ff', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#0984e3' }}><FiEdit2 /></button>
                                 <button onClick={() => deleteProduct(p.id)} style={{ background: '#fff0f0', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#e17055' }}><FiTrash2 /></button>
                               </div>
                             </td>
@@ -1312,7 +1358,7 @@ const saveProduct = async () => {
               Submitted: {new Date(selectedVerification.submitted_at).toLocaleString()}
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+           <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={async () => { await approvePaymentVerification(selectedVerification.id); setSelectedVerification(null); }}
                 style={{ flex: 1, padding: '12px', background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
                 ✅ Approve Payment
@@ -1320,6 +1366,95 @@ const saveProduct = async () => {
               <button onClick={async () => { await rejectPaymentVerification(selectedVerification.id); setSelectedVerification(null); }}
                 style={{ flex: 1, padding: '12px', background: '#ff444415', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
                 ❌ Reject Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {editingProduct && editForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '20px' }}
+          onClick={closeEditModal}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: 'white', borderRadius: '16px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <h3 style={{ margin: 0, color: '#1a1a2e' }}>✏️ Edit Product</h3>
+              <button onClick={closeEditModal}
+                style={{ background: '#f0f0e8', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '6px' }}>Product Name</label>
+                <input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  style={{ width: '100%', padding: '11px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '6px' }}>Price (₹)</label>
+                <input type="number" value={editForm.price} onChange={e => setEditForm({ ...editForm, price: e.target.value })}
+                  style={{ width: '100%', padding: '11px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '6px' }}>Stock Quantity</label>
+                <input type="number" value={editForm.stock} onChange={e => setEditForm({ ...editForm, stock: e.target.value })}
+                  style={{ width: '100%', padding: '11px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '6px' }}>Description</label>
+                <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                  style={{ width: '100%', padding: '11px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box', height: '70px', resize: 'none' }} />
+              </div>
+            </div>
+
+            {/* Images */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '8px' }}>Product Photos</label>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {(editForm.image_urls || []).map((url, i) => (
+                  <div key={i} style={{ position: 'relative' }}>
+                    <img src={url} alt="" style={{ width: '70px', height: '70px', borderRadius: '8px', objectFit: 'cover', border: '2px solid #e8e8e0' }} />
+                    <button onClick={() => setEditForm(prev => ({ ...prev, image_urls: prev.image_urls.filter((_, idx) => idx !== i) }))}
+                      style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#ff4444', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                  </div>
+                ))}
+                {(editForm.image_urls || []).length < 5 && (
+                  <label style={{
+                    width: '70px', height: '70px', border: '2px dashed #6c63ff', borderRadius: '8px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    cursor: editUploadingImage ? 'not-allowed' : 'pointer', color: '#6c63ff', background: '#f8f7ff',
+                  }}>
+                    {editUploadingImage ? <span style={{ fontSize: '18px' }}>⏳</span> : <span style={{ fontSize: '22px' }}>📷</span>}
+                    <input type="file" accept="image/*" style={{ display: 'none' }} disabled={editUploadingImage}
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        setEditUploadingImage(true);
+                        try {
+                          const formData = new FormData();
+                          formData.append('image', file);
+                          const res = await API.post('/uploads/product-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+                          setEditForm(prev => ({ ...prev, image_urls: [...(prev.image_urls || []), res.data.url] }));
+                        } catch (err) {
+                          showToast('Upload failed', 'error');
+                        } finally {
+                          setEditUploadingImage(false);
+                          e.target.value = '';
+                        }
+                      }} />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={closeEditModal}
+                style={{ flex: 1, padding: '12px', background: '#f0f0e8', color: '#666', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>
+                Cancel
+              </button>
+              <button onClick={saveEditedProduct} disabled={editSaving}
+                style={{ flex: 2, padding: '12px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', opacity: editSaving ? 0.7 : 1 }}>
+                {editSaving ? 'Saving...' : '💾 Save Changes'}
               </button>
             </div>
           </div>
