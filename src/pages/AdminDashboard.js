@@ -67,7 +67,7 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState('sellers');
   const [loading, setLoading] = useState(true);
  
-  useTabHistory(tab, setTab, ['sellers', 'buyers', 'delivery', 'bulk-upload']);
+ useTabHistory(tab, setTab, ['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners']);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -75,11 +75,152 @@ export default function AdminDashboard() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (tab === 'banners') fetchBanners();
+  }, [tab]);
+
   const [deliveryBoys, setDeliveryBoys] = useState([]);
   const [salesModalOpen, setSalesModalOpen] = useState(false);
   const [salesLoading, setSalesLoading] = useState(false);
   const [sellerSalesData, setSellerSalesData] = useState(null);
 
+  // ── Hero Banner Carousel management ──
+  const emptyBannerForm = {
+    title: '', subtitle: '', description: '', discount_badge: '', cta_text: 'Order Now',
+    coupon_code: '', restaurant_name: '', action_type: 'none', action_value: '',
+    text_position: 'bottom-left', start_date: '', end_date: '', is_active: true,
+  };
+  const [banners, setBanners] = useState([]);
+  const [bannersLoading, setBannersLoading] = useState(false);
+  const [showBannerForm, setShowBannerForm] = useState(false);
+  const [editingBannerId, setEditingBannerId] = useState(null);
+  const [bannerForm, setBannerForm] = useState(emptyBannerForm);
+  const [bannerImageFile, setBannerImageFile] = useState(null);
+  const [bannerImagePreview, setBannerImagePreview] = useState(null);
+  const [bannerSaving, setBannerSaving] = useState(false);
+  const [draggedId, setDraggedId] = useState(null);
+
+  const fetchBanners = async () => {
+    setBannersLoading(true);
+    try {
+      const res = await API.get('/admin/banners');
+      setBanners(res.data);
+    } catch (err) {
+      showToast('Failed to load banners', 'error');
+    } finally {
+      setBannersLoading(false);
+    }
+  };
+
+  const openAddBanner = () => {
+    setEditingBannerId(null);
+    setBannerForm(emptyBannerForm);
+    setBannerImageFile(null);
+    setBannerImagePreview(null);
+    setShowBannerForm(true);
+  };
+
+  const openEditBanner = (b) => {
+    setEditingBannerId(b.id);
+    setBannerForm({
+      title: b.title || '', subtitle: b.subtitle || '', description: b.description || '',
+      discount_badge: b.discount_badge || '', cta_text: b.cta_text || 'Order Now',
+      coupon_code: b.coupon_code || '', restaurant_name: b.restaurant_name || '',
+      action_type: b.action_type || 'none', action_value: b.action_value || '',
+      text_position: b.text_position || 'bottom-left',
+      start_date: b.start_date ? String(b.start_date).slice(0, 10) : '',
+      end_date: b.end_date ? String(b.end_date).slice(0, 10) : '',
+      is_active: b.is_active,
+    });
+    setBannerImageFile(null);
+    setBannerImagePreview(b.image_url);
+    setShowBannerForm(true);
+  };
+
+  const closeBannerForm = () => {
+    setShowBannerForm(false);
+    setEditingBannerId(null);
+  };
+
+  const saveBanner = async () => {
+    if (!editingBannerId && !bannerImageFile) {
+      showToast('Please choose a banner image', 'error');
+      return;
+    }
+    setBannerSaving(true);
+    try {
+      const formData = new FormData();
+      if (bannerImageFile) formData.append('image', bannerImageFile);
+      Object.entries(bannerForm).forEach(([key, value]) => formData.append(key, value));
+
+      if (editingBannerId) {
+        await API.patch(`/admin/banners/${editingBannerId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        showToast('Banner updated!', 'success');
+      } else {
+        await API.post('/admin/banners', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        showToast('Banner created!', 'success');
+      }
+      closeBannerForm();
+      fetchBanners();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to save banner', 'error');
+    } finally {
+      setBannerSaving(false);
+    }
+  };
+
+  const deleteBanner = async (id) => {
+    if (!window.confirm('Delete this banner?')) return;
+    try {
+      await API.delete(`/admin/banners/${id}`);
+      showToast('Banner deleted');
+      fetchBanners();
+    } catch (err) {
+      showToast('Failed to delete banner', 'error');
+    }
+  };
+
+  const toggleBannerActive = async (b) => {
+    try {
+      const formData = new FormData();
+      Object.entries({
+        title: b.title || '', subtitle: b.subtitle || '', description: b.description || '',
+        discount_badge: b.discount_badge || '', cta_text: b.cta_text || 'Order Now',
+        coupon_code: b.coupon_code || '', restaurant_name: b.restaurant_name || '',
+        action_type: b.action_type || 'none', action_value: b.action_value || '',
+        text_position: b.text_position || 'bottom-left',
+        start_date: b.start_date ? String(b.start_date).slice(0, 10) : '',
+        end_date: b.end_date ? String(b.end_date).slice(0, 10) : '',
+        is_active: !b.is_active,
+      }).forEach(([key, value]) => formData.append(key, value));
+      await API.patch(`/admin/banners/${b.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      fetchBanners();
+    } catch (err) {
+      showToast('Failed to toggle banner', 'error');
+    }
+  };
+
+  const handleDragStart = (id) => setDraggedId(id);
+  const handleDragOver = (e) => e.preventDefault();
+  const handleDrop = async (targetId) => {
+    if (!draggedId || draggedId === targetId) return;
+    const currentOrder = banners.map(b => b.id);
+    const fromIdx = currentOrder.indexOf(draggedId);
+    const toIdx = currentOrder.indexOf(targetId);
+    const newOrder = [...currentOrder];
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, draggedId);
+
+    setBanners(newOrder.map(id => banners.find(b => b.id === id)));
+    setDraggedId(null);
+
+    try {
+      await API.patch('/admin/banners/reorder', { order: newOrder });
+    } catch (err) {
+      showToast('Failed to save new order', 'error');
+      fetchBanners();
+    }
+  };
   const fetchData = async () => {
     try {
       const [s, b, d] = await Promise.all([
@@ -187,14 +328,14 @@ const suspendDelivery = async (id) => {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-         {['sellers', 'buyers', 'delivery', 'bulk-upload'].map(t => (
+       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+         {['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners'].map(t => (
   <button key={t} onClick={() => setTab(t)}
     style={{
       padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold',
       background: tab === t ? '#6c63ff' : '#1a1a2e', color: 'white', fontSize: '14px',
     }}>
-    {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : t === 'delivery' ? '🚴 Delivery Boys' : '📦 Bulk Upload'}
+    {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : t === 'delivery' ? '🚴 Delivery Boys' : t === 'bulk-upload' ? '📦 Bulk Upload' : '🖼️ Banners'}
   </button>
 ))}
         </div>
@@ -343,6 +484,192 @@ const suspendDelivery = async (id) => {
     <BulkProductUpload />
   </motion.div>
 )}
+
+{tab === 'banners' && (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+    style={{ background: '#1a1a2e', borderRadius: '16px', padding: '20px', border: '1px solid #2a2a4a' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <h3 style={{ margin: 0, color: 'white' }}>🖼️ Hero Banner Carousel ({banners.length}/12)</h3>
+      <button onClick={openAddBanner} disabled={banners.length >= 12}
+        style={{ background: banners.length >= 12 ? '#444' : '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 20px', cursor: banners.length >= 12 ? 'not-allowed' : 'pointer', fontWeight: '700' }}>
+        + Add Banner
+      </button>
+    </div>
+
+    {banners.length >= 12 && (
+      <div style={{ background: '#ffaa0022', color: '#ffaa00', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px' }}>
+        Maximum 12 banners reached. Delete one to add a new banner.
+      </div>
+    )}
+
+    {bannersLoading ? (
+      <div style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>Loading...</div>
+    ) : banners.length === 0 ? (
+      <div style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>No banners yet. Click "+ Add Banner" to create one.</div>
+    ) : (
+      <>
+        <p style={{ color: '#999', fontSize: '12px', marginBottom: '14px' }}>Drag and drop cards to reorder — this is the order buyers will see in the app.</p>
+        {banners.map((b) => (
+          <div key={b.id}
+            draggable
+            onDragStart={() => handleDragStart(b.id)}
+            onDragOver={handleDragOver}
+            onDrop={() => handleDrop(b.id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '14px', background: '#0a0a1a',
+              border: '1px solid #2a2a4a', borderRadius: '12px', padding: '12px', marginBottom: '10px',
+              cursor: 'grab', opacity: draggedId === b.id ? 0.4 : 1,
+            }}>
+            <span style={{ color: '#666', fontSize: '18px' }}>⠿</span>
+            <img src={b.image_url} alt="" style={{ width: '90px', height: '54px', objectFit: 'cover', borderRadius: '8px' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ color: 'white', fontWeight: '700', fontSize: '14px' }}>{b.title || '(no title)'}</div>
+              <div style={{ color: '#999', fontSize: '12px', marginTop: '2px' }}>
+                {b.action_type !== 'none' ? `→ ${b.action_type}: ${b.action_value || '—'}` : 'No click action'}
+                {(b.start_date || b.end_date) && ` • ${b.start_date || '∞'} to ${b.end_date || '∞'}`}
+              </div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={b.is_active} onChange={() => toggleBannerActive(b)} />
+              <span style={{ fontSize: '12px', color: b.is_active ? '#00ff88' : '#999' }}>{b.is_active ? 'Active' : 'Inactive'}</span>
+            </label>
+            <button onClick={() => openEditBanner(b)}
+              style={{ background: '#6c63ff33', color: '#6c63ff', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer', fontSize: '12px' }}>
+              Edit
+            </button>
+            <button onClick={() => deleteBanner(b.id)}
+              style={{ background: '#ff444433', color: '#ff4444', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer', fontSize: '12px' }}>
+              Delete
+            </button>
+          </div>
+        ))}
+      </>
+    )}
+  </motion.div>
+)}
+
+{/* Add/Edit Banner Modal */}
+{showBannerForm && (
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '20px' }}
+    onClick={closeBannerForm}>
+    <div onClick={e => e.stopPropagation()}
+      style={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '16px', padding: '24px', maxWidth: '560px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+        <h3 style={{ margin: 0, color: 'white' }}>{editingBannerId ? '✏️ Edit Banner' : '+ Add Banner'}</h3>
+        <button onClick={closeBannerForm} style={{ background: '#2a2a4a', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', color: 'white' }}>✕</button>
+      </div>
+
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '8px' }}>Banner Image {editingBannerId ? '(leave empty to keep current)' : '*'}</label>
+        {bannerImagePreview && (
+          <img src={bannerImagePreview} alt="" style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '10px', marginBottom: '8px' }} />
+        )}
+        <label style={{ display: 'block', padding: '12px', border: '2px dashed #6c63ff', borderRadius: '8px', textAlign: 'center', cursor: 'pointer', color: '#6c63ff', fontSize: '13px' }}>
+          {bannerImageFile ? bannerImageFile.name : '📁 Choose image'}
+          <input type="file" accept="image/*" style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              setBannerImageFile(file);
+              const reader = new FileReader();
+              reader.onload = () => setBannerImagePreview(reader.result);
+              reader.readAsDataURL(file);
+            }} />
+        </label>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+        {[
+          { key: 'title', label: 'Title', placeholder: '🍕 Combo Blast' },
+          { key: 'subtitle', label: 'Subtitle', placeholder: 'Burger + Pizza + Coke' },
+          { key: 'discount_badge', label: 'Discount Badge', placeholder: 'Flat 50% OFF' },
+          { key: 'cta_text', label: 'CTA Button Text', placeholder: 'Order Now' },
+          { key: 'coupon_code', label: 'Coupon Code (optional)', placeholder: 'COMBO50' },
+          { key: 'restaurant_name', label: 'Restaurant (optional)', placeholder: 'Ayush Hotel' },
+        ].map(f => (
+          <div key={f.key}>
+            <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>{f.label}</label>
+            <input value={bannerForm[f.key]} placeholder={f.placeholder}
+              onChange={e => setBannerForm({ ...bannerForm, [f.key]: e.target.value })}
+              style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+        ))}
+        <div style={{ gridColumn: 'span 2' }}>
+          <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>Description</label>
+          <textarea value={bannerForm.description}
+            onChange={e => setBannerForm({ ...bannerForm, description: e.target.value })}
+            style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none', boxSizing: 'border-box', height: '60px', resize: 'none' }} />
+        </div>
+
+        <div>
+          <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>Click Action</label>
+          <select value={bannerForm.action_type}
+            onChange={e => setBannerForm({ ...bannerForm, action_type: e.target.value })}
+            style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none' }}>
+            <option value="none">No action</option>
+            <option value="restaurant">Open Restaurant (seller_id)</option>
+            <option value="product">Open Product (product_id)</option>
+            <option value="category">Open Category (slug)</option>
+            <option value="url">External URL</option>
+            <option value="deeplink">Custom Deep Link (screen id)</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>Action Value</label>
+          <input value={bannerForm.action_value} placeholder="seller_id / product_id / grocery / https://..."
+            onChange={e => setBannerForm({ ...bannerForm, action_value: e.target.value })}
+            style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+
+        <div>
+          <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>Text Position</label>
+          <select value={bannerForm.text_position}
+            onChange={e => setBannerForm({ ...bannerForm, text_position: e.target.value })}
+            style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none' }}>
+            <option value="bottom-left">Bottom Left</option>
+            <option value="bottom-center">Bottom Center</option>
+            <option value="bottom-right">Bottom Right</option>
+            <option value="top-left">Top Left</option>
+            <option value="top-center">Top Center</option>
+            <option value="top-right">Top Right</option>
+            <option value="center">Center</option>
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '20px' }}>
+          <input type="checkbox" checked={bannerForm.is_active}
+            onChange={e => setBannerForm({ ...bannerForm, is_active: e.target.checked })} />
+          <span style={{ color: 'white', fontSize: '13px' }}>Active</span>
+        </div>
+
+        <div>
+          <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>Start Date (optional)</label>
+          <input type="date" value={bannerForm.start_date}
+            onChange={e => setBannerForm({ ...bannerForm, start_date: e.target.value })}
+            style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+        <div>
+          <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>End Date (optional)</label>
+          <input type="date" value={bannerForm.end_date}
+            onChange={e => setBannerForm({ ...bannerForm, end_date: e.target.value })}
+            style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+        <button onClick={closeBannerForm}
+          style={{ flex: 1, padding: '12px', background: '#2a2a4a', color: '#999', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+          Cancel
+        </button>
+        <button onClick={saveBanner} disabled={bannerSaving}
+          style={{ flex: 2, padding: '12px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', opacity: bannerSaving ? 0.7 : 1 }}>
+          {bannerSaving ? 'Saving...' : editingBannerId ? '💾 Save Changes' : '+ Create Banner'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+      {/* Seller Last-7-Days Sales Modal */}
       </div>
 
       {/* Seller Last-7-Days Sales Modal */}

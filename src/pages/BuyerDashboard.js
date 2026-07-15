@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
 import { Toast, showToast } from '../components/Toast';
+import HeroBannerCarousel from '../components/HeroBannerCarousel';
 
 /* ============================================================
    ZAPLO — BLINKIT-INSPIRED DESIGN SYSTEM
@@ -700,10 +701,49 @@ export default function BuyerDashboard() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
 
+ const [banners, setBanners] = useState([]);
+
   useEffect(() => {
     loadAllProducts();
+    fetchBanners();
   }, []);
 
+  const fetchBanners = async () => {
+    try {
+      const res = await API.get('/banners/active');
+      setBanners(res.data);
+    } catch (err) {
+      console.error('Banners fetch failed');
+    }
+  };
+
+  // Routes a banner tap based on what the admin configured for it.
+  const handleBannerClick = (banner) => {
+    switch (banner.action_type) {
+      case 'restaurant':
+        if (banner.action_value) {
+          openShop({ id: banner.action_value, shop_name: banner.restaurant_name || banner.title || 'Shop' });
+        }
+        break;
+      case 'product': {
+        const product = allProducts.find(p => p.id === banner.action_value);
+        if (product) navigate({ selectedProduct: product });
+        else showToast('Product not available right now', 'error');
+        break;
+      }
+      case 'category':
+        if (banner.action_value) openCategoryScreen(banner.action_value);
+        break;
+      case 'url':
+        if (banner.action_value) window.open(banner.action_value, '_blank');
+        break;
+      case 'deeplink':
+        if (banner.action_value) navigate({ screen: banner.action_value });
+        break;
+      default:
+        break; // 'none' — purely decorative, no action
+    }
+  };
   const loadAllProducts = async () => {
     setLoading(true);
     try {
@@ -1022,9 +1062,12 @@ export default function BuyerDashboard() {
             </div>
           )}
 
-          {/* Categories & banners */}
+         {/* Categories & banners */}
           {!query && (
             <>
+              {/* Hero Banner Carousel — fully admin-controlled, hides itself if no active banners */}
+              <HeroBannerCarousel banners={banners} onBannerClick={handleBannerClick} />
+
               {/* Promo strip */}
               <div style={{ padding: '14px 16px 6px', display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1, background: T.primaryGradient, borderRadius: T.radiusMd, padding: '14px', color: 'white', position: 'relative', overflow: 'hidden' }}>
