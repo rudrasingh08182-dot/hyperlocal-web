@@ -98,7 +98,38 @@ export default function AdminDashboard() {
   const [bannerImageFile, setBannerImageFile] = useState(null);
   const [bannerImagePreview, setBannerImagePreview] = useState(null);
   const [bannerSaving, setBannerSaving] = useState(false);
-  const [draggedId, setDraggedId] = useState(null);
+ const [draggedId, setDraggedId] = useState(null);
+
+  // ── Product/Restaurant picker for banner "Action Value" ──
+  const [actionSearchQuery, setActionSearchQuery] = useState('');
+  const [actionSearchResults, setActionSearchResults] = useState([]);
+  const [actionSearching, setActionSearching] = useState(false);
+  const [selectedActionLabel, setSelectedActionLabel] = useState('');
+
+  const searchForAction = async () => {
+    if (!actionSearchQuery.trim()) return;
+    setActionSearching(true);
+    try {
+      if (bannerForm.action_type === 'product') {
+        const res = await API.get(`/products/search?q=${encodeURIComponent(actionSearchQuery)}`);
+        setActionSearchResults(res.data.map(p => ({ id: p.id, label: `${p.name} — ₹${p.price} (${p.shop_name})` })));
+      } else if (bannerForm.action_type === 'restaurant') {
+        const res = await API.get(`/sellers/search?q=${encodeURIComponent(actionSearchQuery)}`);
+        setActionSearchResults(res.data.map(s => ({ id: s.id, label: `${s.shop_name} — ${s.locality || ''}` })));
+      }
+    } catch (err) {
+      showToast('Search failed', 'error');
+    } finally {
+      setActionSearching(false);
+    }
+  };
+
+  const selectActionResult = (result) => {
+    setBannerForm({ ...bannerForm, action_value: result.id });
+    setSelectedActionLabel(result.label);
+    setActionSearchResults([]);
+    setActionSearchQuery('');
+  };
 
   const fetchBanners = async () => {
     setBannersLoading(true);
@@ -122,6 +153,9 @@ export default function AdminDashboard() {
 
   const openEditBanner = (b) => {
     setEditingBannerId(b.id);
+    setSelectedActionLabel('');
+    setActionSearchResults([]);
+    setActionSearchQuery('');
     setBannerForm({
       title: b.title || '', subtitle: b.subtitle || '', description: b.description || '',
       discount_badge: b.discount_badge || '', cta_text: b.cta_text || 'Order Now',
@@ -604,21 +638,60 @@ const suspendDelivery = async (id) => {
         <div>
           <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>Click Action</label>
           <select value={bannerForm.action_type}
-            onChange={e => setBannerForm({ ...bannerForm, action_type: e.target.value })}
+            onChange={e => {
+              setBannerForm({ ...bannerForm, action_type: e.target.value, action_value: '' });
+              setSelectedActionLabel('');
+              setActionSearchResults([]);
+              setActionSearchQuery('');
+            }}
             style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none' }}>
             <option value="none">No action</option>
-            <option value="restaurant">Open Restaurant (seller_id)</option>
-            <option value="product">Open Product (product_id)</option>
+            <option value="restaurant">Open Restaurant</option>
+            <option value="product">Open Product</option>
             <option value="category">Open Category (slug)</option>
             <option value="url">External URL</option>
             <option value="deeplink">Custom Deep Link (screen id)</option>
           </select>
         </div>
-        <div>
+
+        <div style={{ gridColumn: (bannerForm.action_type === 'product' || bannerForm.action_type === 'restaurant') ? 'span 2' : 'span 1' }}>
           <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>Action Value</label>
-          <input value={bannerForm.action_value} placeholder="seller_id / product_id / grocery / https://..."
-            onChange={e => setBannerForm({ ...bannerForm, action_value: e.target.value })}
-            style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+
+          {bannerForm.action_type === 'product' || bannerForm.action_type === 'restaurant' ? (
+            <>
+              {bannerForm.action_value && (
+                <div style={{ background: '#0c831f22', color: '#00ff88', padding: '9px 12px', borderRadius: '8px', fontSize: '12px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>✓ {selectedActionLabel || `Selected: ${bannerForm.action_value}`}</span>
+                  <button onClick={() => { setBannerForm({ ...bannerForm, action_value: '' }); setSelectedActionLabel(''); }}
+                    style={{ background: 'none', border: 'none', color: '#00ff88', cursor: 'pointer', fontSize: '13px' }}>✕</button>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input value={actionSearchQuery} placeholder={bannerForm.action_type === 'product' ? 'Search product by name...' : 'Search shop by name...'}
+                  onChange={e => setActionSearchQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && searchForAction()}
+                  style={{ flex: 1, padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none' }} />
+                <button onClick={searchForAction} disabled={actionSearching}
+                  style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '0 16px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
+                  {actionSearching ? '...' : 'Search'}
+                </button>
+              </div>
+              {actionSearchResults.length > 0 && (
+                <div style={{ background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', marginTop: '8px', maxHeight: '160px', overflowY: 'auto' }}>
+                  {actionSearchResults.map(r => (
+                    <div key={r.id} onClick={() => selectActionResult(r)}
+                      style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #2a2a4a', fontSize: '12px', color: 'white' }}>
+                      {r.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <input value={bannerForm.action_value} placeholder={bannerForm.action_type === 'category' ? 'grocery / fresh / electronics...' : bannerForm.action_type === 'url' ? 'https://...' : 'screen id'}
+              onChange={e => setBannerForm({ ...bannerForm, action_value: e.target.value })}
+              style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+          )}
         </div>
 
         <div>
