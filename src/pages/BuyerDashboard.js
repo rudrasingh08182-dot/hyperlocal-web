@@ -132,6 +132,7 @@ const categories = [
   { id: 'food', label: 'Food', emoji: '🍔', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233754/david-foodphototasty-E94j3rMcxlw-unsplash_qhm984.jpg' },
   { id: 'stationery', label: 'Stationery', emoji: '📚', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233835/tim-gouw-KigTvXqetXA-unsplash_s4gm0v.jpg' },
   { id: 'medical', label: 'Medical', emoji: '💊', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233743/christine-sandu-jwWtZrm67VI-unsplash_lsfqny.jpg' },
+  { id: 'sweets', label: 'Sweets & Confectionery', emoji: '🍬', image: null },
 ];
 
 const RETURN_POLICY_LABELS = {
@@ -888,6 +889,7 @@ export default function BuyerDashboard() {
     const minVariantPrice = product.has_variants && product.variants?.length > 0
       ? Math.min(...product.variants.map(v => parseFloat(v.price)))
       : null;
+    const sellerClosed = product.seller_is_online === false;
 
     return (
       <motion.div whileTap={{ scale: 0.98 }}
@@ -909,11 +911,17 @@ export default function BuyerDashboard() {
           )}
 
           {/* 30-min badge */}
-          <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(255,255,255,0.95)', color: T.text, padding: '3px 7px', borderRadius: '6px', fontSize: '9px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '3px', boxShadow: T.shadowCard }}>
-            <span style={{ color: T.primary }}>⚡</span> 45 MIN
-          </div>
+          {!sellerClosed && (
+            <div style={{ position: 'absolute', top: '6px', left: '6px', background: 'rgba(255,255,255,0.95)', color: T.text, padding: '3px 7px', borderRadius: '6px', fontSize: '9px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '3px', boxShadow: T.shadowCard }}>
+              <span style={{ color: T.primary }}>⚡</span> 45 MIN
+            </div>
+          )}
 
-          {product.stock === 0 && (
+          {sellerClosed ? (
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.error, fontWeight: '800', fontSize: '11px', letterSpacing: '0.04em', textAlign: 'center', padding: '0 10px' }}>
+              TEMPORARILY CLOSED
+            </div>
+          ) : product.stock === 0 && (
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.error, fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>
               OUT OF STOCK
             </div>
@@ -936,7 +944,11 @@ export default function BuyerDashboard() {
             </div>
 
             <div onClick={e => e.stopPropagation()}>
-              {product.has_variants ? (
+              {sellerClosed ? (
+                <span style={{ padding: '7px 14px', background: T.errorTint, color: T.error, borderRadius: T.radiusSm, fontWeight: '800', fontSize: '11px', letterSpacing: '0.02em' }}>
+                  CLOSED
+                </span>
+              ) : product.has_variants ? (
                 <motion.button {...btnTap}
                   style={{ padding: '7px 16px', background: 'white', color: T.primary, border: `1.5px solid ${T.primary}`, borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '12px', letterSpacing: '0.02em' }}>
                   OPTIONS
@@ -1207,6 +1219,16 @@ export default function BuyerDashboard() {
         <div style={{ paddingBottom: '104px' }}>
           <SubHeader title={selectedShop.shop_name} subtitle={selectedShop.address} onBack={() => window.history.back()} />
           <div style={{ padding: '14px 16px' }}>
+            {selectedShop.is_online === false ? (
+              <div style={{ background: T.errorTint, borderRadius: T.radiusMd, padding: '14px', marginBottom: '14px' }}>
+                <div style={{ fontWeight: '800', color: T.error, fontSize: '13px', marginBottom: '4px' }}>🔴 Temporarily Closed</div>
+                <div style={{ fontSize: '12px', color: T.textSoft }}>This store is temporarily unavailable. Please check back later.</div>
+              </div>
+            ) : (
+              <div style={{ background: T.successTint, borderRadius: T.radiusMd, padding: '10px 14px', marginBottom: '14px', display: 'inline-block' }}>
+                <span style={{ fontWeight: '800', color: T.success, fontSize: '12px' }}>🟢 Open Now</span>
+              </div>
+            )}
             {selectedShop.contact_phone && (
               <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '10px 14px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
@@ -1774,6 +1796,11 @@ export default function BuyerDashboard() {
                     {selectedProduct.category}
                   </span>
                 )}
+                {selectedProduct.seller_is_online === false && (
+                  <span style={{ fontSize: '11px', color: T.error, fontWeight: '800', background: T.errorTint, padding: '4px 10px', borderRadius: '6px' }}>
+                    🔴 TEMPORARILY CLOSED
+                  </span>
+                )}
               </div>
 
               <h2 style={{ margin: '0 0 12px', fontSize: '20px', fontWeight: '800', color: T.text, lineHeight: '1.35', letterSpacing: '-0.01em' }}>
@@ -1888,10 +1915,21 @@ export default function BuyerDashboard() {
           {/* Bottom Add to Cart */}
           <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', background: T.card, padding: '14px 16px', boxShadow: '0 -6px 20px rgba(17,17,39,0.08)', zIndex: 201, borderTop: `1px solid ${T.border}` }}>
             {(() => {
+              const sellerClosed = selectedProduct.seller_is_online === false;
               const isVariantProduct = selectedProduct.has_variants && selectedProduct.variants?.length > 0;
               const effectiveStock = isVariantProduct ? (selectedVariant?.stock ?? 0) : selectedProduct.stock;
               const currentQty = getCartQty(selectedProduct.id, isVariantProduct ? selectedVariant?.id : null);
-              const canAdd = !isVariantProduct || (isVariantProduct && selectedVariant);
+              const canAdd = !sellerClosed && (!isVariantProduct || (isVariantProduct && selectedVariant));
+
+              if (sellerClosed) {
+                return (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ width: '100%', padding: '16px', background: T.errorTint, color: T.error, borderRadius: T.radiusSm, fontWeight: '800', fontSize: '13px', marginBottom: '4px' }}>
+                      This store is temporarily unavailable. Please check back later.
+                    </div>
+                  </div>
+                );
+              }
 
               return currentQty === 0 ? (
                 <motion.button {...btnTap}

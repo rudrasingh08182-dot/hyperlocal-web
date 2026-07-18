@@ -12,6 +12,33 @@ export default function DeliveryDashboard() {
   const [locationError, setLocationError] = useState('');
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+
+  const fetchMyAvailability = async () => {
+    try {
+      const res = await API.get('/orders/my-availability');
+      setIsOnline(res.data.is_online !== false);
+    } catch (err) {
+      console.error('Availability fetch failed');
+    }
+  };
+
+  const toggleAvailability = async () => {
+    const newStatus = !isOnline;
+    setAvailabilityLoading(true);
+    try {
+      const res = await API.patch('/orders/toggle-availability', { is_online: newStatus });
+      setIsOnline(res.data.is_online);
+      showToast(res.data.message, res.data.is_online ? 'success' : 'info');
+      if (res.data.is_online) fetchAvailableOrders(location?.lat, location?.lng);
+      else setAvailableOrders([]);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to update availability', 'error');
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
 
   useTabHistory(tab, setTab, ['available', 'mydeliveries']);
 
@@ -72,6 +99,7 @@ export default function DeliveryDashboard() {
   useEffect(() => {
     getLocation();
     fetchMyDeliveries();
+    fetchMyAvailability();
   }, [getLocation]);
   useEffect(() => {
   const activeOrder = myDeliveries.find(o => o.status === 'picked_up' || o.status === 'out_for_delivery');
@@ -152,6 +180,17 @@ const shareLocation = async (orderId) => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {/* Availability toggle */}
+          <div onClick={() => !availabilityLoading && toggleAvailability()}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: availabilityLoading ? 'wait' : 'pointer', background: isOnline ? '#e8fff8' : '#fff0f0', padding: '8px 14px', borderRadius: '999px', opacity: availabilityLoading ? 0.6 : 1 }}>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: isOnline ? '#00b894' : '#ff4444' }}>
+              {isOnline ? '🟢 Online' : '🔴 Offline'}
+            </span>
+            <div style={{ width: '38px', height: '22px', borderRadius: '999px', background: isOnline ? '#00b894' : '#ccc', position: 'relative', transition: 'background 0.2s' }}>
+              <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: isOnline ? '18px' : '2px', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+            </div>
+          </div>
+
           {location && (
             <span style={{ fontSize: '12px', color: '#00b894', background: '#e8fff8', padding: '4px 10px', borderRadius: '20px' }}>
               📍 GPS Active
@@ -236,7 +275,13 @@ const shareLocation = async (orderId) => {
               </button>
             </div>
 
-            {loading ? (
+            {!isOnline ? (
+              <div style={{ textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔴</div>
+                <p style={{ color: '#999', fontWeight: '600', marginBottom: '4px' }}>You're currently Offline</p>
+                <p style={{ color: '#bbb', fontSize: '13px' }}>Switch to Online above to start receiving delivery requests</p>
+              </div>
+            ) : loading ? (
               <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>Loading orders...</div>
             ) : availableOrders.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>

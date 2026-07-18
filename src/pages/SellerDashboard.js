@@ -404,6 +404,8 @@ useEffect(() => {
       console.error('Orders fetch failed:', err);
     }
   };
+const [storeOnline, setStoreOnline] = useState(true);
+const [storeStatusLoading, setStoreStatusLoading] = useState(false);
 
 const fetchShopSettings = async () => {
   try {
@@ -414,11 +416,25 @@ const fetchShopSettings = async () => {
       address: res.data.address || '',
       locality: res.data.locality || '',
     });
+    setStoreOnline(res.data.is_online !== false);
   } catch (err) {
     console.error('Shop settings fetch failed');
   }
 };
 
+const toggleStoreStatus = async () => {
+  const newStatus = !storeOnline;
+  setStoreStatusLoading(true);
+  try {
+    const res = await API.patch('/sellers/store-status', { is_online: newStatus });
+    setStoreOnline(res.data.is_online);
+    showToast(res.data.message, res.data.is_online ? 'success' : 'info');
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to update store status', 'error');
+  } finally {
+    setStoreStatusLoading(false);
+  }
+};
 const saveProduct = async () => {
   if (!newProduct.name || !newProduct.price || !newProduct.stock) {
     showToast('Please fill name, price and stock', 'error');
@@ -539,6 +555,17 @@ const saveProduct = async () => {
             </h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* Store Status toggle */}
+            <div onClick={() => !storeStatusLoading && toggleStoreStatus()}
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: storeStatusLoading ? 'wait' : 'pointer', background: storeOnline ? '#e8fff8' : '#fff0f0', padding: '8px 14px', borderRadius: '999px', opacity: storeStatusLoading ? 0.6 : 1 }}>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: storeOnline ? '#00b894' : '#ff4444' }}>
+                {storeOnline ? '🟢 Online' : '🔴 Temporarily Closed'}
+              </span>
+              <div style={{ width: '38px', height: '22px', borderRadius: '999px', background: storeOnline ? '#00b894' : '#ccc', position: 'relative', transition: 'background 0.2s' }}>
+                <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: storeOnline ? '18px' : '2px', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+              </div>
+            </div>
+
             <div style={{ position: 'relative' }}>
               <button onClick={() => setShowNotif(!showNotif)} style={{ background: '#f8f8f0', border: 'none', borderRadius: '10px', padding: '10px', cursor: 'pointer', fontSize: '18px' }}>
                 <FiBell color="#666" />
