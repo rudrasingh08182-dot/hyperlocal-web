@@ -62,7 +62,9 @@ const T = {
 // Optimizes Cloudinary image URLs for fast loading — resizes & compresses on the fly
 const optimizeImage = (url, width = 400) => {
   if (!url || !url.includes('cloudinary.com')) return url;
-  return url.replace('/upload/', `/upload/w_${width},q_auto,f_auto/`);
+  // q_auto:best (higher quality floor than plain q_auto) + dpr_auto (serves
+  // 2x/3x resolution automatically on retina phones instead of blurry upscale)
+  return url.replace('/upload/', `/upload/w_${width},q_auto:best,f_auto,dpr_auto/`);
 };
 
 // Fisher-Yates shuffle — fair rotation across sellers
@@ -1113,7 +1115,7 @@ export default function BuyerDashboard() {
                       <div style={{ width: '100%', aspectRatio: '1 / 1', background: T.primaryTint, overflow: 'hidden' }}>
                         {cat.image ? (
                           <img
-                            src={optimizeImage(cat.image, 240)}
+                            src={optimizeImage(cat.image, 550)}
                             alt={cat.label}
                             loading="lazy"
                             decoding="async"
