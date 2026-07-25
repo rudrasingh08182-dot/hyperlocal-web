@@ -1034,19 +1034,19 @@ export default function BuyerDashboard() {
             </div>
 
             {/* Search Bar */}
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <div style={{ flex: 1, background: 'white', borderRadius: T.radiusSm, display: 'flex', alignItems: 'center', padding: '0 14px', gap: '10px', border: `1px solid ${T.border}`, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-                <span style={{ fontSize: '15px', color: T.primary }}>🔍</span>
+            <div style={{ display: 'flex', gap: '8px', minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0, background: 'white', borderRadius: T.radiusSm, display: 'flex', alignItems: 'center', padding: '0 14px', gap: '10px', border: `1px solid ${T.border}`, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+                <span style={{ fontSize: '15px', color: T.primary, flexShrink: 0 }}>🔍</span>
                 <input
                   placeholder={searchMode === 'products' ? "Search 'atta', 'milk', 'chips'..." : "Search for shops..."}
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && search()}
-                  style={{ flex: 1, border: 'none', outline: 'none', fontSize: '13px', padding: '12px 0', background: 'transparent', color: T.text }}
+                  style={{ flex: 1, minWidth: 0, width: '100%', border: 'none', outline: 'none', fontSize: '13px', padding: '12px 0', background: 'transparent', color: T.text }}
                 />
               </div>
               <motion.button {...btnTap} onClick={() => setSearchMode(searchMode === 'products' ? 'shops' : 'products')}
-                style={{ background: T.text, color: 'white', border: 'none', borderRadius: T.radiusSm, padding: '0 14px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.03em' }}>
+                style={{ background: T.text, color: 'white', border: 'none', borderRadius: T.radiusSm, padding: '0 14px', fontSize: '11px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.03em', flexShrink: 0 }}>
                 {searchMode === 'products' ? 'SHOPS' : 'ITEMS'}
               </motion.button>
             </div>
