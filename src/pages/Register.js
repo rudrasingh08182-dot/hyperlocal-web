@@ -1,6 +1,7 @@
 import API, { registerUser } from '../services/api';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Toast, showToast } from '../components/Toast';
 
 /**
  * Zaplo — Register page
@@ -120,8 +121,10 @@ export default function Register() {
         delivery: 'Registration successful! Our team will verify your details shortly.',
         buyer: 'Registration successful! Please login.',
       };
-      alert(messages[role]);
-      navigate('/login');
+      showToast(messages[role], 'success');
+      // Toast is non-blocking (unlike alert), so give the user a moment to
+      // actually read the message before redirecting to login.
+      setTimeout(() => navigate('/login'), 1800);
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Try again.');
     } finally {
@@ -187,6 +190,7 @@ export default function Register() {
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
       display: 'flex', flexDirection: 'column',
     }}>
+      <Toast />
       {/* Top navy bar to match login */}
       <div style={{ height: '28px', background: COLORS.topbar, width: '100%' }} />
 
