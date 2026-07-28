@@ -66,8 +66,15 @@ export default function AdminDashboard() {
   const [buyers, setBuyers] = useState([]);
   const [tab, setTab] = useState('sellers');
   const [loading, setLoading] = useState(true);
+
+  // ── Pincode Management State ──
+  const [pincodes, setPincodes] = useState([]);
+  const [waitingPincodes, setWaitingPincodes] = useState([]);
+  const [newPincode, setNewPincode] = useState('');
+  const [newAreaName, setNewAreaName] = useState('');
+  const [pincodeLoading, setPincodeLoading] = useState(false);
  
- useTabHistory(tab, setTab, ['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners']);
+ useTabHistory(tab, setTab, ['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners', 'pincodes']);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -77,6 +84,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (tab === 'banners') fetchBanners();
+    if (tab === 'pincodes') {
+      fetchPincodes();
+      fetchWaitingPincodes();
+    }
   }, [tab]);
 
   const [deliveryBoys, setDeliveryBoys] = useState([]);
@@ -255,6 +266,55 @@ export default function AdminDashboard() {
       fetchBanners();
     }
   };
+
+
+    // ── Pincode Management Functions ──
+  const fetchPincodes = async () => {
+    try {
+      const res = await API.get('/admin/pincodes');
+      setPincodes(res.data);
+    } catch (err) {
+      showToast('Failed to load pincodes', 'error');
+    }
+  };
+
+  const fetchWaitingPincodes = async () => {
+    try {
+      const res = await API.get('/admin/waiting-pincodes');
+      setWaitingPincodes(res.data);
+    } catch (err) {
+      showToast('Failed to load waiting pincodes', 'error');
+    }
+  };
+
+  const handleAddPincode = async (e) => {
+    e.preventDefault();
+    if (!newPincode.trim()) return;
+    setPincodeLoading(true);
+    try {
+      await API.post('/admin/pincodes', { pincode: newPincode.trim(), area_name: newAreaName });
+      setNewPincode('');
+      setNewAreaName('');
+      fetchPincodes();
+      fetchWaitingPincodes();
+      showToast('Pincode activated successfully!', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to add pincode', 'error');
+    } finally {
+      setPincodeLoading(false);
+    }
+  };
+
+  const handleRemovePincode = async (pincode) => {
+    if (!window.confirm(`Deactivate pincode ${pincode}?`)) return;
+    try {
+      await API.delete(`/admin/pincodes/${pincode}`);
+      fetchPincodes();
+      showToast('Pincode deactivated', 'success');
+    } catch (err) {
+      showToast('Failed to remove pincode', 'error');
+    }
+  };
   const fetchData = async () => {
     try {
       const [s, b, d] = await Promise.all([
@@ -363,13 +423,14 @@ const suspendDelivery = async (id) => {
 
         {/* Tabs */}
        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-         {['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners'].map(t => (
+         {['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners', 'pincodes'].map(t => (
+         
   <button key={t} onClick={() => setTab(t)}
     style={{
       padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold',
       background: tab === t ? '#6c63ff' : '#1a1a2e', color: 'white', fontSize: '14px',
     }}>
-    {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : t === 'delivery' ? '🚴 Delivery Boys' : t === 'bulk-upload' ? '📦 Bulk Upload' : '🖼️ Banners'}
+   {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : t === 'delivery' ? '🚴 Delivery Boys' : t === 'bulk-upload' ? '📦 Bulk Upload' : t === 'banners' ? '🖼️ Banners' : '📍 Pincodes'}
   </button>
 ))}
         </div>
@@ -579,6 +640,123 @@ const suspendDelivery = async (id) => {
         ))}
       </>
     )}
+  </motion.div>
+)}
+
+
+{tab === 'pincodes' && (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+    style={{ background: '#1a1a2e', borderRadius: '16px', padding: '24px', border: '1px solid #2a2a4a' }}>
+    
+    {/* Add New Pincode Form */}
+    <div style={{ background: '#0a0a1a', padding: '20px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #2a2a4a' }}>
+      <h3 style={{ margin: '0 0 16px 0', color: 'white', fontSize: '16px' }}>➕ Add New Serviceable Area</h3>
+      <form onSubmit={handleAddPincode} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ flex: '1 1 150px' }}>
+          <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>6-Digit Pincode *</label>
+          <input
+            type="text"
+            placeholder="e.g. 226001"
+            maxLength={6}
+            value={newPincode}
+            onChange={(e) => setNewPincode(e.target.value.replace(/\D/g, ''))}
+            required
+            style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #2a2a4a', background: '#1a1a2e', color: 'white', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+          />
+        </div>
+        <div style={{ flex: '2 1 200px' }}>
+          <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>Area / City Name (Optional)</label>
+          <input
+            type="text"
+            placeholder="e.g. Lucknow, Gomti Nagar"
+            value={newAreaName}
+            onChange={(e) => setNewAreaName(e.target.value)}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #2a2a4a', background: '#1a1a2e', color: 'white', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={pincodeLoading}
+          style={{ padding: '10px 24px', background: pincodeLoading ? '#444' : '#6c63ff', color: '#fff', border: 'none', borderRadius: '8px', cursor: pincodeLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+        >
+          {pincodeLoading ? 'Adding...' : 'Activate Pincode'}
+        </button>
+      </form>
+    </div>
+
+    {/* Active Pincodes Table */}
+    <div style={{ marginBottom: '32px' }}>
+      <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '12px' }}>✅ Active Serviceable Pincodes ({pincodes.length})</h3>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '400px' }}>
+          <thead>
+            <tr style={{ background: '#6c63ff22' }}>
+              <th style={th}>Pincode</th>
+              <th style={th}>Area Name</th>
+              <th style={th}>Added On</th>
+              <th style={th}>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pincodes.map((item) => (
+              <tr key={item.pincode} style={{ borderBottom: '1px solid #2a2a4a' }}>
+                <td style={{ ...td, fontWeight: 'bold', color: '#6c63ff' }}>{item.pincode}</td>
+                <td style={td}>{item.area_name || '—'}</td>
+                <td style={td}>{new Date(item.created_at).toLocaleDateString()}</td>
+                <td style={td}>
+                  <button
+                    onClick={() => handleRemovePincode(item.pincode)}
+                    style={{ background: '#ff444433', color: '#ff4444', border: '1px solid #ff4444', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                  >
+                    Deactivate
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {pincodes.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '30px', color: '#aaa', fontSize: '14px' }}>No active pincodes yet. Add one above!</div>
+        )}
+      </div>
+    </div>
+
+    {/* Waiting Pincodes Table */}
+    <div>
+      <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '12px' }}>🔥 High Demand Unserviceable Pincodes</h3>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '400px' }}>
+          <thead>
+            <tr style={{ background: '#ffaa0022' }}>
+              <th style={{ ...th, color: '#ffaa00' }}>Pincode</th>
+              <th style={{ ...th, color: '#ffaa00' }}>User Requests</th>
+              <th style={{ ...th, color: '#ffaa00' }}>Last Requested</th>
+              <th style={{ ...th, color: '#ffaa00' }}>Quick Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {waitingPincodes.map((item) => (
+              <tr key={item.pincode} style={{ borderBottom: '1px solid #2a2a4a' }}>
+                <td style={{ ...td, fontWeight: 'bold', color: '#ffaa00' }}>{item.pincode}</td>
+                <td style={td}>{item.request_count} users</td>
+                <td style={td}>{new Date(item.last_requested_at).toLocaleDateString()}</td>
+                <td style={td}>
+                  <button
+                    onClick={() => { setNewPincode(item.pincode); setNewAreaName(''); window.scrollTo({ top: 0, behavior: 'smooth' }); showToast('Pincode copied to form!', 'success'); }}
+                    style={{ background: '#00ff8833', color: '#00ff88', border: '1px solid #00ff88', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                  >
+                    Activate Now
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {waitingPincodes.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '30px', color: '#aaa', fontSize: '14px' }}>No waiting pincodes. All good!</div>
+        )}
+      </div>
+    </div>
   </motion.div>
 )}
 
