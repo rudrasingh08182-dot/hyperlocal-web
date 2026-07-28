@@ -826,8 +826,9 @@ export default function BuyerDashboard() {
 
   const calcDeliveryCharge = (distanceKm) => {
     if (!distanceKm || distanceKm <= 0) return 20;
-    if (distanceKm <= 5) return 20;
-    return 20 + Math.ceil(distanceKm - 5) * 6;
+    if (distanceKm <= 3) return 20;
+    if (distanceKm <= 5) return 30;
+    return 30 + Math.ceil(distanceKm - 5) * 6;
   };
 
   const placeOrder = async () => {
@@ -1086,7 +1087,7 @@ export default function BuyerDashboard() {
               <div style={{ padding: '14px 16px 6px', display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1, background: T.primaryGradient, borderRadius: T.radiusMd, padding: '14px', color: 'white', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ fontWeight: '800', fontSize: '15px', letterSpacing: '-0.01em' }}>₹20 delivery</div>
-                  <div style={{ fontSize: '11px', opacity: 0.9, marginTop: '3px' }}>First 5km · ₹6/km after</div>
+                <div style={{ fontSize: '11px', opacity: 0.9, marginTop: '3px' }}>Upto 3km · ₹30 upto 5km · ₹6/km after</div>
                   <div style={{ position: 'absolute', right: '-8px', bottom: '-6px', fontSize: '52px', opacity: 0.18 }}>🛵</div>
                 </div>
                 <div style={{ flex: 1, background: `linear-gradient(135deg, ${T.headerYellow}, ${T.headerYellowDark})`, borderRadius: T.radiusMd, padding: '14px', color: T.text, position: 'relative', overflow: 'hidden' }}>
@@ -1334,8 +1335,8 @@ export default function BuyerDashboard() {
                     <span style={{ fontWeight: '800', fontSize: '14px' }}>To Pay</span>
                     <span style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>₹{total + deliveryCharge}</span>
                   </div>
-                  <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '10px 12px', marginTop: '12px', fontSize: '11px', color: '#5B21B6' }}>
-                    Delivery: ₹20 for first 5km · ₹6/km after. Pay to delivery partner.
+                   <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '10px 12px', marginTop: '12px', fontSize: '11px', color: '#5B21B6' }}>
+                    Delivery: ₹20 upto 3km · ₹30 upto 5km · ₹6/km after. Pay to delivery partner.
                   </div>
                   <motion.button {...btnTap} onClick={() => navigate({ checkoutStep: 2 })}
                     style={{ width: '100%', marginTop: '14px', padding: '15px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', fontSize: '15px', cursor: 'pointer', letterSpacing: '0.02em' }}>
@@ -1712,7 +1713,7 @@ export default function BuyerDashboard() {
             {[
               { q: 'How do I track my order?', a: 'Go to My Orders and tap "Track Order" on any active order to see live status and delivery partner location.' },
               { q: 'How do I cancel an order?', a: 'You can cancel an order within 2 minutes of placing it. Go to My Orders and tap Cancel. After confirmation by seller, cancellation is not possible.' },
-              { q: 'What is the delivery charge?', a: 'Delivery charge is ₹20 for first 5km. For every extra km beyond 5km, ₹6 is added. The charge is paid directly to the delivery partner.' },
+               { q: 'What is the delivery charge?', a: 'Delivery charge is ₹20 for up to 3km, ₹30 for up to 5km, and ₹6 for every extra km beyond that. The charge is paid directly to the delivery partner.' },
               { q: 'How does payment work?', a: 'You can pay via Cash on Delivery (pay to delivery partner) or Online (scan the seller\'s UPI QR code and upload a payment screenshot — the order is confirmed once the seller verifies it). 10% platform fee applies on all orders.' },
               { q: 'What is the return policy?', a: 'Return policy varies by product category. Fresh food cannot be returned. Electronics have 7-day replacement. Fashion has 3-day return window.' },
               { q: 'How do I become a seller?', a: 'Register as a seller from the login page. After admin approval, you can start listing products and receiving orders.' },
@@ -1881,8 +1882,8 @@ export default function BuyerDashboard() {
               <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '20px' }}>⚡</span>
                 <div>
-                  <div style={{ fontWeight: '800', color: T.primary, fontSize: '13px' }}>45 min delivery</div>
-                  <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>₹20 for first 5km, ₹6/km after</div>
+                   <div style={{ fontWeight: '800', color: T.primary, fontSize: '13px' }}>45 min delivery</div>
+                  <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>₹20 upto 3km, ₹30 upto 5km, ₹6/km after</div>
                 </div>
               </div>
 
