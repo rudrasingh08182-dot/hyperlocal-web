@@ -528,7 +528,11 @@ export default function BuyerDashboard() {
   const { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
-    const [showUnserviceable, setShowUnserviceable] = useState(false);
+  const [showUnserviceable, setShowUnserviceable] = useState(false);
+  // Moved up from later in the file — `user` must exist before any
+  // useEffect below references it, otherwise it crashes with
+  // "Cannot access 'user' before initialization".
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   // ---- Temporary QR-based payment flow state ----
   const [qrPaymentActive, setQrPaymentActive] = useState(false);
   const [qrOrderIds, setQrOrderIds] = useState([]);
@@ -709,7 +713,6 @@ export default function BuyerDashboard() {
     }
   };
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
 
  const [banners, setBanners] = useState([]);
