@@ -43,7 +43,7 @@ export default function Register() {
 
   const [form, setForm] = useState({
     username: '', name: '', phone: '', password: '', confirmPassword: '',
-    shop_name: '', address: '', locality: '', contact_phone: '',
+    shop_name: '', address: '', locality: '', contact_phone: '', pincode: '',
     vehicle_type: '', vehicle_number: '',
   });
 
@@ -60,8 +60,12 @@ export default function Register() {
 
   const goToStep2 = () => {
     setError('');
-    if (!form.name || !form.username || !form.phone || !form.password) {
-      setError('Please fill all required fields');
+    if (!form.name || !form.username || !form.phone || !form.password || !form.pincode || !form.address) {
+      setError('Please fill all required fields including Pincode & Address');
+      return;
+    }
+    if (form.pincode.length !== 6) {
+      setError('Pincode must be exactly 6 digits');
       return;
     }
     if (form.password !== form.confirmPassword) {
@@ -72,6 +76,14 @@ export default function Register() {
   };
 
   const handleRegister = async () => {
+    if (!form.name || !form.username || !form.phone || !form.password || !form.pincode || !form.address) {
+      setError('Please fill all required fields including Pincode & Address');
+      return;
+    }
+    if (form.pincode.length !== 6) {
+      setError('Pincode must be a 6-digit number');
+      return;
+    }
     if (role === 'seller' && (!form.shop_name || !form.address || !form.locality)) {
       setError('Please fill all shop details');
       return;
@@ -93,6 +105,7 @@ export default function Register() {
           password: form.password,
           shop_name: form.shop_name,
           address: form.address,
+          pincode: form.pincode,
           locality: form.locality,
           contact_phone: form.contact_phone || form.phone,
         });
@@ -102,6 +115,8 @@ export default function Register() {
           name: form.name,
           phone: form.phone,
           password: form.password,
+          address: form.address,
+          pincode: form.pincode,
           vehicle_type: form.vehicle_type,
           vehicle_number: form.vehicle_number,
           locality: form.locality,
@@ -112,6 +127,8 @@ export default function Register() {
           name: form.name,
           phone: form.phone,
           password: form.password,
+          address: form.address,
+          pincode: form.pincode,
           role: 'buyer',
         });
       }
@@ -122,8 +139,6 @@ export default function Register() {
         buyer: 'Registration successful! Please login.',
       };
       showToast(messages[role], 'success');
-      // Toast is non-blocking (unlike alert), so give the user a moment to
-      // actually read the message before redirecting to login.
       setTimeout(() => navigate('/login'), 1800);
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Try again.');
@@ -181,7 +196,7 @@ export default function Register() {
   };
 
   const canSubmitStep1 =
-    form.name && form.username && form.phone && form.password && form.confirmPassword;
+    form.name && form.username && form.phone && form.password && form.confirmPassword && form.pincode && form.address;
 
   return (
     <div style={{
@@ -333,6 +348,14 @@ export default function Register() {
               <Field label="Phone Number" icon="📱">
                 <input placeholder="10-digit phone number" value={form.phone}
                   onChange={e => update('phone', e.target.value)} style={inputStyle} />
+              </Field>
+              <Field label="Pincode" icon="📍">
+                <input placeholder="6-digit Pincode (e.g. 226001)" maxLength={6} value={form.pincode}
+                  onChange={e => update('pincode', e.target.value.replace(/\D/g, ''))} style={inputStyle} />
+              </Field>
+              <Field label="Address" icon="🏠">
+                <input placeholder="Full address" value={form.address}
+                  onChange={e => update('address', e.target.value)} style={inputStyle} />
               </Field>
               <Field label="Password" icon="🔒">
                 <input placeholder="Create a password"
