@@ -5,13 +5,6 @@ import { Toast, showToast } from '../components/Toast';
 
 /**
  * Zaplo — Register page
- * Redesigned to match the Login screen's visual language:
- *  - Off-white background, white card, subtle shadow
- *  - Indigo accent (#6366f1), dark navy text (#0f172a)
- *  - Role picker as 4 icon cards (Buyer / Seller / Delivery / Admin*)
- *    (Admin is intentionally disabled — admins are created internally)
- *  - Rounded inputs with left icon, clear labels
- *  - FRESH · FAST · SECURE trust strip in the footer
  */
 
 const COLORS = {
@@ -30,6 +23,55 @@ const COLORS = {
   disabled: '#d1d5db',
 };
 
+/* ── Styles (static — outside component so they don't recreate) ── */
+const labelStyle = {
+  fontSize: '13px', fontWeight: 700, color: COLORS.text,
+  display: 'block', marginBottom: '8px',
+};
+
+const inputWrapStyle = {
+  display: 'flex', alignItems: 'center', gap: '10px',
+  background: COLORS.inputBg,
+  border: `1.5px solid ${COLORS.border}`,
+  borderRadius: '12px',
+  padding: '0 14px',
+  transition: 'border-color .15s, background .15s',
+};
+
+const inputStyle = {
+  flex: 1, padding: '14px 0', border: 'none', outline: 'none',
+  fontSize: '14px', background: 'transparent', color: COLORS.text,
+  fontFamily: 'inherit',
+};
+
+const iconStyle = { fontSize: '16px', opacity: 0.85 };
+
+const primaryBtn = (disabled = false) => ({
+  width: '100%', padding: '14px', border: 'none', borderRadius: '12px',
+  fontSize: '15px', fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer',
+  background: disabled ? COLORS.disabled : COLORS.primary,
+  color: '#ffffff',
+  boxShadow: disabled ? 'none' : '0 6px 16px rgba(99,102,241,0.25)',
+  transition: 'transform .05s ease',
+});
+
+const secondaryBtn = {
+  width: '100%', padding: '14px', border: `1.5px solid ${COLORS.border}`,
+  borderRadius: '12px', fontSize: '15px', fontWeight: 700,
+  background: '#ffffff', color: COLORS.primary, cursor: 'pointer',
+};
+
+/* ── Field component (OUTSIDE Register — this is the fix!) ── */
+const Field = ({ label, icon, children }) => (
+  <div>
+    <label style={labelStyle}>{label}</label>
+    <div style={inputWrapStyle}>
+      <span style={iconStyle}>{icon}</span>
+      {children}
+    </div>
+  </div>
+);
+
 export default function Register() {
   const [searchParams] = useSearchParams();
   const defaultRole = searchParams.get('role') || 'buyer';
@@ -47,7 +89,7 @@ export default function Register() {
     vehicle_type: '', vehicle_number: '',
   });
 
-  const update = (key, val) => setForm({ ...form, [key]: val });
+  const update = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
   const roles = [
     { id: 'buyer',    label: 'Buyer',    icon: '🛒' },
@@ -147,54 +189,6 @@ export default function Register() {
     }
   };
 
-  // -------- shared styles --------
-  const labelStyle = {
-    fontSize: '13px', fontWeight: 700, color: COLORS.text,
-    display: 'block', marginBottom: '8px',
-  };
-
-  const inputWrapStyle = {
-    display: 'flex', alignItems: 'center', gap: '10px',
-    background: COLORS.inputBg,
-    border: `1.5px solid ${COLORS.border}`,
-    borderRadius: '12px',
-    padding: '0 14px',
-    transition: 'border-color .15s, background .15s',
-  };
-
-  const inputStyle = {
-    flex: 1, padding: '14px 0', border: 'none', outline: 'none',
-    fontSize: '14px', background: 'transparent', color: COLORS.text,
-    fontFamily: 'inherit',
-  };
-
-  const iconStyle = { fontSize: '16px', opacity: 0.85 };
-
-  const Field = ({ label, icon, children }) => (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      <div style={inputWrapStyle}>
-        <span style={iconStyle}>{icon}</span>
-        {children}
-      </div>
-    </div>
-  );
-
-  const primaryBtn = (disabled = false) => ({
-    width: '100%', padding: '14px', border: 'none', borderRadius: '12px',
-    fontSize: '15px', fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer',
-    background: disabled ? COLORS.disabled : COLORS.primary,
-    color: '#ffffff',
-    boxShadow: disabled ? 'none' : '0 6px 16px rgba(99,102,241,0.25)',
-    transition: 'transform .05s ease',
-  });
-
-  const secondaryBtn = {
-    width: '100%', padding: '14px', border: `1.5px solid ${COLORS.border}`,
-    borderRadius: '12px', fontSize: '15px', fontWeight: 700,
-    background: '#ffffff', color: COLORS.primary, cursor: 'pointer',
-  };
-
   const canSubmitStep1 =
     form.name && form.username && form.phone && form.password && form.confirmPassword && form.pincode && form.address;
 
@@ -206,7 +200,6 @@ export default function Register() {
       display: 'flex', flexDirection: 'column',
     }}>
       <Toast />
-      {/* Top navy bar to match login */}
       <div style={{ height: '28px', background: COLORS.topbar, width: '100%' }} />
 
       <div style={{
@@ -245,7 +238,7 @@ export default function Register() {
             </p>
           </div>
 
-          {/* Role picker — 4 icon cards */}
+          {/* Role picker */}
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
             gap: '10px', marginBottom: '24px',
@@ -283,7 +276,7 @@ export default function Register() {
             })}
           </div>
 
-          {/* Stepper (only for multi-step roles) */}
+          {/* Stepper */}
           {(role === 'seller' || role === 'delivery') && (
             <div style={{
               display: 'flex', alignItems: 'center', marginBottom: '22px',
@@ -334,7 +327,7 @@ export default function Register() {
             </div>
           )}
 
-          {/* STEP 1 — Personal info */}
+          {/* STEP 1 */}
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <Field label="Full Name" icon="👤">
