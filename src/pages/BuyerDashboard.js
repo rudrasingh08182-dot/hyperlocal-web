@@ -529,10 +529,14 @@ export default function BuyerDashboard() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [showUnserviceable, setShowUnserviceable] = useState(false);
+  const [showEditAddress, setShowEditAddress] = useState(false);
+  const [profileAddress, setProfileAddress] = useState('');
+  const [profilePincode, setProfilePincode] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
   // Moved up from later in the file — `user` must exist before any
   // useEffect below references it, otherwise it crashes with
   // "Cannot access 'user' before initialization".
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
   // ---- Temporary QR-based payment flow state ----
   const [qrPaymentActive, setQrPaymentActive] = useState(false);
   const [qrOrderIds, setQrOrderIds] = useState([]);
@@ -842,6 +846,28 @@ export default function BuyerDashboard() {
     return 30 + Math.ceil(distanceKm - 5) * 6;
   };
 
+    const saveProfileAddress = async () => {
+    if (!profilePincode || profilePincode.length !== 6) {
+      showToast('Please enter a valid 6-digit pincode', 'error');
+      return;
+    }
+    setProfileLoading(true);
+    try {
+      const res = await API.patch('/auth/profile', { address: profileAddress, pincode: profilePincode });
+      const updatedUser = { ...user, ...res.data.user };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      if (res.data.token) localStorage.setItem('token', res.data.token);
+      setUser(updatedUser);
+      setShowEditAddress(false);
+      showToast(res.data.message, 'success');
+      if (res.data.serviceable) setShowUnserviceable(false);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to update address', 'error');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   const placeOrder = async () => {
     if (!address.full_address || !address.phone) {
 
@@ -1027,6 +1053,14 @@ export default function BuyerDashboard() {
       <Toast />
             {showUnserviceable && (
         <UnserviceableModal onClose={() => setShowUnserviceable(false)} />
+      )}
+
+            {user?.serviceable === false && (
+        <div style={{ background: '#FEF3C7', borderBottom: '1px solid #FCD34D', padding: '12px 16px', textAlign: 'center', position: 'relative', zIndex: 50 }}>
+          <span style={{ fontSize: '13px', color: '#92400E', fontWeight: 700 }}>
+            📍 We are not available in your area yet, but we will be there soon!
+          </span>
+        </div>
       )}
 
       {/* HOME SCREEN */}
@@ -1558,6 +1592,59 @@ export default function BuyerDashboard() {
                 <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.7)', marginTop: '2px' }}>{user.phone}</div>
               </div>
             </div>
+          </div>
+           
+                     {/* Address & Pincode Card */}
+          <div style={{ background: T.card, margin: '14px 16px', borderRadius: T.radiusMd, padding: '16px', border: `1px solid ${T.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '14px', color: T.text }}>Delivery Address</div>
+                <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '2px' }}>
+                  {user.address || 'No address saved'} • PIN: {user.pincode || '—'}
+                </div>
+              </div>
+              <span style={{ 
+                padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 800,
+                background: user.serviceable ? T.successTint : T.errorTint,
+                color: user.serviceable ? T.success : T.error
+              }}>
+                {user.serviceable ? '✅ Serviceable' : '⏳ Not Serviceable'}
+              </span>
+            </div>
+            
+            {showEditAddress ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: T.textFaint, display: 'block', marginBottom: '6px' }}>ADDRESS</label>
+                  <textarea 
+                    value={profileAddress} 
+                    onChange={e => setProfileAddress(e.target.value)}
+                    placeholder="Full address"
+                    style={{ width: '100%', padding: '12px', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', background: T.bg, resize: 'none', height: '60px', outline: 'none' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: T.textFaint, display: 'block', marginBottom: '6px' }}>PINCODE</label>
+                  <input 
+                    value={profilePincode} 
+                    onChange={e => setProfilePincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    maxLength={6}
+                    placeholder="6-digit pincode"
+                    style={{ width: '100%', padding: '12px', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', background: T.bg, outline: 'none' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setShowEditAddress(false)} style={{ flex: 1, padding: '12px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontWeight: 700, cursor: 'pointer', color: T.textSoft }}>Cancel</button>
+                  <button onClick={saveProfileAddress} disabled={profileLoading} style={{ flex: 2, padding: '12px', background: profileLoading ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: 800, cursor: profileLoading ? 'not-allowed' : 'pointer' }}>
+                    {profileLoading ? 'Saving...' : 'Save & Check'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => { setProfileAddress(user.address || ''); setProfilePincode(user.pincode || ''); setShowEditAddress(true); }} style={{ width: '100%', padding: '10px', background: T.primaryTint, color: T.primary, border: 'none', borderRadius: T.radiusSm, fontWeight: 800, cursor: 'pointer', fontSize: '13px' }}>
+                ✏️ Update Address & Pincode
+              </button>
+            )}
           </div>
 
           {/* Quick Actions */}
