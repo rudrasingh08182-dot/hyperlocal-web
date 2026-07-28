@@ -4,7 +4,7 @@ import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
 import { Toast, showToast } from '../components/Toast';
 import HeroBannerCarousel from '../components/HeroBannerCarousel';
-
+import UnserviceableModal from '../components/UnserviceableModal';
 /* ============================================================
    ZAPLO — BLINKIT-INSPIRED DESIGN SYSTEM
    Punchy, dense, quick-commerce. All backend routes/APIs are
@@ -528,7 +528,7 @@ export default function BuyerDashboard() {
   const { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
-
+    const [showUnserviceable, setShowUnserviceable] = useState(false);
   // ---- Temporary QR-based payment flow state ----
   const [qrPaymentActive, setQrPaymentActive] = useState(false);
   const [qrOrderIds, setQrOrderIds] = useState([]);
@@ -608,6 +608,14 @@ export default function BuyerDashboard() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+
+  // Show unserviceable modal if user's area is not serviceable
+  useEffect(() => {
+    if (user && user.serviceable === false) {
+      setShowUnserviceable(true);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (selectedProduct?.has_variants && selectedProduct.variants?.length > 0) {
@@ -833,6 +841,11 @@ export default function BuyerDashboard() {
 
   const placeOrder = async () => {
     if (!address.full_address || !address.phone) {
+
+          if (user?.serviceable === false) {
+      showToast('Service not available in your area', 'error');
+      return;
+    }
       showToast('Please fill address and phone', 'error');
       return;
     }
@@ -1009,6 +1022,9 @@ export default function BuyerDashboard() {
       <FontLoader />
       <InstallBanner />
       <Toast />
+            {showUnserviceable && (
+        <UnserviceableModal onClose={() => setShowUnserviceable(false)} />
+      )}
 
       {/* HOME SCREEN */}
       {screen === 'home' && (
@@ -1339,8 +1355,9 @@ export default function BuyerDashboard() {
                     Delivery: ₹20 upto 3km · ₹30 upto 5km · ₹6/km after. Pay to delivery partner.
                   </div>
                   <motion.button {...btnTap} onClick={() => navigate({ checkoutStep: 2 })}
-                    style={{ width: '100%', marginTop: '14px', padding: '15px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', fontSize: '15px', cursor: 'pointer', letterSpacing: '0.02em' }}>
-                    PROCEED TO CHECKOUT →
+                    disabled={user?.serviceable === false}
+                    style={{ width: '100%', marginTop: '14px', padding: '15px', background: user?.serviceable === false ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', fontSize: '15px', cursor: user?.serviceable === false ? 'not-allowed' : 'pointer', letterSpacing: '0.02em', opacity: user?.serviceable === false ? 0.6 : 1 }}>
+                    {user?.serviceable === false ? 'Service Not Available' : 'PROCEED TO CHECKOUT →'}
                   </motion.button>
                 </div>
               </>
@@ -1423,8 +1440,9 @@ export default function BuyerDashboard() {
                   <motion.button {...btnTap} onClick={() => window.history.back()}
                     style={{ flex: 1, padding: '14px', background: T.card, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontWeight: '700', cursor: 'pointer' }}>← Back</motion.button>
                   <motion.button {...btnTap} onClick={placeOrder}
-                    style={{ flex: 2, padding: '14px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '14px', letterSpacing: '0.02em' }}>
-                    PLACE ORDER · ₹{total + deliveryCharge}
+                    disabled={user?.serviceable === false}
+                    style={{ flex: 2, padding: '14px', background: user?.serviceable === false ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: user?.serviceable === false ? 'not-allowed' : 'pointer', fontSize: '14px', letterSpacing: '0.02em', opacity: user?.serviceable === false ? 0.6 : 1 }}>
+                    {user?.serviceable === false ? 'Service Not Available' : `PLACE ORDER · ₹${total + deliveryCharge}`}
                   </motion.button>
                 </div>
               </div>
