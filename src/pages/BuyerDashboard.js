@@ -468,7 +468,7 @@ function OrderTracking({ orderId, onClose }) {
 }
 
 const styles = {
-  overlay: { position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', height: '100vh', background: 'rgba(17,17,39,0.5)', zIndex: 300, display: 'flex', alignItems: 'flex-end', backdropFilter: 'blur(2px)' },
+  overlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: 'rgba(17,17,39,0.5)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', backdropFilter: 'blur(2px)' },
   card:    { background: T.card, borderRadius: '24px 24px 0 0', padding: '18px 18px 24px', width: '100%', maxHeight: '90vh', overflowY: 'auto', fontFamily: T.font },
 };
 
@@ -486,8 +486,8 @@ function InstallBanner() {
 
   return (
     <div style={{
-      position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
-      width: '100%', maxWidth: '480px', background: T.text,
+      position: 'fixed', top: 0, left: 0,
+      width: '100%', background: T.text,
       padding: '12px 16px', zIndex: 999, display: 'flex',
       alignItems: 'center', gap: '12px', boxShadow: T.shadowFloating, fontFamily: T.font
     }}>
@@ -1050,7 +1050,7 @@ export default function BuyerDashboard() {
         onClick={() => { getBuyerLocation(); navigate({ screen: 'cart' }); }}
         style={{
           position: 'fixed', bottom: '76px', left: '50%', transform: 'translateX(-50%)',
-          width: 'calc(100% - 24px)', maxWidth: '456px', background: T.primary,
+          width: 'calc(100% - 24px)', background: T.primary,
           borderRadius: T.radiusMd, padding: '12px 16px', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', cursor: 'pointer', boxShadow: T.shadowFloating,
           zIndex: 99, color: 'white',
@@ -1069,7 +1069,7 @@ export default function BuyerDashboard() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.font, maxWidth: '480px', margin: '0 auto', position: 'relative', color: T.text }}>
+    <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.font, width: '100%', position: 'relative', color: T.text }}>
       <FontLoader />
       <InstallBanner />
       <Toast />
@@ -1871,7 +1871,7 @@ export default function BuyerDashboard() {
 
       {/* PRODUCT DETAIL MODAL */}
       {selectedProduct && (
-        <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', height: '100vh', background: T.card, zIndex: 200, overflowY: 'hidden' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: T.card, zIndex: 200, overflowY: 'hidden' }}>
           <div style={{ height: 'calc(100vh - 96px)', overflowY: 'auto' }}>
             {/* Back button */}
             <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10 }}>
@@ -2046,7 +2046,7 @@ export default function BuyerDashboard() {
           </div>
 
           {/* Bottom Add to Cart */}
-          <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', background: T.card, padding: '14px 16px', boxShadow: '0 -6px 20px rgba(17,17,39,0.08)', zIndex: 201, borderTop: `1px solid ${T.border}` }}>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', background: T.card, padding: '14px 16px', boxShadow: '0 -6px 20px rgba(17,17,39,0.08)', zIndex: 201, borderTop: `1px solid ${T.border}` }}>
             {(() => {
               const sellerClosed = selectedProduct.seller_is_online === false;
               const isVariantProduct = selectedProduct.has_variants && selectedProduct.variants?.length > 0;
@@ -2097,7 +2097,7 @@ export default function BuyerDashboard() {
 
       {/* ── QR Payment Flow ────────────────────────────────────── */}
       {qrPaymentActive && (
-        <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '480px', height: '100vh', background: T.bg, zIndex: 400, overflowY: 'auto', fontFamily: T.font }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: T.bg, zIndex: 400, overflowY: 'auto', fontFamily: T.font }}>
           <div style={{ background: T.headerGradient, padding: '14px 16px 18px', boxShadow: T.shadowHeader, position: 'sticky', top: 0, zIndex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ color: T.text, margin: 0, fontSize: '17px', fontWeight: '800' }}>
@@ -2235,8 +2235,8 @@ export default function BuyerDashboard() {
 
       {/* Bottom Navigation — solid Blinkit style */}
       <div style={{
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: '480px', background: 'white',
+        position: 'fixed', bottom: 0, left: 0,
+        width: '100%', background: 'white',
         display: 'flex', boxShadow: '0 -2px 12px rgba(17,17,39,0.06)',
         zIndex: 100, borderTop: `1px solid ${T.border}`,
       }}>
