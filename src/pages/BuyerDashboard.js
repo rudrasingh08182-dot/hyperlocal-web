@@ -522,7 +522,13 @@ export default function BuyerDashboard() {
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [deliveryCharge, setDeliveryCharge] = useState(20);
   const [buyerLocation, setBuyerLocation] = useState(null);
-  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [savedAddresses, setSavedAddresses] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('zaplo_saved_addresses') || '[]');
+    } catch {
+      return [];
+    }
+  });
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [newAddress, setNewAddress] = useState({ label: 'Home', full_address: '', landmark: '', phone: '' });
   const { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount } = useCart();
@@ -624,6 +630,12 @@ export default function BuyerDashboard() {
       setShowUnserviceable(true);
     }
   }, [user]);
+
+  // Persist saved addresses across page refreshes/app restarts — previously
+  // this only lived in React state and vanished on every reload.
+  useEffect(() => {
+    localStorage.setItem('zaplo_saved_addresses', JSON.stringify(savedAddresses));
+  }, [savedAddresses]);
 
   useEffect(() => {
     if (selectedProduct?.has_variants && selectedProduct.variants?.length > 0) {
