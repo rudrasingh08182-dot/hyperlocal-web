@@ -93,7 +93,14 @@ const FontLoader = () => (
 const btnTap = { whileTap: { scale: 0.96 } };
 
 const useCart = () => {
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    const saved = localStorage.getItem('zaplo_cart');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+    useEffect(() => {
+    localStorage.setItem('zaplo_cart', JSON.stringify(cart));
+  }, [cart]);
 
   const getCartKey = (productId, variantId) => variantId ? `${productId}::${variantId}` : productId;
 
@@ -119,7 +126,10 @@ const useCart = () => {
     setCart(prev => prev.map(i => i.cartKey === cartKey ? { ...i, qty } : i));
   };
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    setCart([]);
+    localStorage.removeItem('zaplo_cart');
+  };
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
   return { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount, getCartKey };
