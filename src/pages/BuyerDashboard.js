@@ -5,7 +5,7 @@ import TermsAndConditions from '../components/TermsAndConditions';
 import { Toast, showToast } from '../components/Toast';
 import HeroBannerCarousel from '../components/HeroBannerCarousel';
 import UnserviceableModal from '../components/UnserviceableModal';
-import OfflinePage from '../components/OfflinePage';
+
 /* ============================================================
    ZAPLO — BLINKIT-INSPIRED DESIGN SYSTEM
    Punchy, dense, quick-commerce. All backend routes/APIs are
@@ -546,7 +546,7 @@ export default function BuyerDashboard() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [showUnserviceable, setShowUnserviceable] = useState(false);
-    const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
   const [showEditAddress, setShowEditAddress] = useState(false);
   const [profileAddress, setProfileAddress] = useState('');
   const [profilePincode, setProfilePincode] = useState('');
@@ -643,25 +643,9 @@ export default function BuyerDashboard() {
     }
   }, [user]);
 
-    // Online/Offline detection
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      showToast('Back online!', 'success');
-      loadAllProducts();
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
+  
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  
 
   // Persist saved addresses across page refreshes/app restarts — previously
   // this only lived in React state and vanished on every reload.
@@ -1092,17 +1076,7 @@ export default function BuyerDashboard() {
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.font, width: '100%', position: 'relative', color: T.text }}>
-            {!isOnline && (
-        <OfflinePage onRetry={() => {
-          if (navigator.onLine) {
-            setIsOnline(true);
-            loadAllProducts();
-            showToast('Back online!', 'success');
-          } else {
-            showToast('Still offline. Check your connection.', 'error');
-          }
-        }} />
-      )}
+          
       <FontLoader />
       <InstallBanner />
       <Toast />
