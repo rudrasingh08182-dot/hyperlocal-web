@@ -5,6 +5,7 @@ import TermsAndConditions from '../components/TermsAndConditions';
 import { Toast, showToast } from '../components/Toast';
 import HeroBannerCarousel from '../components/HeroBannerCarousel';
 import UnserviceableModal from '../components/UnserviceableModal';
+import OfflinePage from '../components/OfflinePage';
 
 /* ============================================================
    ZAPLO — BLINKIT-INSPIRED DESIGN SYSTEM
@@ -546,6 +547,7 @@ export default function BuyerDashboard() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [showUnserviceable, setShowUnserviceable] = useState(false);
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
   const [showEditAddress, setShowEditAddress] = useState(false);
   const [profileAddress, setProfileAddress] = useState('');
@@ -642,6 +644,20 @@ export default function BuyerDashboard() {
       setShowUnserviceable(true);
     }
   }, [user]);
+
+    // Online/Offline listener
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   
 
@@ -1074,8 +1090,22 @@ export default function BuyerDashboard() {
     );
   };
 
+    if (isOffline) {
+    return (
+      <>
+        <FontLoader />
+        <OfflinePage onRetry={() => window.location.reload()} />
+      </>
+    );
+  }
+
+  
+
+
   return (
     <div style={{ minHeight: '100vh', background: T.bg, fontFamily: T.font, width: '100%', position: 'relative', color: T.text }}>
+
+       
           
       <FontLoader />
       <InstallBanner />
