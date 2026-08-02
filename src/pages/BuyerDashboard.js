@@ -553,6 +553,8 @@ export default function BuyerDashboard() {
     }
   });
   const [showAddAddress, setShowAddAddress] = useState(false);
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
+  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState(null);
   const [newAddress, setNewAddress] = useState({ label: 'Home', full_address: '', landmark: '', phone: '' });
   const { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -681,7 +683,7 @@ export default function BuyerDashboard() {
     };
   }, []);
 
-  
+ 
 
   
 
@@ -690,6 +692,16 @@ export default function BuyerDashboard() {
   useEffect(() => {
     localStorage.setItem('zaplo_saved_addresses', JSON.stringify(savedAddresses));
   }, [savedAddresses]);
+
+
+  useEffect(() => {
+    if (checkoutStep === 2 && !showNewAddressForm && savedAddresses.length > 0 && !selectedSavedAddressId) {
+      const match = savedAddresses.find(a => a.full_address === address.full_address && a.phone === address.phone);
+      if (match) setSelectedSavedAddressId(match.id);
+      else selectSavedAddress(savedAddresses[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkoutStep, savedAddresses]);
 
   useEffect(() => {
     sessionStorage.setItem('zaplo_checkout_address', JSON.stringify(address));
@@ -936,6 +948,26 @@ export default function BuyerDashboard() {
       setProfileLoading(false);
     }
   };
+
+   const selectSavedAddress = (addr) => {
+    setAddress({ full_address: addr.full_address, landmark: addr.landmark, phone: addr.phone });
+    setSelectedSavedAddressId(addr.id);
+  };
+
+  const proceedToPayment = () => {
+    if (!address.full_address || !address.phone) {
+      showToast('Please fill address and phone', 'error');
+      return;
+    }
+    if (!selectedSavedAddressId) {
+      const alreadySaved = savedAddresses.some(a => a.full_address === address.full_address && a.phone === address.phone);
+      if (!alreadySaved) {
+        setSavedAddresses(prev => [...prev, { label: 'Home', full_address: address.full_address, landmark: address.landmark, phone: address.phone, id: Date.now() }]);
+      }
+    }
+    navigate({ checkoutStep: 3 });
+  };
+
 
   const placeOrder = async () => {
     if (!address.full_address || !address.phone) {
@@ -1486,30 +1518,64 @@ export default function BuyerDashboard() {
               </>
             ) : checkoutStep === 2 ? (
               <div>
-                <div style={{ background: T.card, borderRadius: T.radiusMd, padding: '18px', border: `1px solid ${T.border}`, marginBottom: '14px' }}>
-                  {[
-                    { label: 'Full address', key: 'full_address', placeholder: 'House no, Street, Area...', type: 'textarea' },
-                    { label: 'Landmark', key: 'landmark', placeholder: 'Near school, temple...' },
-                    { label: 'Phone number', key: 'phone', placeholder: 'Contact for delivery' },
-                  ].map(f => (
-                    <div key={f.key} style={{ marginBottom: '14px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: '700', color: T.textSoft, display: 'block', marginBottom: '6px', letterSpacing: '0.02em' }}>{f.label.toUpperCase()}</label>
-                      {f.type === 'textarea' ? (
-                        <textarea placeholder={f.placeholder} value={address[f.key]}
-                          onChange={e => setAddress({ ...address, [f.key]: e.target.value })}
-                          style={{ width: '100%', padding: '12px 14px', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', outline: 'none', height: '78px', resize: 'none', background: T.bg }} />
-                      ) : (
-                        <input placeholder={f.placeholder} value={address[f.key]}
-                          onChange={e => setAddress({ ...address, [f.key]: e.target.value })}
-                          style={{ width: '100%', padding: '12px 14px', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', outline: 'none', background: T.bg }} />
-                      )}
-                    </div>
-                  ))}
-                </div>
+                {!showNewAddressForm && savedAddresses.length > 0 ? (
+                  <>
+                    <div style={{ fontWeight: '800', fontSize: '13px', color: T.text, marginBottom: '10px' }}>SELECT DELIVERY ADDRESS</div>
+                    {savedAddresses.map(addr => (
+                      <motion.div whileTap={{ scale: 0.98 }} key={addr.id} onClick={() => selectSavedAddress(addr)}
+                        style={{ background: T.card, borderRadius: T.radiusMd, padding: '14px', marginBottom: '10px', border: `2px solid ${selectedSavedAddressId === addr.id ? T.primary : T.border}`, cursor: 'pointer' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontWeight: '800', color: T.primary, fontSize: '11px', background: T.primaryTint, padding: '3px 10px', borderRadius: '6px' }}>
+                            {addr.label?.toUpperCase()}
+                          </span>
+                          <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid ${selectedSavedAddressId === addr.id ? T.primary : T.border}`, background: selectedSavedAddressId === addr.id ? T.primary : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {selectedSavedAddressId === addr.id && <span style={{ color: 'white', fontSize: '11px' }}>✓</span>}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '13px', color: T.text, fontWeight: '600' }}>{addr.full_address}</div>
+                        {addr.landmark && <div style={{ fontSize: '12px', color: T.textFaint, marginTop: '2px' }}>Near: {addr.landmark}</div>}
+                        <div style={{ fontSize: '12px', color: T.textFaint, marginTop: '2px' }}>{addr.phone}</div>
+                      </motion.div>
+                    ))}
+
+                    <motion.button {...btnTap} onClick={() => { setShowNewAddressForm(true); setSelectedSavedAddressId(null); setAddress({ full_address: '', landmark: '', phone: '' }); }}
+                      style={{ width: '100%', padding: '13px', background: T.primaryTint, color: T.primary, border: `1.5px dashed ${T.primary}`, borderRadius: T.radiusMd, fontWeight: '800', cursor: 'pointer', fontSize: '13px', marginBottom: '14px' }}>
+                      + Add new address
+                    </motion.button>
+                  </>
+                ) : (
+                  <div style={{ background: T.card, borderRadius: T.radiusMd, padding: '18px', border: `1px solid ${T.border}`, marginBottom: '14px' }}>
+                    {savedAddresses.length > 0 && (
+                      <motion.button {...btnTap} onClick={() => setShowNewAddressForm(false)}
+                        style={{ marginBottom: '14px', background: 'none', border: 'none', color: T.primary, fontWeight: '700', fontSize: '12px', cursor: 'pointer', padding: 0 }}>
+                        ← Choose from saved addresses
+                      </motion.button>
+                    )}
+                    {[
+                      { label: 'Full address', key: 'full_address', placeholder: 'House no, Street, Area...', type: 'textarea' },
+                      { label: 'Landmark', key: 'landmark', placeholder: 'Near school, temple...' },
+                      { label: 'Phone number', key: 'phone', placeholder: 'Contact for delivery' },
+                    ].map(f => (
+                      <div key={f.key} style={{ marginBottom: '14px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '700', color: T.textSoft, display: 'block', marginBottom: '6px', letterSpacing: '0.02em' }}>{f.label.toUpperCase()}</label>
+                        {f.type === 'textarea' ? (
+                          <textarea placeholder={f.placeholder} value={address[f.key]}
+                            onChange={e => setAddress({ ...address, [f.key]: e.target.value })}
+                            style={{ width: '100%', padding: '12px 14px', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', outline: 'none', height: '78px', resize: 'none', background: T.bg }} />
+                        ) : (
+                          <input placeholder={f.placeholder} value={address[f.key]}
+                            onChange={e => setAddress({ ...address, [f.key]: e.target.value })}
+                            style={{ width: '100%', padding: '12px 14px', border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontSize: '14px', outline: 'none', background: T.bg }} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <motion.button {...btnTap} onClick={() => window.history.back()}
                     style={{ flex: 1, padding: '14px', background: T.card, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontWeight: '700', cursor: 'pointer' }}>← Back</motion.button>
-                  <motion.button {...btnTap} onClick={() => navigate({ checkoutStep: 3 })}
+                  <motion.button {...btnTap} onClick={proceedToPayment}
                     style={{ flex: 2, padding: '14px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer' }}>Continue →</motion.button>
                 </div>
               </div>
