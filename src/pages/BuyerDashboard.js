@@ -602,6 +602,7 @@ export default function BuyerDashboard() {
   const navigate = (updates) => {
     const newState = { ...buildNavState(), ...updates };
     window.history.pushState(newState, '');
+    sessionStorage.setItem('zaplo_nav_state', JSON.stringify(newState));
     applyNavState(newState);
   };
 
@@ -609,12 +610,22 @@ export default function BuyerDashboard() {
   applyNavStateRefObj.current = applyNavState;
 
   useEffect(() => {
-    window.history.replaceState(buildNavState(), '');
+    // Refresh pe last screen restore karo (agar koi saved state hai)
+    let initialState = buildNavState();
+    try {
+      const saved = sessionStorage.getItem('zaplo_nav_state');
+      if (saved) initialState = JSON.parse(saved);
+    } catch (e) { console.error(e); }
+
+    window.history.replaceState(initialState, '');
+    applyNavStateRefObj.current(initialState);
+
     let exitArmed = false;
     let exitTimer = null;
 
     const handlePopState = (event) => {
       if (event.state) {
+        sessionStorage.setItem('zaplo_nav_state', JSON.stringify(event.state));
         applyNavStateRefObj.current(event.state);
         return;
       }
