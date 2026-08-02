@@ -2168,8 +2168,12 @@ export default function BuyerDashboard() {
 
                   <div style={{ fontSize: '13px', fontWeight: '700', color: T.text }}>📷 Scan & Pay using any UPI app</div>
                   {qrPaymentDetails.upi_id && (
-                    <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '4px' }}>UPI: <strong style={{ color: T.text }}>{qrPaymentDetails.upi_id}</strong></div>
-                  )}
+  <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+    UPI: <strong style={{ color: T.text }}>{qrPaymentDetails.upi_id}</strong>
+    <button onClick={() => { navigator.clipboard.writeText(qrPaymentDetails.upi_id); showToast('UPI ID copied!', 'success'); }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}>📋</button>
+  </div>
+)}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
@@ -2182,10 +2186,10 @@ export default function BuyerDashboard() {
                 </div>
 
                 <div style={{ background: T.accentTint, borderRadius: T.radiusMd, padding: '14px', marginBottom: '14px' }}>
-                  <div style={{ fontSize: '12px', color: '#5B21B6', lineHeight: '1.6' }}>
-                    Opening a UPI app does <strong>not</strong> mean your payment is complete. Confirm below only after your payment actually went through.
-                  </div>
-                </div>
+  <div style={{ fontSize: '12px', color: '#5B21B6', lineHeight: '1.6' }}>
+    ⚠️ GPay/PhonePe ka direct "Pay" button security ke liye kabhi-kabhi decline ho sakta hai. Sabse reliable: <strong>QR code scan karo</strong> ya <strong>UPI ID copy karke manually pay</strong> karo.
+  </div>
+</div>
 
                 <div style={{ background: T.card, borderRadius: T.radiusMd, padding: '16px', border: `1px solid ${T.border}` }}>
                   <div style={{ fontWeight: '700', fontSize: '13px', color: T.text, marginBottom: '12px', textAlign: 'center' }}>
