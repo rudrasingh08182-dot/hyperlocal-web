@@ -2176,14 +2176,16 @@ export default function BuyerDashboard() {
 )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-                  {[{ label: '📱 PhonePe' }, { label: '💳 Google Pay' }, { label: '🅿️ Paytm' }, { label: '➕ Other UPI' }].map((btn) => (
-                    <motion.button {...btnTap} key={btn.label} onClick={openUpiApp}
-                      style={{ padding: '13px', background: T.card, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontWeight: '700', fontSize: '12px', color: T.text, cursor: 'pointer' }}>
-                      {btn.label}
-                    </motion.button>
-                  ))}
-                </div>
+               <motion.button {...btnTap} onClick={openUpiApp}
+  style={{ width: '100%', padding: '14px', background: T.card, border: `1.5px solid ${T.primary}`, borderRadius: T.radiusSm, fontWeight: '800', fontSize: '13px', color: T.primary, cursor: 'pointer', marginBottom: '10px' }}>
+  📱 Open Any UPI App
+</motion.button>
+
+<motion.button {...btnTap}
+  onClick={() => { navigator.clipboard.writeText(qrPaymentDetails.upi_id); showToast('UPI ID copied!', 'success'); }}
+  style={{ width: '100%', padding: '14px', background: T.primaryTint, border: 'none', borderRadius: T.radiusSm, fontWeight: '800', fontSize: '13px', color: T.primary, cursor: 'pointer', marginBottom: '14px' }}>
+  📋 Copy UPI ID & Pay Manually
+</motion.button>
 
                 <div style={{ background: T.accentTint, borderRadius: T.radiusMd, padding: '14px', marginBottom: '14px' }}>
   <div style={{ fontSize: '12px', color: '#5B21B6', lineHeight: '1.6' }}>
