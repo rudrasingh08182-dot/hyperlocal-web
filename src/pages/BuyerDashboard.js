@@ -703,16 +703,15 @@ export default function BuyerDashboard() {
   };
 
   const buildUpiDeepLink = () => {
-    if (!qrPaymentDetails?.upi_id) return null;
-    const params = new URLSearchParams({
-      pa: qrPaymentDetails.upi_id,
-      pn: qrPaymentDetails.shop_name || 'Zaplo Seller',
-      am: String(qrPaymentDetails.amount),
-      tn: `Order ${qrPaymentDetails.order_id.slice(-6).toUpperCase()}`,
-      cu: 'INR',
-    });
-    return `upi://pay?${params.toString()}`;
-  };
+  if (!qrPaymentDetails?.upi_id) return null;
+  const params = new URLSearchParams({
+    pa: qrPaymentDetails.upi_id,
+    am: String(qrPaymentDetails.amount),
+    tn: `Order ${qrPaymentDetails.order_id.slice(-6).toUpperCase()}`,
+    cu: 'INR',
+  });
+  return `upi://pay?${params.toString()}`;
+};
 
   const openUpiApp = () => {
     const link = buildUpiDeepLink();
