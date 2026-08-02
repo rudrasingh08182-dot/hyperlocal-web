@@ -53,6 +53,11 @@ export default function DeliveryDashboard() {
   const [locating, setLocating] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [qrModalOrder, setQrModalOrder] = useState(null);
+  const [uploadModalOrderId, setUploadModalOrderId] = useState(null);
+  const [proofFile, setProofFile] = useState(null);
+  const [proofPreview, setProofPreview] = useState(null);
+  const [submittingProof, setSubmittingProof] = useState(false);
 
   const fetchMyAvailability = async () => {
     try {
@@ -148,10 +153,55 @@ export default function DeliveryDashboard() {
     } catch (err) { showToast(err.response?.data?.error || 'Failed to accept', 'error'); }
   };
 
-  const markDelivered = async (id) => {
+  const openSellerQr = async (order) => {
     try {
-      await API.patch(`/orders/${id}/delivered`);
-      await API.patch(`/tracking/${id}/status`, { status: 'delivered' });
+      const res = await API.get(`/tracking/${order.id}/seller-qr`);
+      setQrModalOrder({ orderId: order.id, ...res.data });
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Seller QR not available', 'error');
+    }
+  };
+
+  const markCashReceived = async (orderId) => {
+    try {
+      await API.patch(`/tracking/${orderId}/cash-received`);
+      showToast('Cash payment marked as received', 'success');
+      fetchMyDeliveries();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to update', 'error');
+    }
+  };
+
+  const submitProof = async () => {
+    if (!proofFile || !uploadModalOrderId) return;
+    setSubmittingProof(true);
+    try {
+      const formData = new FormData();
+      formData.append('screenshot', proofFile);
+      await API.post(`/tracking/${uploadModalOrderId}/delivery-payment-proof`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showToast('Payment proof submitted!', 'success');
+      setUploadModalOrderId(null);
+      setProofFile(null);
+      setProofPreview(null);
+      setQrModalOrder(null);
+      fetchMyDeliveries();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to submit proof', 'error');
+    } finally {
+      setSubmittingProof(false);
+    }
+  };
+
+  const markDelivered = async (order) => {
+    if (order.payment_method === 'COD' && !order.delivery_payment_confirmed) {
+      showToast('Pehle payment collect karo (Cash ya QR), phir hi Delivered mark hoga', 'error');
+      return;
+    }
+    try {
+      await API.patch(`/orders/${order.id}/delivered`);
+      await API.patch(`/tracking/${order.id}/status`, { status: 'delivered' });
       showToast('Order marked as delivered!', 'success');
       fetchMyDeliveries();
     } catch (err) { showToast(err.response?.data?.error || 'Failed to update', 'error'); }
@@ -503,13 +553,38 @@ export default function DeliveryDashboard() {
                     </div>
                   </div>
 
+                  {/* Payment collection — only for COD orders not yet confirmed */}
+                  {order.payment_method === 'COD' && !order.delivery_payment_confirmed && (
+                    <div style={{ background: T.warnSoft, border: `1px solid #fcd34d`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: T.warn, marginBottom: 10 }}>
+                        ⚠️ Payment abhi collect nahi hui hai
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                        <button onClick={() => openSellerQr(order)}
+                          style={{ padding: '11px', background: '#fff', color: T.ink, border: `1px solid ${T.line}`, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 12.5 }}>
+                          📱 Show Seller QR
+                        </button>
+                        <button onClick={() => markCashReceived(order.id)}
+                          style={{ padding: '11px', background: T.ok, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 12.5 }}>
+                          💵 Cash Received
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {order.payment_method === 'COD' && order.delivery_payment_confirmed && (
+                    <div style={{ background: T.okSoft, border: '1px solid #a7f3d0', borderRadius: 12, padding: '10px 14px', marginBottom: 14, fontSize: 12.5, fontWeight: 600, color: T.ok }}>
+                      ✅ Payment collected via {order.delivery_payment_method === 'QR' ? 'QR' : 'Cash'}
+                    </div>
+                  )}
+
                   {/* Status buttons */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                     {[
                       { onClick: () => updateStatus(order.id, 'picked_up'), Ico: Icon.Box, label: 'Picked Up', fg: T.warn, soft: T.warnSoft, brd: '#fcd34d' },
                       { onClick: () => updateStatus(order.id, 'out_for_delivery'), Ico: Icon.Truck, label: 'Out for Delivery', fg: T.brand, soft: T.brandSoft, brd: '#c7d2fe' },
                       { onClick: () => shareLocation(order.id), Ico: Icon.Pin, label: 'Share Location', fg: T.info, soft: T.infoSoft, brd: '#bfdbfe' },
-                      { onClick: () => markDelivered(order.id), Ico: Icon.Check, label: 'Delivered', fg: T.ok, soft: T.okSoft, brd: '#a7f3d0' },
+                      { onClick: () => markDelivered(order), Ico: Icon.Check, label: 'Delivered', fg: T.ok, soft: T.okSoft, brd: '#a7f3d0' },
                     ].map((b, i) => (
                       <button key={i} onClick={b.onClick}
                         style={{
@@ -528,6 +603,78 @@ export default function DeliveryDashboard() {
           </div>
         )}
       </main>
+
+      {/* Seller QR Modal */}
+      {qrModalOrder && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.6)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: 20, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: T.ink }}>Seller's Payment QR</div>
+              <button onClick={() => setQrModalOrder(null)} style={{ background: T.bg, border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 15 }}>✕</button>
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: T.mute, marginBottom: 4 }}>Buyer ko dikhao — scan karke pay karega</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: T.ink, marginBottom: 12 }}>{qrModalOrder.shop_name}</div>
+              {qrModalOrder.qr_code_url ? (
+                <img src={qrModalOrder.qr_code_url} alt="Seller UPI QR"
+                  style={{ width: 220, height: 220, objectFit: 'contain', borderRadius: 12, border: `1px solid ${T.line}` }} />
+              ) : (
+                <div style={{ width: 220, height: 220, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.bg, borderRadius: 12, color: T.mute, fontSize: 13 }}>
+                  QR not available
+                </div>
+              )}
+              {qrModalOrder.upi_id && (
+                <div style={{ fontSize: 13, color: T.mute, marginTop: 10 }}>UPI: <strong style={{ color: T.ink }}>{qrModalOrder.upi_id}</strong></div>
+              )}
+            </div>
+
+            <button onClick={() => { setUploadModalOrderId(qrModalOrder.orderId); }}
+              style={{ width: '100%', padding: 13, background: T.brand, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+              Buyer ne pay kar diya — Upload Proof
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Payment Proof Modal */}
+      {uploadModalOrderId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.6)', zIndex: 310, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: 20, width: '100%', maxWidth: 480 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: T.ink }}>Upload Payment Proof</div>
+              <button onClick={() => { setUploadModalOrderId(null); setProofFile(null); setProofPreview(null); }}
+                style={{ background: T.bg, border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 15 }}>✕</button>
+            </div>
+
+            {proofPreview ? (
+              <div style={{ position: 'relative', marginBottom: 14 }}>
+                <img src={proofPreview} alt="Proof" style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 10, border: `1px solid ${T.line}` }} />
+                <button onClick={() => { setProofFile(null); setProofPreview(null); }}
+                  style={{ position: 'absolute', top: 8, right: 8, background: T.danger, color: '#fff', border: 'none', borderRadius: '50%', width: 26, height: 26, cursor: 'pointer' }}>✕</button>
+              </div>
+            ) : (
+              <label style={{ display: 'block', padding: '28px 16px', border: `1.5px dashed ${T.brand}`, borderRadius: 12, textAlign: 'center', cursor: 'pointer', background: T.brandSoft, color: T.brand, fontWeight: 600, fontSize: 13, marginBottom: 14 }}>
+                📷 Tap to upload payment screenshot
+                <input type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    setProofFile(file);
+                    const reader = new FileReader();
+                    reader.onload = () => setProofPreview(reader.result);
+                    reader.readAsDataURL(file);
+                  }} />
+              </label>
+            )}
+
+            <button onClick={submitProof} disabled={!proofFile || submittingProof}
+              style={{ width: '100%', padding: 13, background: (!proofFile || submittingProof) ? T.line : T.ok, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, cursor: (!proofFile || submittingProof) ? 'not-allowed' : 'pointer', fontSize: 14 }}>
+              {submittingProof ? 'Submitting...' : 'Submit Proof'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
