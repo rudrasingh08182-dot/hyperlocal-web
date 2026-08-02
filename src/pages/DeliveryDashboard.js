@@ -3,6 +3,44 @@ import API from '../services/api';
 import { useTabHistory } from '../hooks/useTabHistory';
 import { Toast, showToast } from '../components/Toast';
 
+
+// Compresses an image file in-browser before upload — resizes to max 1000px
+// wide and re-encodes as JPEG at 70% quality. Cuts file size drastically
+// (often 5-10x smaller) so Cloudinary storage/bandwidth is used efficiently.
+function compressImage(file, maxWidth = 1000, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error('Compression failed'));
+            const compressedFile = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 /* ---------- Inline SVG icons (matte, no emojis) ---------- */
 const Icon = {
   Bike: (p) => (<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2h-1M6 17.5 10 9h5l3.5 8.5M14 6l3 5"/></svg>),
@@ -656,14 +694,23 @@ export default function DeliveryDashboard() {
             ) : (
               <label style={{ display: 'block', padding: '28px 16px', border: `1.5px dashed ${T.brand}`, borderRadius: 12, textAlign: 'center', cursor: 'pointer', background: T.brandSoft, color: T.brand, fontWeight: 600, fontSize: 13, marginBottom: 14 }}>
                 📷 Tap to upload payment screenshot
-                <input type="file" accept="image/*" style={{ display: 'none' }}
-                  onChange={(e) => {
+                <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                  onChange={async (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
-                    setProofFile(file);
-                    const reader = new FileReader();
-                    reader.onload = () => setProofPreview(reader.result);
-                    reader.readAsDataURL(file);
+                    try {
+                      const compressed = await compressImage(file);
+                      setProofFile(compressed);
+                      const reader = new FileReader();
+                      reader.onload = () => setProofPreview(reader.result);
+                      reader.readAsDataURL(compressed);
+                    } catch (err) {
+                      console.error('Compression failed, using original', err);
+                      setProofFile(file);
+                      const reader = new FileReader();
+                      reader.onload = () => setProofPreview(reader.result);
+                      reader.readAsDataURL(file);
+                    }
                   }} />
               </label>
             )}
