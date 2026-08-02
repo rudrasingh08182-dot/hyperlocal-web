@@ -526,8 +526,19 @@ export default function BuyerDashboard() {
   const [loading, setLoading] = useState(false);
   const [myOrders, setMyOrders] = useState([]);
   const [checkoutStep, setCheckoutStep] = useState(1);
-  const [address, setAddress] = useState({ full_address: '', landmark: '', phone: '' });
-  const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [address, setAddress] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('zaplo_checkout_address');
+      return saved ? JSON.parse(saved) : { full_address: '', landmark: '', phone: '' };
+    } catch {
+      return { full_address: '', landmark: '', phone: '' };
+    }
+  });
+  const [paymentMethod, setPaymentMethod] = useState(() => sessionStorage.getItem('zaplo_payment_method') || 'COD');
+
+  useEffect(() => {
+    sessionStorage.setItem('zaplo_payment_method', paymentMethod);
+  }, [paymentMethod]);
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchMode, setSearchMode] = useState('products');
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -679,6 +690,10 @@ export default function BuyerDashboard() {
   useEffect(() => {
     localStorage.setItem('zaplo_saved_addresses', JSON.stringify(savedAddresses));
   }, [savedAddresses]);
+
+  useEffect(() => {
+    sessionStorage.setItem('zaplo_checkout_address', JSON.stringify(address));
+  }, [address]);
 
   useEffect(() => {
     if (selectedProduct?.has_variants && selectedProduct.variants?.length > 0) {
@@ -960,6 +975,7 @@ export default function BuyerDashboard() {
 
       if (paymentMethod === 'COD') {
         clearCart();
+        sessionStorage.removeItem('zaplo_checkout_address');
         showToast('Order placed successfully! 🎉 Pay cash on delivery.', 'success');
         navigate({ screen: 'orders', checkoutStep: 1 });
         fetchMyOrders();
@@ -968,6 +984,7 @@ export default function BuyerDashboard() {
 
       if (paymentMethod === 'ONLINE') {
         clearCart();
+        sessionStorage.removeItem('zaplo_checkout_address');
         startQrPayment(placedOrderIds);
       }
 
