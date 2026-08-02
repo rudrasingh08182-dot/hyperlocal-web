@@ -1105,6 +1105,31 @@ const saveProduct = async () => {
             </button>
           </div>
         )}
+
+        {/* Delivery-partner-collected payment status — Cash or QR at doorstep */}
+        {order.delivery_payment_confirmed && (
+          <div style={{ marginTop: '12px', background: '#e8fff8', border: '1px solid #a7f3d0', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {order.delivery_payment_proof_url && (
+              <img src={order.delivery_payment_proof_url} alt="Payment proof"
+                onClick={() => window.open(order.delivery_payment_proof_url, '_blank')}
+                style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #a7f3d0', cursor: 'pointer', flexShrink: 0 }} />
+            )}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: '700', fontSize: '13px', color: '#00b894' }}>
+                ✅ Payment Received {order.delivery_payment_method === 'QR' ? '(via QR)' : '(Cash)'}
+              </div>
+              <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
+                Collected by delivery partner
+              </div>
+            </div>
+          </div>
+        )}
+
+        {order.status !== 'delivered' && order.status !== 'cancelled' && order.payment_method === 'COD' && !order.delivery_payment_confirmed && order.status !== 'pending' && (
+          <div style={{ marginTop: '12px', background: '#fff8e8', border: '1px solid #ffe0a3', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#B45309', fontWeight: '600' }}>
+            ⏳ Waiting for delivery partner to collect payment
+          </div>
+        )}
       </div>
     ))}
   </div>
