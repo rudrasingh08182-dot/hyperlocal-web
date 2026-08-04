@@ -778,7 +778,7 @@ export default function BuyerDashboard() {
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [showUnserviceable, setShowUnserviceable] = useState(false);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  
+  const [orderRatings, setOrderRatings] = useState({});
   const [showEditAddress, setShowEditAddress] = useState(false);
   const [profileAddress, setProfileAddress] = useState('');
   const [profilePincode, setProfilePincode] = useState('');
@@ -1857,7 +1857,7 @@ export default function BuyerDashboard() {
         </div>
       )}
 
-            {/* ORDERS SCREEN */}
+                 {/* ORDERS SCREEN */}
       {screen === 'orders' && (
         <div style={{ paddingBottom: '104px', background: '#F5F5F5', minHeight: '100vh', fontFamily: T.font }}>
           {/* Clean white header */}
@@ -1964,12 +1964,30 @@ export default function BuyerDashboard() {
                 const firstItem = order.items?.[0];
                 const itemNames = order.items?.map(i => i.name).join(', ') || 'Order items';
                 const totalItems = order.items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
+                const ratingKey = `${order.id}-${firstItem?.product_id}`;
+                const currentRating = orderRatings[ratingKey] || 0;
+
+                // Clicking product row opens product detail
+                const openProductDetail = () => {
+                  if (!firstItem?.product_id) {
+                    showToast('Product details not available', 'error');
+                    return;
+                  }
+                  const matched = allProducts.find(p => p.id === firstItem.product_id);
+                  if (matched) {
+                    navigate({ selectedProduct: matched });
+                  } else {
+                    showToast('Product no longer available in store', 'error');
+                  }
+                };
 
                 return (
                   <div key={order.id} style={{ background: 'white', borderRadius: '12px', marginBottom: '12px', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
                     
-                    {/* Main Row */}
-                    <div style={{ display: 'flex', padding: '16px', gap: '14px', alignItems: 'center' }}>
+                    {/* Main Row — Clickable */}
+                    <div 
+                      onClick={openProductDetail}
+                      style={{ display: 'flex', padding: '16px', gap: '14px', alignItems: 'center', cursor: 'pointer' }}>
                       {/* Product Image */}
                       <div style={{ width: '68px', height: '68px', background: '#f8f8f8', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', flexShrink: 0, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
                         {firstItem?.image_url ? (
@@ -2000,15 +2018,35 @@ export default function BuyerDashboard() {
                     <div style={{ height: '1px', background: '#f5f5f5', margin: '0 16px' }} />
 
                     {/* Bottom Action Area */}
-                    <div style={{ padding: '12px 16px' }}>
+                    <div style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
                       
-                      {/* Delivered: Rate & Review */}
-                      {order.status === 'delivered' && (
+                      {/* Delivered: Functional Rate & Review */}
+                      {order.status === 'delivered' && firstItem?.product_id && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                           <span style={{ fontSize: '13px', color: '#666', fontWeight: 500 }}>Rate & Review</span>
                           <div style={{ display: 'flex', gap: '6px' }}>
                             {[1, 2, 3, 4, 5].map(s => (
-                              <span key={s} style={{ fontSize: '20px', color: '#e0e0e0', cursor: 'pointer' }}>★</span>
+                              <motion.span 
+                                key={s} 
+                                whileTap={{ scale: 1.3 }}
+                                onClick={async () => {
+                                  try {
+                                    await API.post(`/reviews/product/${firstItem.product_id}`, { rating: s, comment: '' });
+                                    setOrderRatings(prev => ({ ...prev, [ratingKey]: s }));
+                                    showToast('Rating submitted!', 'success');
+                                  } catch (err) {
+                                    showToast(err.response?.data?.error || 'Failed to submit rating', 'error');
+                                  }
+                                }}
+                                style={{ 
+                                  fontSize: '22px', 
+                                  color: s <= currentRating ? '#FFB800' : '#e0e0e0', 
+                                  cursor: 'pointer',
+                                  userSelect: 'none',
+                                }}
+                              >
+                                ★
+                              </motion.span>
                             ))}
                           </div>
                         </div>
