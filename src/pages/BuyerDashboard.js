@@ -766,6 +766,9 @@ export default function BuyerDashboard() {
       return [];
     }
   });
+
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [orderFilter, setOrderFilter] = useState('All');
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState(null);
@@ -1854,98 +1857,210 @@ export default function BuyerDashboard() {
         </div>
       )}
 
-      {/* ORDERS SCREEN */}
+            {/* ORDERS SCREEN */}
       {screen === 'orders' && (
-        <div style={{ paddingBottom: '104px' }}>
-          <SubHeader title="My orders" subtitle={`${myOrders.length} order${myOrders.length !== 1 ? 's' : ''}`} />
-          <div style={{ padding: '14px 16px' }}>
-            {myOrders.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '56px 20px', background: T.card, borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
-                <div style={{ fontSize: '56px', marginBottom: '16px' }}>📭</div>
-                <div style={{ fontWeight: '800', fontSize: '17px', color: T.text, marginBottom: '6px' }}>No orders yet</div>
-                <motion.button {...btnTap} onClick={() => navigate({ screen: 'home' })}
-                  style={{ background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, padding: '12px 26px', fontWeight: '800', cursor: 'pointer', marginTop: '10px' }}>
-                  Start shopping
-                </motion.button>
+        <div style={{ paddingBottom: '104px', background: '#F5F5F5', minHeight: '100vh', fontFamily: T.font }}>
+          {/* Clean white header */}
+          <div style={{ background: 'white', padding: '14px 16px 16px', borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, zIndex: 50 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+              <motion.button {...btnTap} onClick={() => window.history.back()}
+                style={{ width: '36px', height: '36px', background: 'none', border: 'none', borderRadius: '50%', cursor: 'pointer', fontSize: '20px', color: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                ←
+              </motion.button>
+              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1a1a1a', letterSpacing: '-0.01em' }}>My Orders</h2>
+            </div>
+
+            {/* Search bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', background: '#F5F5F5', borderRadius: '10px', padding: '0 14px', border: '1px solid #e8e8e8' }}>
+                <span style={{ fontSize: '16px', color: '#999' }}>🔍</span>
+                <input
+                  placeholder="Search your order here"
+                  value={orderSearchQuery}
+                  onChange={e => setOrderSearchQuery(e.target.value)}
+                  style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', padding: '12px 0', fontSize: '14px', color: '#1a1a1a' }}
+                />
+                {orderSearchQuery && (
+                  <button onClick={() => setOrderSearchQuery('')} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+                )}
               </div>
-            ) : myOrders.map(order => {
-              const badge = (() => {
-                if (order.status === 'delivered') return { bg: T.successTint, color: T.success, text: 'DELIVERED' };
-                if (order.status === 'payment_rejected') return { bg: T.errorTint, color: T.error, text: 'PAYMENT REJECTED' };
-                if (['pending', 'pending_payment', 'payment_verification_pending'].includes(order.status)) {
-                  return {
-                    bg: T.accentTint, color: '#5B21B6',
-                    text: order.status === 'pending_payment' ? 'PAYMENT PENDING'
-                      : order.status === 'payment_verification_pending' ? 'VERIFYING' : 'PENDING'
-                  };
-                }
-                return { bg: T.primaryTint, color: T.primary, text: order.status?.toUpperCase() };
-              })();
+            </div>
 
-              return (
-                <div key={order.id} style={{ background: T.card, borderRadius: T.radiusMd, padding: '14px', marginBottom: '10px', border: `1px solid ${T.border}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', gap: '10px' }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: '800', color: T.text, fontSize: '14px' }}>#{order.id.slice(-6).toUpperCase()}</div>
-                      <div style={{ fontSize: '11px', color: T.textFaint, marginTop: '2px' }}>{new Date(order.created_at).toLocaleDateString()} · {order.shop_name}</div>
-                    </div>
-                    <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '10px', fontWeight: '800', letterSpacing: '0.03em', background: badge.bg, color: badge.color, whiteSpace: 'nowrap' }}>
-                      {badge.text}
-                    </span>
+            {/* Filter chips */}
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+              {['All', 'Pending', 'Delivered', 'Cancelled'].map(filter => {
+                const isActive = orderFilter === filter;
+                return (
+                  <motion.button key={filter} whileTap={{ scale: 0.95 }}
+                    onClick={() => setOrderFilter(filter)}
+                    style={{
+                      padding: '7px 18px',
+                      borderRadius: '20px',
+                      border: isActive ? '1px solid #1a1a1a' : '1px solid #d4d4d4',
+                      background: isActive ? '#1a1a1a' : 'white',
+                      color: isActive ? 'white' : '#666',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.02em',
+                    }}>
+                    {filter}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Orders list */}
+          <div style={{ padding: '12px 16px' }}>
+            {(() => {
+              const filtered = myOrders.filter(order => {
+                const q = orderSearchQuery.toLowerCase().trim();
+                const matchesSearch = !q ||
+                  order.id.toLowerCase().includes(q) ||
+                  order.shop_name?.toLowerCase().includes(q) ||
+                  order.items?.some(i => i.name.toLowerCase().includes(q));
+                const matchesFilter = orderFilter === 'All' ||
+                  (orderFilter === 'Pending' && ['pending', 'pending_payment', 'payment_verification_pending'].includes(order.status)) ||
+                  (orderFilter === 'Delivered' && order.status === 'delivered') ||
+                  (orderFilter === 'Cancelled' && (order.status === 'cancelled' || order.status === 'payment_rejected'));
+                return matchesSearch && matchesFilter;
+              });
+
+              if (myOrders.length === 0) {
+                return (
+                  <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+                    <div style={{ fontSize: '56px', marginBottom: '16px' }}>📭</div>
+                    <div style={{ fontWeight: 800, fontSize: '17px', color: '#1a1a1a', marginBottom: '6px' }}>No orders yet</div>
+                    <p style={{ color: '#999', marginBottom: '20px', fontSize: '13px' }}>When you place orders, they will appear here</p>
+                    <motion.button {...btnTap} onClick={() => navigate({ screen: 'home' })}
+                      style={{ background: '#1a1a1a', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 28px', fontWeight: 800, cursor: 'pointer', fontSize: '14px' }}>
+                      Start shopping
+                    </motion.button>
                   </div>
+                );
+              }
 
-                  <div style={{ background: T.bg, borderRadius: T.radiusSm, padding: '10px 12px', marginBottom: '10px' }}>
-                    {order.items?.map((item, i) => (
-                      <div key={i} style={{ fontSize: '12px', color: T.text, padding: '2px 0', display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{item.name} × {item.quantity}</span>
-                        <span style={{ fontWeight: '600' }}>₹{item.unit_price * item.quantity}</span>
+              if (filtered.length === 0) {
+                return (
+                  <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                    <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔎</div>
+                    <p style={{ color: '#999', fontSize: '14px' }}>No orders match your search</p>
+                  </div>
+                );
+              }
+
+              return filtered.map(order => {
+                const statusConfig = (() => {
+                  if (order.status === 'delivered') return { text: `Delivered on ${new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`, color: '#0C831F', sub: 'Your item has been delivered' };
+                  if (order.status === 'cancelled') return { text: `Cancelled on ${new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`, color: '#666', sub: 'This order was cancelled' };
+                  if (order.status === 'payment_rejected') return { text: 'Payment Rejected', color: '#E11D48', sub: 'Your payment was not verified' };
+                  if (order.status === 'pending_payment') return { text: 'Payment Pending', color: '#7C3AED', sub: 'Complete payment to confirm' };
+                  if (order.status === 'payment_verification_pending') return { text: 'Verifying Payment', color: '#D97706', sub: 'Seller is verifying your payment' };
+                  return { text: 'Order Pending', color: '#1a1a1a', sub: 'Waiting for seller confirmation' };
+                })();
+
+                const firstItem = order.items?.[0];
+                const itemNames = order.items?.map(i => i.name).join(', ') || 'Order items';
+                const totalItems = order.items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
+
+                return (
+                  <div key={order.id} style={{ background: 'white', borderRadius: '12px', marginBottom: '12px', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+                    
+                    {/* Main Row */}
+                    <div style={{ display: 'flex', padding: '16px', gap: '14px', alignItems: 'center' }}>
+                      {/* Product Image */}
+                      <div style={{ width: '68px', height: '68px', background: '#f8f8f8', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', flexShrink: 0, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+                        {firstItem?.image_url ? (
+                          <img src={firstItem.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                        ) : (
+                          '📦'
+                        )}
                       </div>
-                    ))}
-                  </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
-                    <span style={{ color: T.textFaint, fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' }}>{order.payment_method}</span>
-                    <span style={{ fontWeight: '800', color: T.text, fontSize: '16px' }}>₹{order.total_amount}</span>
-                  </div>
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: statusConfig.color, marginBottom: '3px', lineHeight: 1.3 }}>
+                          {statusConfig.text}
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#444', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '2px' }}>
+                          {itemNames}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#999' }}>
+                          {order.shop_name} {totalItems > 1 ? `· ${totalItems} items` : `· 1 item`} · ₹{order.total_amount}
+                        </div>
+                      </div>
 
-                  {order.status === 'pending_payment' && (
-                    <motion.button {...btnTap} onClick={() => startQrPayment([order.id])}
-                      style={{ width: '100%', marginTop: '10px', padding: '11px', background: T.headerYellow, color: '#F5F3FF', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '13px' }}>
-                      Complete Payment →
-                    </motion.button>
-                  )}
-                  {order.status === 'payment_verification_pending' && (
-                    <div style={{ marginTop: '10px', padding: '10px', textAlign: 'center', background: T.accentTint, color: '#5B21B6', borderRadius: T.radiusSm, fontWeight: '600', fontSize: '12px' }}>
-                      Waiting for seller to verify payment
+                      {/* Arrow */}
+                      <div style={{ color: '#ccc', fontSize: '22px', fontWeight: 300 }}>›</div>
                     </div>
-                  )}
-                  {order.status === 'payment_rejected' && (
-                    <motion.button {...btnTap} onClick={() => startQrPayment([order.id])}
-                      style={{ width: '100%', marginTop: '10px', padding: '11px', background: T.error, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '13px' }}>
-                      Retry Payment
-                    </motion.button>
-                  )}
-                  {!['delivered', 'cancelled', 'pending_payment', 'payment_verification_pending', 'payment_rejected'].includes(order.status) && (
-                    <motion.button {...btnTap} onClick={() => navigate({ trackingOrderId: order.id })}
-                      style={{ width: '100%', marginTop: '10px', padding: '11px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '13px' }}>
-                      Track order
-                    </motion.button>
-                  )}
-                  {order.status === 'delivered' && (
-                    <motion.button {...btnTap} onClick={() => navigate({ trackingOrderId: order.id })}
-                      style={{ width: '100%', marginTop: '10px', padding: '11px', background: T.primaryTint, color: T.primary, border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '13px' }}>
-                      View details & return
-                    </motion.button>
-                  )}
-                  {order.status === 'delivered' && (
-                    <motion.button {...btnTap} onClick={() => setReceiptOrder(order)}
-                      style={{ width: '100%', marginTop: '8px', padding: '11px', background: T.card, color: T.primary, border: `1.5px solid ${T.primary}`, borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '13px' }}>
-                      🧾 View Receipt
-                    </motion.button>
-                  )}
-                </div>
-              );
-            })}
+
+                    {/* Divider */}
+                    <div style={{ height: '1px', background: '#f5f5f5', margin: '0 16px' }} />
+
+                    {/* Bottom Action Area */}
+                    <div style={{ padding: '12px 16px' }}>
+                      
+                      {/* Delivered: Rate & Review */}
+                      {order.status === 'delivered' && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '13px', color: '#666', fontWeight: 500 }}>Rate & Review</span>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            {[1, 2, 3, 4, 5].map(s => (
+                              <span key={s} style={{ fontSize: '20px', color: '#e0e0e0', cursor: 'pointer' }}>★</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {order.status === 'pending_payment' && (
+                          <motion.button {...btnTap} onClick={() => startQrPayment([order.id])}
+                            style={{ flex: 1, padding: '10px', background: '#7C3AED', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', letterSpacing: '0.01em' }}>
+                            Complete Payment →
+                          </motion.button>
+                        )}
+
+                        {order.status === 'payment_rejected' && (
+                          <motion.button {...btnTap} onClick={() => startQrPayment([order.id])}
+                            style={{ flex: 1, padding: '10px', background: '#E11D48', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                            Retry Payment
+                          </motion.button>
+                        )}
+
+                        {order.status === 'payment_verification_pending' && (
+                          <div style={{ width: '100%', padding: '10px', textAlign: 'center', background: '#FEF3C7', color: '#92400E', borderRadius: '8px', fontWeight: 600, fontSize: '12px' }}>
+                            ⏳ Waiting for seller to verify payment
+                          </div>
+                        )}
+
+                        {!['delivered', 'cancelled', 'pending_payment', 'payment_verification_pending', 'payment_rejected'].includes(order.status) && (
+                          <motion.button {...btnTap} onClick={() => navigate({ trackingOrderId: order.id })}
+                            style={{ flex: 1, padding: '10px', background: '#0C831F', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
+                            Track order
+                          </motion.button>
+                        )}
+
+                        {order.status === 'delivered' && (
+                          <>
+                            <motion.button {...btnTap} onClick={() => navigate({ trackingOrderId: order.id })}
+                              style={{ flex: 1, padding: '10px', background: '#f5f5f5', color: '#444', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>
+                              View Details
+                            </motion.button>
+                            <motion.button {...btnTap} onClick={() => setReceiptOrder(order)}
+                              style={{ flex: 1, padding: '10px', background: '#f5f5f5', color: '#444', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>
+                              🧾 Receipt
+                            </motion.button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       )}
