@@ -1092,6 +1092,19 @@ export default function BuyerDashboard() {
   const [returnPhotoPreview, setReturnPhotoPreview] = useState(null);
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnPhotoUploading, setReturnPhotoUploading] = useState(false);
+  // myReturnsMap: { [order_id]: returnObject } — drives smart button state per order
+  const [myReturnsMap, setMyReturnsMap] = useState({});
+
+  const fetchMyReturns = async () => {
+    try {
+      const res = await API.get('/returns');
+      const map = {};
+      (res.data || []).forEach(r => { map[r.order_id] = r; });
+      setMyReturnsMap(map);
+    } catch (err) {
+      console.error('Returns fetch failed:', err);
+    }
+  };
 
   const submitReturn = async () => {
     if (!returnReason.trim()) { showToast('Please select a reason', 'error'); return; }
@@ -1110,6 +1123,8 @@ export default function BuyerDashboard() {
       setReturnReason('');
       setReturnPhotoFile(null);
       setReturnPhotoPreview(null);
+      // Refresh returns map so the button immediately shows "Pending" state
+      fetchMyReturns();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to submit return', 'error');
     } finally {
@@ -1480,8 +1495,11 @@ export default function BuyerDashboard() {
 
   const fetchMyOrders = async () => {
     try {
-      const res = await API.get('/orders/my-orders');
-      setMyOrders(res.data);
+      const [ordersRes] = await Promise.all([
+        API.get('/orders/my-orders'),
+        fetchMyReturns(),
+      ]);
+      setMyOrders(ordersRes.data);
     } catch (err) {
       console.error(err);
     }
@@ -2450,11 +2468,44 @@ export default function BuyerDashboard() {
                               style={{ flex: 1, padding: '10px', background: '#f5f5f5', color: '#444', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>
                               🧧 Receipt
                             </motion.button>
-                            {/* Return button — only within 7-day window */}
+                            {/* Smart return button — state-aware */}
                             {(() => {
                               if (!order.delivered_at) return null;
                               const deliveredAt = new Date(order.delivered_at);
                               const daysDiff = Math.floor((Date.now() - deliveredAt) / (1000 * 60 * 60 * 24));
+                              const ret = myReturnsMap[order.id];
+
+                              // ── Case 1: Return already exists ─────────────────────────
+                              if (ret) {
+                                // Rejected → show reason chip, no button
+                                if (ret.status === 'return_rejected') {
+                                  return (
+                                    <div style={{ flex: 1, padding: '9px 12px', background: '#FEE2E2', borderRadius: '8px', border: '1px solid #FECACA' }}>
+                                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#991B1B', marginBottom: '3px' }}>❌ Return Rejected</div>
+                                      {ret.notes && <div style={{ fontSize: '11px', color: '#B91C1C', lineHeight: '1.4' }}>Reason: {ret.notes}</div>}
+                                    </div>
+                                  );
+                                }
+                                // Completed → silent, no button (one chance used)
+                                if (ret.status === 'return_completed') return null;
+                                // Pending seller action → frozen button
+                                if (ret.status === 'return_requested') {
+                                  return (
+                                    <div style={{ flex: 1, padding: '10px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px', textAlign: 'center', fontSize: '12px', fontWeight: '700', color: '#92400E', cursor: 'not-allowed' }}>
+                                      ⏳ Return Pending…
+                                    </div>
+                                  );
+                                }
+                                // Active (accepted / in-transit / etc.) → Track button
+                                return (
+                                  <motion.button {...btnTap} onClick={() => setReturnTrackerReturnId(ret.id)}
+                                    style={{ flex: 1, padding: '10px', background: '#EDE9FE', color: '#5B21B6', border: '1px solid #C4B5FD', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>
+                                    📍 Track Return
+                                  </motion.button>
+                                );
+                              }
+
+                              // ── Case 2: No return yet — show button within 7 days ─────
                               return daysDiff <= 7 ? (
                                 <motion.button {...btnTap} onClick={() => setReturnModalOrder(order)}
                                   style={{ flex: 1, padding: '10px', background: T.errorTint, color: T.error, border: `1px solid ${T.error}`, borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>
