@@ -96,6 +96,8 @@ export default function DeliveryDashboard() {
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState(null);
   const [submittingProof, setSubmittingProof] = useState(false);
+  const [availableReturnPickups, setAvailableReturnPickups] = useState([]);
+  const [myReturnPickups, setMyReturnPickups] = useState([]);
 
   const fetchMyAvailability = async () => {
     try {
@@ -160,10 +162,26 @@ export default function DeliveryDashboard() {
     } catch (err) { console.error(err); }
   };
 
+  const fetchAvailableReturnPickups = async () => {
+    try {
+      const res = await API.get('/returns/available-pickups');
+      setAvailableReturnPickups(res.data);
+    } catch (err) { console.error('Return pickups fetch failed:', err); }
+  };
+
+  const fetchMyReturnPickups = async () => {
+    try {
+      const res = await API.get('/returns/my-return-pickups');
+      setMyReturnPickups(res.data);
+    } catch (err) { console.error('My return pickups fetch failed:', err); }
+  };
+
   useEffect(() => {
     getLocation();
     fetchMyDeliveries();
     fetchMyAvailability();
+    fetchAvailableReturnPickups();
+    fetchMyReturnPickups();
   }, [getLocation]);
 
   useEffect(() => {
@@ -189,6 +207,40 @@ export default function DeliveryDashboard() {
       fetchMyDeliveries();
       setTab('mydeliveries');
     } catch (err) { showToast(err.response?.data?.error || 'Failed to accept', 'error'); }
+  };
+
+  const acceptReturnPickup = async (id) => {
+    try {
+      await API.patch(`/returns/${id}/accept-pickup`);
+      showToast('Return pickup accepted!', 'success');
+      fetchAvailableReturnPickups();
+      fetchMyReturnPickups();
+      setTab('mydeliveries');
+    } catch (err) { showToast(err.response?.data?.error || 'Failed to accept pickup', 'error'); }
+  };
+
+  const markReturnPickedUp = async (id) => {
+    try {
+      await API.patch(`/returns/${id}/picked-up`);
+      showToast('Marked as picked up!', 'success');
+      fetchMyReturnPickups();
+    } catch (err) { showToast(err.response?.data?.error || 'Failed', 'error'); }
+  };
+
+  const markReturnInTransit = async (id) => {
+    try {
+      await API.patch(`/returns/${id}/in-transit`);
+      showToast('Marked as in transit!', 'success');
+      fetchMyReturnPickups();
+    } catch (err) { showToast(err.response?.data?.error || 'Failed', 'error'); }
+  };
+
+  const markReturnComplete = async (id) => {
+    try {
+      await API.patch(`/returns/${id}/complete`);
+      showToast('Return delivered to seller! ✅', 'success');
+      fetchMyReturnPickups();
+    } catch (err) { showToast(err.response?.data?.error || 'Failed', 'error'); }
   };
 
   const openSellerQr = async (order) => {
@@ -433,7 +485,7 @@ export default function DeliveryDashboard() {
               </div>
             ) : loading ? (
               <div style={{ ...card, textAlign: 'center', padding: 40, color: T.mute, fontSize: 14 }}>Loading orders…</div>
-            ) : availableOrders.length === 0 ? (
+            ) : availableOrders.length === 0 && availableReturnPickups.length === 0 ? (
               <div style={{ ...card, textAlign: 'center', padding: 48 }}>
                 <div style={{ width: 48, height: 48, margin: '0 auto 14px', borderRadius: 12, background: T.brandSoft, color: T.brand, display: 'grid', placeItems: 'center' }}>
                   <Icon.Box />
@@ -441,72 +493,114 @@ export default function DeliveryDashboard() {
                 <p style={{ color: T.mute, margin: 0, fontSize: 14 }}>No available orders near you right now</p>
               </div>
             ) : (
-              availableOrders.map(order => (
-                <div key={order.id} style={{ ...card, padding: 18, marginBottom: 14 }}>
+              <div>
+                {availableOrders.map(order => (
+                  <div key={order.id} style={{ ...card, padding: 18, marginBottom: 14 }}>
 
-                  {/* Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 12 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, color: T.ink, fontSize: 14, letterSpacing: '.02em' }}>
-                        #{order.id.slice(-6).toUpperCase()}
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 12 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: T.ink, fontSize: 14, letterSpacing: '.02em' }}>
+                          #{order.id.slice(-6).toUpperCase()}
+                        </div>
+                        <div style={{ fontSize: 12, color: T.mute, marginTop: 2 }}>
+                          {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: T.mute, marginTop: 2 }}>
-                        {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 700, fontSize: 20, color: T.ink, letterSpacing: '-.02em' }}>₹{order.total_amount}</div>
+                        <span style={pill(
+                          order.payment_method === 'COD' ? T.warnSoft : T.infoSoft,
+                          order.payment_method === 'COD' ? T.warn : T.info
+                        )}>{order.payment_method}</span>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 700, fontSize: 20, color: T.ink, letterSpacing: '-.02em' }}>₹{order.total_amount}</div>
-                      <span style={pill(
-                        order.payment_method === 'COD' ? T.warnSoft : T.infoSoft,
-                        order.payment_method === 'COD' ? T.warn : T.info
-                      )}>{order.payment_method}</span>
+
+                    <div style={{ background: '#f8fafc', border: `1px solid ${T.line}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                      <div style={sectionLabel(T.brand)}><Icon.Package /> Pickup From</div>
+                      <div style={{ fontWeight: 600, color: T.ink, fontSize: 14, marginTop: 8 }}>{order.shop_name}</div>
+                      <div style={{ color: T.ink2, fontSize: 13, marginTop: 2 }}>{order.seller_address}</div>
+                      <a href={`tel:${order.seller_phone}`} style={{ color: T.brand, fontSize: 13, textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                        <Icon.Phone /> {order.seller_phone}
+                      </a>
                     </div>
-                  </div>
 
-                  {/* Pickup */}
-                  <div style={{ background: '#f8fafc', border: `1px solid ${T.line}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                    <div style={sectionLabel(T.brand)}><Icon.Package /> Pickup From</div>
-                    <div style={{ fontWeight: 600, color: T.ink, fontSize: 14, marginTop: 8 }}>{order.shop_name}</div>
-                    <div style={{ color: T.ink2, fontSize: 13, marginTop: 2 }}>{order.seller_address}</div>
-                    <a href={`tel:${order.seller_phone}`} style={{ color: T.brand, fontSize: 13, textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                      <Icon.Phone /> {order.seller_phone}
-                    </a>
-                  </div>
-
-                  {/* Deliver */}
-                  <div style={{ background: '#f8fafc', border: `1px solid ${T.line}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-                    <div style={sectionLabel(T.ok)}><Icon.Home /> Deliver To</div>
-                    <div style={{ fontWeight: 600, color: T.ink, fontSize: 14, marginTop: 8 }}>{order.buyer_name}</div>
-                    <div style={{ color: T.ink2, fontSize: 13, marginTop: 2 }}>{order.delivery_address}</div>
-                    {order.delivery_landmark && (
-                      <div style={{ color: T.mute, fontSize: 12, marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <Icon.Pin /> Near {order.delivery_landmark}
-                      </div>
-                    )}
-                    <div>
+                    <div style={{ background: '#f8fafc', border: `1px solid ${T.line}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                      <div style={sectionLabel(T.ok)}><Icon.Home /> Deliver To</div>
+                      <div style={{ fontWeight: 600, color: T.ink, fontSize: 14, marginTop: 8 }}>{order.buyer_name}</div>
+                      <div style={{ color: T.ink2, fontSize: 13, marginTop: 2 }}>{order.delivery_address}</div>
+                      {order.delivery_landmark && (
+                        <div style={{ color: T.mute, fontSize: 12, marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Icon.Pin /> Near {order.delivery_landmark}
+                        </div>
+                      )}
                       <a href={`tel:${order.delivery_phone}`} style={{ color: T.ok, fontSize: 13, textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
                         <Icon.Phone /> {order.delivery_phone}
                       </a>
                     </div>
+
+                    {order.distance_km && (
+                      <div style={{ fontSize: 13, color: T.ink2, marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Icon.Pin /> Approx <strong style={{ color: T.ink }}>&nbsp;{order.distance_km} km</strong>
+                      </div>
+                    )}
+
+                    <button onClick={() => acceptDelivery(order.id)}
+                      style={{ width: '100%', padding: '13px', background: T.ink, color: '#fff', border: 'none', borderRadius: 11, fontSize: 14.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <Icon.Bike /> Accept Delivery
+                    </button>
                   </div>
+                ))}
 
-                  {order.distance_km && (
-                    <div style={{ fontSize: 13, color: T.ink2, marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <Icon.Pin /> Approx <strong style={{ color: T.ink }}>&nbsp;{order.distance_km} km</strong>
-                    </div>
-                  )}
+                {/* Return pickups section */}
+                {availableReturnPickups.length > 0 && (
+                  <div>
+                    {availableOrders.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0 12px', fontSize: 12, fontWeight: 700, color: T.mute }}>
+                        <div style={{ flex: 1, height: 1, background: T.line }} />
+                        ↩ RETURN PICKUPS
+                        <div style={{ flex: 1, height: 1, background: T.line }} />
+                      </div>
+                    )}
+                    {availableReturnPickups.map(ret => (
+                      <div key={ret.id} style={{ ...card, padding: 18, marginBottom: 14, borderLeft: '3px solid #f59e0b' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>#{ret.id.slice(-6).toUpperCase()}</div>
+                          <span style={pill('#FEF3C7', '#92400E')}>↩ RETURN</span>
+                          <div style={{ fontSize: 12, color: T.mute, marginLeft: 'auto' }}>Order #{ret.order_id.slice(-6).toUpperCase()}</div>
+                        </div>
 
-                  <button onClick={() => acceptDelivery(order.id)}
-                    style={{
-                      width: '100%', padding: '13px', background: T.ink, color: '#fff',
-                      border: 'none', borderRadius: 11, fontSize: 14.5, fontWeight: 600,
-                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
-                      justifyContent: 'center', gap: 8, letterSpacing: '.01em',
-                    }}>
-                    <Icon.Bike /> Accept Delivery
-                  </button>
-                </div>
-              ))
+                        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                          <div style={sectionLabel('#b45309')}>📦 Pickup From Buyer</div>
+                          <div style={{ fontWeight: 600, color: T.ink, fontSize: 14, marginTop: 8 }}>{ret.buyer_name}</div>
+                          <div style={{ color: T.ink2, fontSize: 13, marginTop: 2 }}>{ret.delivery_address}</div>
+                          <a href={`tel:${ret.delivery_phone}`} style={{ color: '#b45309', fontSize: 13, textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                            <Icon.Phone /> {ret.delivery_phone}
+                          </a>
+                        </div>
+
+                        <div style={{ background: '#f8fafc', border: `1px solid ${T.line}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                          <div style={sectionLabel(T.brand)}>🏪 Drop At Seller</div>
+                          <div style={{ fontWeight: 600, color: T.ink, fontSize: 14, marginTop: 8 }}>{ret.shop_name}</div>
+                          <div style={{ color: T.ink2, fontSize: 13, marginTop: 2 }}>{ret.seller_address}</div>
+                          <a href={`tel:${ret.seller_phone}`} style={{ color: T.brand, fontSize: 13, textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                            <Icon.Phone /> {ret.seller_phone}
+                          </a>
+                        </div>
+
+                        <div style={{ background: '#FEF3C7', borderRadius: 10, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#92400E', fontWeight: 600 }}>
+                          📋 Reason: {ret.reason}
+                        </div>
+
+                        <button onClick={() => acceptReturnPickup(ret.id)}
+                          style={{ width: '100%', padding: '12px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 11, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                          ↩ Accept Return Pickup
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -516,7 +610,7 @@ export default function DeliveryDashboard() {
           <div>
             <h2 style={{ margin: '0 0 14px', fontSize: 16, color: T.ink, fontWeight: 700, letterSpacing: '-.01em' }}>My Active Deliveries</h2>
 
-            {myDeliveries.length === 0 ? (
+            {myDeliveries.length === 0 && myReturnPickups.length === 0 ? (
               <div style={{ ...card, textAlign: 'center', padding: 48 }}>
                 <div style={{ width: 48, height: 48, margin: '0 auto 14px', borderRadius: 12, background: T.brandSoft, color: T.brand, display: 'grid', placeItems: 'center' }}>
                   <Icon.Bike />
@@ -573,12 +667,7 @@ export default function DeliveryDashboard() {
                       </div>
                       <a href={`https://www.google.com/maps/dir/?api=1&origin=${order.seller_lat},${order.seller_lng}&destination=${order.delivery_lat},${order.delivery_lng}&travelmode=driving`}
                         target="_blank" rel="noopener noreferrer"
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          width: '100%', marginTop: 8, padding: '11px',
-                          background: T.brand, color: '#fff', borderRadius: 10,
-                          textDecoration: 'none', fontWeight: 600, fontSize: 13.5,
-                        }}>
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 8, padding: '11px', background: T.brand, color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 13.5 }}>
                         <Icon.Nav /> Navigate (Seller → Buyer)
                       </a>
                     </div>
@@ -591,7 +680,6 @@ export default function DeliveryDashboard() {
                     </div>
                   </div>
 
-                  {/* Payment collection — only for COD orders not yet confirmed */}
                   {order.payment_method === 'COD' && !order.delivery_payment_confirmed && (
                     <div style={{ background: T.warnSoft, border: `1px solid #fcd34d`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: T.warn, marginBottom: 10 }}>
@@ -616,7 +704,6 @@ export default function DeliveryDashboard() {
                     </div>
                   )}
 
-                  {/* Status buttons */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                     {[
                       { onClick: () => updateStatus(order.id, 'picked_up'), Ico: Icon.Box, label: 'Picked Up', fg: T.warn, soft: T.warnSoft, brd: '#fcd34d' },
@@ -625,18 +712,86 @@ export default function DeliveryDashboard() {
                       { onClick: () => markDelivered(order), Ico: Icon.Check, label: 'Delivered', fg: T.ok, soft: T.okSoft, brd: '#a7f3d0' },
                     ].map((b, i) => (
                       <button key={i} onClick={b.onClick}
-                        style={{
-                          padding: '10px', background: b.soft, color: b.fg,
-                          border: `1px solid ${b.brd}`, borderRadius: 10, cursor: 'pointer',
-                          fontWeight: 600, fontSize: 12.5,
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        }}>
+                        style={{ padding: '10px', background: b.soft, color: b.fg, border: `1px solid ${b.brd}`, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 12.5, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                         <b.Ico /> {b.label}
                       </button>
                     ))}
                   </div>
                 </div>
               ))
+            )}
+
+            {/* Active Return Pickups */}
+            {myReturnPickups.length > 0 && (
+              <div style={{ marginTop: myDeliveries.length > 0 ? 8 : 0 }}>
+                {myDeliveries.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0 12px', fontSize: 12, fontWeight: 700, color: T.mute }}>
+                    <div style={{ flex: 1, height: 1, background: T.line }} />
+                    ↩ ACTIVE RETURN PICKUPS
+                    <div style={{ flex: 1, height: 1, background: T.line }} />
+                  </div>
+                )}
+                {myReturnPickups.map(ret => {
+                  const retStatus = ret.status;
+                  const retStatusMap = {
+                    return_pickup_assigned: { label: 'Pickup Assigned', bg: '#EDE9FE', color: '#5B21B6' },
+                    return_picked_up: { label: 'Picked Up', bg: '#D1FAE5', color: '#065F46' },
+                    return_in_transit: { label: 'In Transit', bg: '#DBEAFE', color: '#1E40AF' },
+                  };
+                  const badge = retStatusMap[retStatus] || { label: retStatus, bg: '#f0f0e8', color: '#666' };
+                  return (
+                    <div key={ret.id} style={{ ...card, padding: 18, marginBottom: 14, borderLeft: '3px solid #f59e0b' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>#{ret.id.slice(-6).toUpperCase()}</div>
+                          <span style={pill('#FEF3C7', '#92400E')}>↩ RETURN</span>
+                        </div>
+                        <span style={{ background: badge.bg, color: badge.color, borderRadius: 8, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{badge.label}</span>
+                      </div>
+
+                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                        <div style={sectionLabel('#b45309')}>📦 Pickup From Buyer</div>
+                        <div style={{ fontWeight: 600, color: T.ink, fontSize: 14, marginTop: 8 }}>{ret.buyer_name}</div>
+                        <div style={{ color: T.ink2, fontSize: 13, marginTop: 2 }}>{ret.delivery_address}</div>
+                        <a href={`tel:${ret.delivery_phone}`} style={{ color: '#b45309', fontSize: 13, textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                          <Icon.Phone /> {ret.delivery_phone}
+                        </a>
+                      </div>
+
+                      <div style={{ background: '#f8fafc', border: `1px solid ${T.line}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                        <div style={sectionLabel(T.brand)}>🏪 Drop At Seller</div>
+                        <div style={{ fontWeight: 600, color: T.ink, fontSize: 14, marginTop: 8 }}>{ret.shop_name}</div>
+                        <div style={{ color: T.ink2, fontSize: 13, marginTop: 2 }}>{ret.seller_address}</div>
+                        <a href={`tel:${ret.seller_phone}`} style={{ color: T.brand, fontSize: 13, textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                          <Icon.Phone /> {ret.seller_phone}
+                        </a>
+                      </div>
+
+                      {/* Sequential action buttons */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {retStatus === 'return_pickup_assigned' && (
+                          <button onClick={() => markReturnPickedUp(ret.id)}
+                            style={{ width: '100%', padding: '12px', background: T.warnSoft, color: T.warn, border: `1px solid #fcd34d`, borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                            <Icon.Box /> Mark Picked Up from Buyer
+                          </button>
+                        )}
+                        {retStatus === 'return_picked_up' && (
+                          <button onClick={() => markReturnInTransit(ret.id)}
+                            style={{ width: '100%', padding: '12px', background: T.brandSoft, color: T.brand, border: `1px solid #c7d2fe`, borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                            <Icon.Truck /> Mark In Transit to Seller
+                          </button>
+                        )}
+                        {(retStatus === 'return_picked_up' || retStatus === 'return_in_transit') && (
+                          <button onClick={() => markReturnComplete(ret.id)}
+                            style={{ width: '100%', padding: '12px', background: T.okSoft, color: T.ok, border: '1px solid #a7f3d0', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                            <Icon.Check /> Return Complete (Handed to Seller)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}

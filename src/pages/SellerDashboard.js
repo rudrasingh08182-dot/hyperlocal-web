@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { FiHome, FiPackage, FiShoppingBag, FiStar, FiTrendingUp, FiDollarSign, FiBell, FiSettings, FiLogOut, FiPlus, FiEdit2, FiTrash2, FiMenu, FiX, FiFileText, FiCheckCircle } from 'react-icons/fi';
+import { FiHome, FiPackage, FiShoppingBag, FiStar, FiTrendingUp, FiDollarSign, FiBell, FiSettings, FiLogOut, FiPlus, FiEdit2, FiTrash2, FiMenu, FiX, FiFileText, FiCheckCircle, FiRefreshCw } from 'react-icons/fi';
 import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
 import { requestNotificationPermission } from '../firebase';
@@ -80,7 +80,7 @@ export default function SellerDashboard() {
   const [showNotif, setShowNotif] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useTabHistory(activeTab, setActiveTab, ['dashboard', 'products', 'orders', 'analytics', 'earnings', 'reviews', 'bank', 'paymentVerifications', 'settings', 'terms']);
+  useTabHistory(activeTab, setActiveTab, ['dashboard', 'products', 'orders', 'analytics', 'earnings', 'reviews', 'returns', 'bank', 'paymentVerifications', 'settings', 'terms']);
 
   // Real data states
   const [dashboardData, setDashboardData] = useState(null);
@@ -127,6 +127,56 @@ const [qrCodeUrl, setQrCodeUrl] = useState(null);
 const [qrUploading, setQrUploading] = useState(false);
 const [pendingVerifications, setPendingVerifications] = useState([]);
 const [verificationsLoading, setVerificationsLoading] = useState(false);
+
+// ── Returns state ──
+const [sellerReturns, setSellerReturns] = useState([]);
+const [returnsLoading, setReturnsLoading] = useState(false);
+const [returnsSubTab, setReturnsSubTab] = useState('pending'); // 'pending' | 'accepted' | 'completed'
+
+const fetchSellerReturns = async () => {
+  setReturnsLoading(true);
+  try {
+    const sellerRes = await API.get('/sellers/me');
+    const res = await API.get(`/returns?seller_id=${sellerRes.data.id}`);
+    setSellerReturns(res.data);
+  } catch (err) {
+    console.error('Returns fetch failed:', err);
+  } finally {
+    setReturnsLoading(false);
+  }
+};
+
+const handleAcceptReturn = async (returnId, refund_or_replacement) => {
+  try {
+    await API.patch(`/returns/${returnId}/accept`, { refund_or_replacement });
+    showToast('Return accepted!', 'success');
+    fetchSellerReturns();
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to accept', 'error');
+  }
+};
+
+const handleRejectReturn = async (returnId) => {
+  const notes = window.prompt('Reason for rejection (optional):');
+  if (notes === null) return; // cancelled
+  try {
+    await API.patch(`/returns/${returnId}/reject`, { notes });
+    showToast('Return rejected', 'info');
+    fetchSellerReturns();
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to reject', 'error');
+  }
+};
+
+const handleConfirmReturn = async (returnId) => {
+  try {
+    await API.patch(`/returns/${returnId}/confirm`);
+    showToast('Return confirmed & completed! ✅', 'success');
+    fetchSellerReturns();
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to confirm', 'error');
+  }
+};
 const [selectedVerification, setSelectedVerification] = useState(null);
 
 // Fetch bank details on load
@@ -344,6 +394,7 @@ const viewPaymentForOrder = async (orderId) => {
 
 useEffect(() => {
   if (activeTab === 'paymentVerifications') fetchPendingVerifications();
+  if (activeTab === 'returns') fetchSellerReturns();
 }, [activeTab]);
   
   // Add this useEffect after existing useEffects
@@ -506,6 +557,7 @@ const saveProduct = async () => {
   { id: 'analytics', icon: <FiTrendingUp />, label: 'Analytics' },
   { id: 'earnings', icon: <FiDollarSign />, label: 'Earnings' },
   { id: 'reviews', icon: <FiStar />, label: 'Reviews' },
+  { id: 'returns', icon: <FiRefreshCw />, label: 'Returns' },
   { id: 'bank', icon: <FiDollarSign />, label: 'Bank Details' },
   { id: 'paymentVerifications', icon: <FiCheckCircle />, label: 'Payment Verifications' },
   { id: 'settings', icon: <FiSettings />, label: 'Shop Settings' },
@@ -1330,6 +1382,139 @@ const saveProduct = async () => {
               ))}
             </div>
           )}
+          {/* RETURNS TAB */}
+          {activeTab === 'returns' && (
+            <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, color: '#1a1a2e' }}>↩ Return Requests</h2>
+                <button onClick={fetchSellerReturns}
+                  style={{ background: '#6c63ff15', color: '#6c63ff', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: '600' }}>
+                  🔄 Refresh
+                </button>
+              </div>
+
+              {/* Sub-tabs */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                {['pending', 'accepted', 'completed'].map(t => {
+                  const labels = { pending: '⏳ Pending', accepted: '✅ Accepted', completed: '🎉 Completed' };
+                  const counts = {
+                    pending: sellerReturns.filter(r => r.status === 'return_requested').length,
+                    accepted: sellerReturns.filter(r => ['return_accepted', 'return_pickup_assigned', 'return_picked_up', 'return_in_transit'].includes(r.status)).length,
+                    completed: sellerReturns.filter(r => ['return_delivered_to_seller', 'return_completed', 'return_rejected'].includes(r.status)).length,
+                  };
+                  return (
+                    <button key={t} onClick={() => setReturnsSubTab(t)}
+                      style={{
+                        padding: '8px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
+                        background: returnsSubTab === t ? '#6c63ff' : '#f0f0e8',
+                        color: returnsSubTab === t ? 'white' : '#666',
+                      }}>
+                      {labels[t]} {counts[t] > 0 && <span style={{ background: returnsSubTab === t ? 'rgba(255,255,255,0.3)' : '#6c63ff', color: returnsSubTab === t ? 'white' : 'white', borderRadius: '999px', padding: '1px 7px', fontSize: '11px', marginLeft: '4px' }}>{counts[t]}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {returnsLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>Loading returns...</div>
+              ) : (() => {
+                const filtered = sellerReturns.filter(r => {
+                  if (returnsSubTab === 'pending') return r.status === 'return_requested';
+                  if (returnsSubTab === 'accepted') return ['return_accepted', 'return_pickup_assigned', 'return_picked_up', 'return_in_transit'].includes(r.status);
+                  return ['return_delivered_to_seller', 'return_completed', 'return_rejected'].includes(r.status);
+                });
+
+                if (filtered.length === 0) return (
+                  <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>↩</div>
+                    <p>No {returnsSubTab} returns.</p>
+                  </div>
+                );
+
+                const statusBadge = (status) => {
+                  const map = {
+                    return_requested: { bg: '#FEF3C7', color: '#92400E', label: '⏳ Requested' },
+                    return_accepted: { bg: '#DBEAFE', color: '#1E40AF', label: '✅ Accepted' },
+                    return_pickup_assigned: { bg: '#EDE9FE', color: '#5B21B6', label: '🛵 Pickup Pending' },
+                    return_picked_up: { bg: '#D1FAE5', color: '#065F46', label: '📦 Picked Up' },
+                    return_in_transit: { bg: '#DBEAFE', color: '#1E40AF', label: '🚚 In Transit' },
+                    return_delivered_to_seller: { bg: '#FEF3C7', color: '#92400E', label: '📬 Arrived — Confirm?' },
+                    return_completed: { bg: '#D1FAE5', color: '#065F46', label: '🎉 Completed' },
+                    return_rejected: { bg: '#FEE2E2', color: '#991B1B', label: '❌ Rejected' },
+                  };
+                  const b = map[status] || { bg: '#f0f0e8', color: '#666', label: status };
+                  return <span style={{ background: b.bg, color: b.color, borderRadius: '8px', padding: '4px 10px', fontSize: '12px', fontWeight: '700' }}>{b.label}</span>;
+                };
+
+                return filtered.map(ret => (
+                  <div key={ret.id} style={{ padding: '18px', border: '1px solid #f0f0e8', borderRadius: '14px', marginBottom: '14px' }}>
+                    {/* Header row */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <div style={{ fontWeight: '700', color: '#6c63ff', fontSize: '14px' }}>Return #{ret.id.slice(-6).toUpperCase()}</div>
+                        <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>Order #{ret.order_id.slice(-6).toUpperCase()} · {new Date(ret.requested_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                      </div>
+                      {statusBadge(ret.status)}
+                    </div>
+
+                    {/* Buyer info */}
+                    <div style={{ background: '#f8f8f0', borderRadius: '10px', padding: '12px', marginBottom: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#6c63ff', marginBottom: '6px', textTransform: 'uppercase' }}>Buyer</div>
+                      <div style={{ fontWeight: '600', color: '#1a1a2e', fontSize: '14px' }}>👤 {ret.buyer_name}</div>
+                      <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>📍 {ret.delivery_address}</div>
+                    </div>
+
+                    {/* Reason */}
+                    <div style={{ background: '#fff8e8', borderRadius: '10px', padding: '12px', marginBottom: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#B45309', marginBottom: '4px', textTransform: 'uppercase' }}>Reason for Return</div>
+                      <div style={{ fontSize: '13px', color: '#333', lineHeight: '1.5' }}>💬 {ret.reason}</div>
+                      {ret.notes && <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>Notes: {ret.notes}</div>}
+                      {ret.refund_or_replacement && ret.refund_or_replacement !== 'pending' && (
+                        <div style={{ marginTop: '6px', fontSize: '12px', fontWeight: '600', color: '#6c63ff' }}>
+                          Resolution: {ret.refund_or_replacement === 'refund' ? '💰 Refund' : '🔄 Replacement'}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Photo if present */}
+                    {ret.photo_url && (
+                      <div style={{ marginBottom: '12px' }}>
+                        <img src={ret.photo_url} alt="Return photo"
+                          onClick={() => window.open(ret.photo_url, '_blank')}
+                          style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e8e8e0', cursor: 'pointer' }} />
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    {ret.status === 'return_requested' && (
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={() => handleAcceptReturn(ret.id, 'refund')}
+                          style={{ flex: 1, padding: '10px', background: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                          ✅ Accept (Refund)
+                        </button>
+                        <button onClick={() => handleAcceptReturn(ret.id, 'replacement')}
+                          style={{ flex: 1, padding: '10px', background: '#DBEAFE', color: '#1E40AF', border: '1px solid #93C5FD', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                          🔄 Accept (Replace)
+                        </button>
+                        <button onClick={() => handleRejectReturn(ret.id)}
+                          style={{ padding: '10px 14px', background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+                          ❌
+                        </button>
+                      </div>
+                    )}
+
+                    {ret.status === 'return_delivered_to_seller' && (
+                      <button onClick={() => handleConfirmReturn(ret.id)}
+                        style={{ width: '100%', padding: '12px', background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
+                        ✅ Confirm Receipt & Complete Return
+                      </button>
+                    )}
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
+
           {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
   <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>

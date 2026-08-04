@@ -292,6 +292,333 @@ const ReceiptModal = ({ order, onClose }) => (
   </div>
 );
 
+/* ─── ReturnRequestModal ───────────────────────────────────────────────────
+   Bottom-sheet: buyer picks a reason, optionally attaches a photo, submits.
+   Props mirror the state/handlers already set up in BuyerDashboard.
+   ─────────────────────────────────────────────────────────────────────────── */
+const RETURN_REASONS = [
+  'Item damaged / broken on arrival',
+  'Wrong item delivered',
+  'Item not as described',
+  'Missing items / incomplete order',
+  'Item expired or near expiry',
+  'Changed my mind',
+  'Other',
+];
+
+function ReturnRequestModal({
+  order,
+  onClose,
+  returnReason, setReturnReason,
+  returnPhotoFile, setReturnPhotoFile,
+  returnPhotoPreview, setReturnPhotoPreview,
+  returnPhotoUploading, setReturnPhotoUploading,
+  returnSubmitting,
+  onSubmit,
+}) {
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setReturnPhotoFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setReturnPhotoPreview(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh',
+      background: 'rgba(17,17,39,0.55)', zIndex: 350,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      backdropFilter: 'blur(3px)', fontFamily: T.font,
+    }}>
+      <motion.div
+        initial={{ y: 60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.22 }}
+        style={{
+          background: T.card, borderRadius: '24px 24px 0 0',
+          padding: '18px 18px 32px', width: '100%',
+          maxHeight: '92vh', overflowY: 'auto',
+        }}
+      >
+        {/* Handle */}
+        <div style={{ width: '40px', height: '4px', background: T.borderStrong, borderRadius: '999px', margin: '0 auto 18px' }} />
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <div>
+            <h3 style={{ margin: 0, color: T.text, fontSize: '17px', fontWeight: '800' }}>↩ Request a Return</h3>
+            <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '3px' }}>
+              Order #{order.id?.slice(-6).toUpperCase()}
+            </div>
+          </div>
+          <motion.button {...btnTap} onClick={onClose}
+            style={{ background: T.bg, border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', color: T.text }}>
+            ✕
+          </motion.button>
+        </div>
+
+        {/* Return policy notice */}
+        <div style={{ background: T.accentTint, borderRadius: T.radiusMd, padding: '12px 14px', marginBottom: '18px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+          <span style={{ fontSize: '16px', flexShrink: 0 }}>ℹ️</span>
+          <div style={{ fontSize: '12px', color: '#5B21B6', lineHeight: '1.6' }}>
+            Returns are accepted within <strong>7 days</strong> of delivery. The seller will review your request and arrange a pickup if approved.
+          </div>
+        </div>
+
+        {/* Reason selector */}
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontWeight: '700', fontSize: '13px', color: T.text, marginBottom: '8px' }}>
+            Reason for return <span style={{ color: T.error }}>*</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {RETURN_REASONS.map((reason) => (
+              <label key={reason} style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '11px 14px',
+                background: returnReason === reason ? T.errorTint : T.bg,
+                border: `1.5px solid ${returnReason === reason ? T.error : T.border}`,
+                borderRadius: T.radiusSm, cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}>
+                <input
+                  type="radio"
+                  name="return-reason"
+                  value={reason}
+                  checked={returnReason === reason}
+                  onChange={() => setReturnReason(reason)}
+                  style={{ accentColor: T.error, width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: returnReason === reason ? '700' : '500', color: returnReason === reason ? T.error : T.text }}>
+                  {reason}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Optional photo upload */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ fontWeight: '700', fontSize: '13px', color: T.text, marginBottom: '8px' }}>
+            📷 Attach photo <span style={{ fontWeight: '400', color: T.textSoft }}>(optional — helps speed up approval)</span>
+          </div>
+
+          {returnPhotoPreview ? (
+            <div style={{ position: 'relative', marginBottom: '10px' }}>
+              <img src={returnPhotoPreview} alt="Return" style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: T.radiusSm, border: `1px solid ${T.border}` }} />
+              <button onClick={() => { setReturnPhotoFile(null); setReturnPhotoPreview(null); }}
+                style={{ position: 'absolute', top: '8px', right: '8px', background: T.error, color: 'white', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                ✕
+              </button>
+            </div>
+          ) : (
+            <label style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+              padding: '22px 16px',
+              border: `1.5px dashed ${T.primary}`,
+              borderRadius: T.radiusMd, cursor: 'pointer',
+              background: T.primaryTint, color: T.primary,
+              fontWeight: '700', fontSize: '13px',
+            }}>
+              📷 Tap to attach a photo
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
+            </label>
+          )}
+        </div>
+
+        {/* Submit button */}
+        <motion.button
+          {...btnTap}
+          onClick={onSubmit}
+          disabled={returnSubmitting || !returnReason}
+          style={{
+            width: '100%', padding: '15px',
+            background: returnSubmitting || !returnReason ? T.textFaint : T.error,
+            color: 'white', border: 'none', borderRadius: T.radiusSm,
+            fontWeight: '800', fontSize: '14px', cursor: returnSubmitting || !returnReason ? 'not-allowed' : 'pointer',
+            transition: 'background 0.2s',
+          }}
+        >
+          {returnSubmitting ? 'Submitting…' : '↩ Submit Return Request'}
+        </motion.button>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ─── ReturnStatusTracker ──────────────────────────────────────────────────
+   Bottom-sheet: polls GET /returns/:id and shows a step-by-step timeline
+   mirroring the OrderTracking pattern.
+   ─────────────────────────────────────────────────────────────────────────── */
+const RETURN_STEPS = [
+  { key: 'return_requested',          label: 'Return requested',       icon: '📝' },
+  { key: 'return_accepted',           label: 'Accepted by seller',     icon: '✅' },
+  { key: 'return_pickup_assigned',    label: 'Pickup assigned',        icon: '🛵' },
+  { key: 'return_picked_up',          label: 'Picked up from you',     icon: '📦' },
+  { key: 'return_in_transit',         label: 'In transit to seller',   icon: '🚀' },
+  { key: 'return_delivered_to_seller',label: 'Delivered to seller',    icon: '🏪' },
+  { key: 'return_completed',          label: 'Return completed',       icon: '🎉' },
+];
+
+function ReturnStatusTracker({ returnId, onClose }) {
+  const [returnData, setReturnData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchReturn = async () => {
+    try {
+      const res = await API.get(`/returns/${returnId}`);
+      setReturnData(res.data);
+    } catch (err) {
+      console.error('Return fetch failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReturn();
+    const interval = setInterval(fetchReturn, 30000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnId]);
+
+  const currentStatus = returnData?.status || 'return_requested';
+  const currentStepIdx = RETURN_STEPS.findIndex(s => s.key === currentStatus);
+  const isRejected = currentStatus === 'return_rejected';
+
+  const statusLabelMap = {
+    return_requested:           { text: 'Pending seller review', color: '#92400E', bg: '#FEF3C7' },
+    return_accepted:            { text: 'Accepted — Pickup being arranged', color: '#1E40AF', bg: '#DBEAFE' },
+    return_pickup_assigned:     { text: 'Pickup partner assigned', color: '#5B21B6', bg: '#EDE9FE' },
+    return_picked_up:           { text: 'Picked up from you', color: '#065F46', bg: '#D1FAE5' },
+    return_in_transit:          { text: 'On the way to seller', color: '#1E40AF', bg: '#DBEAFE' },
+    return_delivered_to_seller: { text: 'Delivered to seller — Awaiting confirmation', color: '#92400E', bg: '#FEF3C7' },
+    return_completed:           { text: 'Return complete! Refund/replacement in progress', color: '#065F46', bg: '#D1FAE5' },
+    return_rejected:            { text: 'Return rejected by seller', color: '#991B1B', bg: '#FEE2E2' },
+  };
+
+  if (loading) return (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: 'rgba(17,17,39,0.55)', zIndex: 350, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', backdropFilter: 'blur(3px)', fontFamily: T.font }}>
+      <div style={{ background: T.card, borderRadius: '24px 24px 0 0', padding: '18px 18px 32px', width: '100%' }}>
+        <div style={{ textAlign: 'center', padding: '48px', color: T.textFaint }}>Loading return status…</div>
+      </div>
+    </div>
+  );
+
+  const badge = statusLabelMap[currentStatus] || { text: currentStatus, color: T.textSoft, bg: T.bg };
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh',
+      background: 'rgba(17,17,39,0.55)', zIndex: 350,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      backdropFilter: 'blur(3px)', fontFamily: T.font,
+    }}>
+      <motion.div
+        initial={{ y: 60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.22 }}
+        style={{
+          background: T.card, borderRadius: '24px 24px 0 0',
+          padding: '18px 18px 32px', width: '100%',
+          maxHeight: '92vh', overflowY: 'auto',
+        }}
+      >
+        {/* Handle */}
+        <div style={{ width: '40px', height: '4px', background: T.borderStrong, borderRadius: '999px', margin: '0 auto 18px' }} />
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div>
+            <h3 style={{ margin: 0, color: T.text, fontSize: '17px', fontWeight: '800' }}>Return Status</h3>
+            <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '3px' }}>#{returnId?.slice(-6).toUpperCase()}</div>
+          </div>
+          <motion.button {...btnTap} onClick={onClose}
+            style={{ background: T.bg, border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', color: T.text }}>
+            ✕
+          </motion.button>
+        </div>
+
+        {/* Current status banner */}
+        <div style={{ background: badge.bg, borderRadius: T.radiusMd, padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '20px' }}>{isRejected ? '❌' : '↩'}</span>
+          <div style={{ fontSize: '13px', fontWeight: '700', color: badge.color }}>{badge.text}</div>
+        </div>
+
+        {/* Rejection note */}
+        {isRejected && returnData?.notes && (
+          <div style={{ background: T.errorTint, borderRadius: T.radiusMd, padding: '12px 14px', marginBottom: '16px' }}>
+            <div style={{ fontWeight: '700', fontSize: '12px', color: T.error, marginBottom: '4px' }}>Seller's note</div>
+            <div style={{ fontSize: '13px', color: T.text }}>{returnData.notes}</div>
+          </div>
+        )}
+
+        {/* Step timeline — hidden if rejected */}
+        {!isRejected && (
+          <div style={{ marginBottom: '20px' }}>
+            {RETURN_STEPS.map((step, idx) => {
+              const isDone    = idx <= currentStepIdx;
+              const isCurrent = idx === currentStepIdx;
+              return (
+                <div key={step.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      background: isCurrent ? T.error : isDone ? T.errorTint : T.bg,
+                      border: isCurrent ? `2px solid ${T.error}` : isDone ? `2px solid ${T.error}` : `2px solid ${T.border}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '13px', flexShrink: 0,
+                      color: isCurrent ? 'white' : T.error, fontWeight: '700',
+                      boxShadow: isCurrent ? `0 0 0 4px ${T.errorTint}` : 'none',
+                    }}>
+                      {isDone ? '✓' : ''}
+                    </div>
+                    {idx < RETURN_STEPS.length - 1 && (
+                      <div style={{ width: '2px', height: '26px', background: idx < currentStepIdx ? T.error : T.border, marginTop: '2px' }} />
+                    )}
+                  </div>
+                  <div style={{ paddingTop: '4px' }}>
+                    <div style={{ fontWeight: isCurrent ? '700' : '500', color: isDone ? T.text : T.textFaint, fontSize: '14px' }}>
+                      {step.icon} {step.label}
+                    </div>
+                    {isCurrent && (
+                      <div style={{ fontSize: '11px', color: T.error, fontWeight: '600', marginTop: '2px' }}>● Current status</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Refund / replacement info */}
+        {returnData?.refund_or_replacement && returnData.refund_or_replacement !== 'pending' && (
+          <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '12px 16px', marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <span style={{ fontSize: '20px' }}>{returnData.refund_or_replacement === 'refund' ? '💰' : '🔄'}</span>
+            <div>
+              <div style={{ fontWeight: '700', fontSize: '13px', color: T.primary }}>
+                {returnData.refund_or_replacement === 'refund' ? 'Refund approved' : 'Replacement approved'}
+              </div>
+              <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '2px' }}>
+                {returnData.refund_or_replacement === 'refund'
+                  ? 'Refund will be processed after the seller confirms receipt.'
+                  : 'Replacement will be shipped after return is confirmed.'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Refresh */}
+        <motion.button {...btnTap} onClick={fetchReturn}
+          style={{ width: '100%', padding: '13px', background: T.errorTint, color: T.error, border: 'none', borderRadius: T.radiusSm, fontWeight: '700', cursor: 'pointer', fontSize: '13px' }}>
+          ↻ Refresh
+        </motion.button>
+      </motion.div>
+    </div>
+  );
+}
+
 const FontLoader = () => (
   <style>{`
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
@@ -757,6 +1084,38 @@ export default function BuyerDashboard() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [receiptOrder, setReceiptOrder] = useState(null);
+  // ---- Returns ----
+  const [returnModalOrder, setReturnModalOrder] = useState(null); // order to return
+  const [returnTrackerReturnId, setReturnTrackerReturnId] = useState(null); // return id to track
+  const [returnReason, setReturnReason] = useState('');
+  const [returnPhotoFile, setReturnPhotoFile] = useState(null);
+  const [returnPhotoPreview, setReturnPhotoPreview] = useState(null);
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnPhotoUploading, setReturnPhotoUploading] = useState(false);
+
+  const submitReturn = async () => {
+    if (!returnReason.trim()) { showToast('Please select a reason', 'error'); return; }
+    setReturnSubmitting(true);
+    try {
+      let photoUrl = null;
+      if (returnPhotoFile) {
+        const formData = new FormData();
+        formData.append('image', returnPhotoFile);
+        const uploadRes = await API.post('/uploads/product-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        photoUrl = uploadRes.data.url;
+      }
+      await API.post('/returns', { order_id: returnModalOrder.id, reason: returnReason, photo_url: photoUrl });
+      showToast('↩ Return request submitted!', 'success');
+      setReturnModalOrder(null);
+      setReturnReason('');
+      setReturnPhotoFile(null);
+      setReturnPhotoPreview(null);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to submit return', 'error');
+    } finally {
+      setReturnSubmitting(false);
+    }
+  };
   const [deliveryCharge, setDeliveryCharge] = useState(20);
   const [buyerLocation, setBuyerLocation] = useState(null);
   const [savedAddresses, setSavedAddresses] = useState(() => {
@@ -2089,8 +2448,20 @@ export default function BuyerDashboard() {
                             </motion.button>
                             <motion.button {...btnTap} onClick={() => setReceiptOrder(order)}
                               style={{ flex: 1, padding: '10px', background: '#f5f5f5', color: '#444', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>
-                              🧾 Receipt
+                              🧧 Receipt
                             </motion.button>
+                            {/* Return button — only within 7-day window */}
+                            {(() => {
+                              if (!order.delivered_at) return null;
+                              const deliveredAt = new Date(order.delivered_at);
+                              const daysDiff = Math.floor((Date.now() - deliveredAt) / (1000 * 60 * 60 * 24));
+                              return daysDiff <= 7 ? (
+                                <motion.button {...btnTap} onClick={() => setReturnModalOrder(order)}
+                                  style={{ flex: 1, padding: '10px', background: T.errorTint, color: T.error, border: `1px solid ${T.error}`, borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>
+                                  ↩ Return
+                                </motion.button>
+                              ) : null;
+                            })()}
                           </>
                         )}
                       </div>
@@ -2599,6 +2970,25 @@ export default function BuyerDashboard() {
       )}
       {receiptOrder && (
         <ReceiptModal order={receiptOrder} onClose={() => setReceiptOrder(null)} />
+      )}
+      {returnModalOrder && (
+        <ReturnRequestModal
+          order={returnModalOrder}
+          onClose={() => { setReturnModalOrder(null); setReturnReason(''); setReturnPhotoFile(null); setReturnPhotoPreview(null); }}
+          returnReason={returnReason}
+          setReturnReason={setReturnReason}
+          returnPhotoFile={returnPhotoFile}
+          setReturnPhotoFile={setReturnPhotoFile}
+          returnPhotoPreview={returnPhotoPreview}
+          setReturnPhotoPreview={setReturnPhotoPreview}
+          returnPhotoUploading={returnPhotoUploading}
+          setReturnPhotoUploading={setReturnPhotoUploading}
+          returnSubmitting={returnSubmitting}
+          onSubmit={submitReturn}
+        />
+      )}
+      {returnTrackerReturnId && (
+        <ReturnStatusTracker returnId={returnTrackerReturnId} onClose={() => setReturnTrackerReturnId(null)} />
       )}
 
       {/* ── QR Payment Flow ────────────────────────────────────── */}
