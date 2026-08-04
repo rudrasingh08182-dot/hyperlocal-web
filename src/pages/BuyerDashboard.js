@@ -6,7 +6,8 @@ import { Toast, showToast } from '../components/Toast';
 import HeroBannerCarousel from '../components/HeroBannerCarousel';
 import UnserviceableModal from '../components/UnserviceableModal';
 import OfflinePage from '../components/OfflinePage';
-
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 /* ============================================================
    ZAPLO — BLINKIT-INSPIRED DESIGN SYSTEM
    Punchy, dense, quick-commerce. All backend routes/APIs are
@@ -78,6 +79,218 @@ const shuffleArray = (arr) => {
   }
   return a;
 };
+ 
+  // Generates a Zaplo-branded receipt PDF for a delivered order
+const generateReceiptPDF = (order) => {
+  const doc = new jsPDF();
+  const NAVY = [27, 58, 92];
+  const LIGHT = [234, 241, 248];
+
+  // Header
+  doc.setFontSize(22);
+  doc.setTextColor(...NAVY);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ZAPLO', 14, 20);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100);
+  doc.text('Hyperlocal Commerce', 14, 26);
+
+  doc.setFontSize(20);
+  doc.setTextColor(...NAVY);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RECEIPT', 196, 20, { align: 'right' });
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100);
+  doc.text(`Receipt #: ${order.id.slice(-8).toUpperCase()}`, 196, 27, { align: 'right' });
+  doc.text(`Date: ${new Date(order.created_at).toLocaleDateString()}`, 196, 32, { align: 'right' });
+
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(0.5);
+  doc.line(14, 38, 196, 38);
+
+  // Sold By (shop)
+  doc.setFontSize(10);
+  doc.setTextColor(...NAVY);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SOLD BY', 14, 48);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(40);
+  doc.text(order.shop_name || '-', 14, 54);
+  doc.setTextColor(100);
+  doc.text(order.shop_address || '', 14, 59);
+  if (order.shop_phone) doc.text(`Ph: ${order.shop_phone}`, 14, 64);
+
+  // Delivered To (buyer)
+  doc.setFontSize(10);
+  doc.setTextColor(...NAVY);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DELIVERED TO', 120, 48);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(40);
+  const addrLines = doc.splitTextToSize(order.delivery_address || '-', 70);
+  doc.text(addrLines, 120, 54);
+  let yAfterAddr = 54 + (addrLines.length * 5);
+  doc.setTextColor(100);
+  if (order.delivery_phone) { doc.text(`Ph: ${order.delivery_phone}`, 120, yAfterAddr); yAfterAddr += 5; }
+
+  // Items table
+  const startY = Math.max(75, yAfterAddr + 8);
+  const rows = (order.items || []).map(i => [
+    i.quantity,
+    i.variant_value ? `${i.name} (${i.variant_value})` : i.name,
+    `Rs.${parseFloat(i.unit_price).toFixed(2)}`,
+    `Rs.${(i.unit_price * i.quantity).toFixed(2)}`,
+  ]);
+
+  autoTable(doc, {
+    startY,
+    head: [['QTY', 'Description', 'Unit Price', 'Amount']],
+    body: rows,
+    headStyles: { fillColor: NAVY, textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: 10, cellPadding: 4 },
+    columnStyles: { 0: { cellWidth: 20 }, 2: { cellWidth: 35 }, 3: { cellWidth: 35 } },
+  });
+
+  let finalY = doc.lastAutoTable.finalY + 10;
+
+  // Totals
+  const totalsX = 130;
+  doc.setFontSize(10);
+  doc.setTextColor(80);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Subtotal', totalsX, finalY);
+  doc.text(`Rs.${parseFloat(order.total_amount).toFixed(2)}`, 196, finalY, { align: 'right' });
+  finalY += 6;
+  doc.text('Delivery Charge', totalsX, finalY);
+  doc.text(`Rs.${parseFloat(order.delivery_charge || 0).toFixed(2)}`, 196, finalY, { align: 'right' });
+  finalY += 4;
+  doc.setDrawColor(200);
+  doc.line(totalsX, finalY, 196, finalY);
+  finalY += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(...NAVY);
+  doc.text('Total', totalsX, finalY);
+  doc.text(`Rs.${(parseFloat(order.total_amount) + parseFloat(order.delivery_charge || 0)).toFixed(2)}`, 196, finalY, { align: 'right' });
+
+  // Notes
+  finalY += 20;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120);
+  doc.text('Payment Method: ' + (order.payment_method || '-'), 14, finalY);
+  finalY += 10;
+  doc.setFillColor(...LIGHT);
+  doc.rect(14, finalY, 182, 20, 'F');
+  doc.setTextColor(...NAVY);
+  doc.setFont('helvetica', 'italic');
+  doc.text('Thank you for shopping with Zaplo!', 20, finalY + 12);
+
+  // Zaplo signature
+  finalY += 36;
+  doc.setFont('helvetica', 'bolditalic');
+  doc.setFontSize(16);
+  doc.setTextColor(...NAVY);
+  doc.text('Zaplo', 196, finalY, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  doc.text('Verified & Issued by Zaplo Platform', 196, finalY + 5, { align: 'right' });
+
+  doc.save(`Zaplo_Receipt_${order.id.slice(-8).toUpperCase()}.pdf`);
+};
+
+const ReceiptModal = ({ order, onClose }) => (
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,17,39,0.6)', zIndex: 500, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+    <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+      style={{ background: 'white', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: '480px', maxHeight: '92vh', overflowY: 'auto', fontFamily: T.font }}>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #EBEBEB' }}>
+        <div style={{ fontWeight: 800, fontSize: '16px', color: '#1B3A5C' }}>Receipt</div>
+        <button onClick={onClose} style={{ background: '#F5F6F7', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '15px' }}>✕</button>
+      </div>
+
+      <div style={{ padding: '20px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: '20px', color: '#1B3A5C', letterSpacing: '0.02em' }}>ZAPLO</div>
+            <div style={{ fontSize: '11px', color: '#999' }}>Hyperlocal Commerce</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontWeight: 800, fontSize: '18px', color: '#1B3A5C' }}>RECEIPT</div>
+            <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>#{order.id.slice(-8).toUpperCase()}</div>
+            <div style={{ fontSize: '11px', color: '#999' }}>{new Date(order.created_at).toLocaleDateString()}</div>
+          </div>
+        </div>
+
+        <div style={{ borderTop: '2px solid #1B3A5C', marginBottom: '16px' }} />
+
+        {/* Sold By / Delivered To */}
+        <div style={{ display: 'flex', gap: '16px', marginBottom: '18px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '150px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 800, color: '#1B3A5C', letterSpacing: '0.05em', marginBottom: '6px' }}>SOLD BY</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#1a1a2e' }}>{order.shop_name}</div>
+            <div style={{ fontSize: '12px', color: '#777', marginTop: '2px' }}>{order.shop_address}</div>
+            {order.shop_phone && <div style={{ fontSize: '12px', color: '#777' }}>Ph: {order.shop_phone}</div>}
+          </div>
+          <div style={{ flex: 1, minWidth: '150px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 800, color: '#1B3A5C', letterSpacing: '0.05em', marginBottom: '6px' }}>DELIVERED TO</div>
+            <div style={{ fontSize: '12px', color: '#1a1a2e' }}>{order.delivery_address}</div>
+            {order.delivery_phone && <div style={{ fontSize: '12px', color: '#777', marginTop: '2px' }}>Ph: {order.delivery_phone}</div>}
+          </div>
+        </div>
+
+        {/* Items table */}
+        <div style={{ border: '1px solid #EBEBEB', borderRadius: '8px', overflow: 'hidden', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 70px 70px', background: '#1B3A5C', color: 'white', padding: '8px 10px', fontSize: '11px', fontWeight: 700 }}>
+            <span>QTY</span><span>Description</span><span style={{ textAlign: 'right' }}>Price</span><span style={{ textAlign: 'right' }}>Amount</span>
+          </div>
+          {(order.items || []).map((item, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 70px 70px', padding: '8px 10px', fontSize: '12px', borderTop: '1px solid #F0F0F0', color: '#333' }}>
+              <span>{item.quantity}</span>
+              <span>{item.name}{item.variant_value ? ` (${item.variant_value})` : ''}</span>
+              <span style={{ textAlign: 'right' }}>₹{parseFloat(item.unit_price).toFixed(2)}</span>
+              <span style={{ textAlign: 'right', fontWeight: 700 }}>₹{(item.unit_price * item.quantity).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Totals */}
+        <div style={{ marginLeft: 'auto', width: '60%', minWidth: '200px', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', padding: '4px 0' }}>
+            <span>Subtotal</span><span>₹{parseFloat(order.total_amount).toFixed(2)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', padding: '4px 0', borderBottom: '1px solid #EBEBEB' }}>
+            <span>Delivery Charge</span><span>₹{parseFloat(order.delivery_charge || 0).toFixed(2)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 800, color: '#1B3A5C', padding: '8px 0' }}>
+            <span>Total</span><span>₹{(parseFloat(order.total_amount) + parseFloat(order.delivery_charge || 0)).toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div style={{ fontSize: '11px', color: '#999', marginBottom: '10px' }}>Payment Method: {order.payment_method}</div>
+        <div style={{ background: '#EAF1F8', borderRadius: '8px', padding: '12px 14px', marginBottom: '20px', fontSize: '12px', color: '#1B3A5C', fontStyle: 'italic' }}>
+          Thank you for shopping with Zaplo!
+        </div>
+
+        {/* Zaplo Signature */}
+        <div style={{ textAlign: 'right', marginBottom: '20px' }}>
+          <div style={{ fontFamily: 'cursive', fontSize: '22px', fontWeight: 700, color: '#1B3A5C', fontStyle: 'italic' }}>Zaplo</div>
+          <div style={{ fontSize: '10px', color: '#999' }}>Verified & Issued by Zaplo Platform</div>
+        </div>
+
+        <motion.button {...btnTap} onClick={() => generateReceiptPDF(order)}
+          style={{ width: '100%', padding: '14px', background: '#1B3A5C', color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: 800, fontSize: '14px', cursor: 'pointer' }}>
+          ⬇ Download PDF
+        </motion.button>
+      </div>
+    </motion.div>
+  </div>
+);
 
 const FontLoader = () => (
   <style>{`
@@ -1723,6 +1936,12 @@ export default function BuyerDashboard() {
                       View details & return
                     </motion.button>
                   )}
+                  {order.status === 'delivered' && (
+                    <motion.button {...btnTap} onClick={() => setReceiptOrder(order)}
+                      style={{ width: '100%', marginTop: '8px', padding: '11px', background: T.card, color: T.primary, border: `1.5px solid ${T.primary}`, borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '13px' }}>
+                      🧾 View Receipt
+                    </motion.button>
+                  )}
                 </div>
               );
             })}
@@ -2223,6 +2442,9 @@ export default function BuyerDashboard() {
 
       {trackingOrderId && (
         <OrderTracking orderId={trackingOrderId} onClose={() => window.history.back()} />
+      )}
+      {receiptOrder && (
+        <ReceiptModal order={receiptOrder} onClose={() => setReceiptOrder(null)} />
       )}
 
       {/* ── QR Payment Flow ────────────────────────────────────── */}
