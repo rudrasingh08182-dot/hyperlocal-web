@@ -756,6 +756,7 @@ export default function BuyerDashboard() {
   const [searchMode, setSearchMode] = useState('products');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [trackingOrderId, setTrackingOrderId] = useState(null);
+  const [receiptOrder, setReceiptOrder] = useState(null);
   const [deliveryCharge, setDeliveryCharge] = useState(20);
   const [buyerLocation, setBuyerLocation] = useState(null);
   const [savedAddresses, setSavedAddresses] = useState(() => {
