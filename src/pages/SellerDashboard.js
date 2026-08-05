@@ -121,7 +121,7 @@ const updateVariantRow = (idx, field, value) => {
 });
 const [bankLoading, setBankLoading] = useState(false);
 const [bankSaved, setBankSaved] = useState(false);
-
+const [bankLocked, setBankLocked] = useState(false);
 // ── Temporary QR-based payment system state ──
 const [qrCodeUrl, setQrCodeUrl] = useState(null);
 const [qrUploading, setQrUploading] = useState(false);
@@ -264,6 +264,7 @@ const fetchBankDetails = async () => {
     if (details) {
       setBankDetails(details);
       setQrCodeUrl(details.qr_code_url || null);
+      setBankLocked(true); // already saved — lock until seller taps Edit
     }
   } catch (err) {
     console.error('Bank details fetch failed');
@@ -273,8 +274,12 @@ const fetchBankDetails = async () => {
 const saveBankDetails = async () => {
   setBankLoading(true);
   try {
-    await API.post('/sellers/bank-details', bankDetails);
+    const res = await API.post('/sellers/bank-details', bankDetails);
+    // Server returns the masked account number — use that as the source of
+    // truth so the locked view shows XXXXXXXX1234, not the raw typed value.
+    if (res.data?.bank_details) setBankDetails(res.data.bank_details);
     setBankSaved(true);
+    setBankLocked(true);
     setTimeout(() => setBankSaved(false), 3000);
   } catch (err) {
     showToast(err.response?.data?.error || 'Failed to save', 'error');
@@ -1254,27 +1259,53 @@ const saveProduct = async () => {
       </div>
     )}
 
+    {bankLocked && (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f7ff', border: '1px solid #e8e0ff', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px' }}>
+        <span style={{ fontSize: '13px', color: '#6c63ff', fontWeight: '600' }}>🔒 Bank details saved & locked</span>
+        <button onClick={() => setBankLocked(false)}
+          style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 18px', cursor: 'pointer', fontWeight: '700', fontSize: '12px' }}>
+          ✏️ Edit
+        </button>
+      </div>
+    )}
+
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
       {[
         { label: 'Account Holder Name', key: 'account_holder_name', placeholder: 'Full name as per bank' },
         { label: 'Bank Name', key: 'bank_name', placeholder: 'e.g. SBI, HDFC, ICICI' },
-        { label: 'Account Number', key: 'account_number', placeholder: 'Enter account number' },
+        { label: 'Account Number', key: 'account_number', placeholder: bankLocked ? '' : 'Enter account number' },
         { label: 'IFSC Code', key: 'ifsc_code', placeholder: 'e.g. SBIN0001234' },
         { label: 'UPI ID (optional)', key: 'upi_id', placeholder: 'e.g. name@upi' },
       ].map(f => (
         <div key={f.key}>
           <label style={{ fontSize: '13px', color: '#666', fontWeight: '600', display: 'block', marginBottom: '6px' }}>{f.label}</label>
-          <input placeholder={f.placeholder} value={bankDetails[f.key] || ''}
+          <input
+            placeholder={f.placeholder}
+            value={
+              // While locked, show the masked account number from the server.
+              // Once unlocked for editing, clear it so the seller types a fresh
+              // real number instead of accidentally re-submitting "XXXX1234".
+              f.key === 'account_number' && !bankLocked && bankDetails[f.key]?.startsWith('X')
+                ? ''
+                : bankDetails[f.key] || ''
+            }
+            disabled={bankLocked}
             onChange={e => setBankDetails({ ...bankDetails, [f.key]: e.target.value })}
-            style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+            style={{
+              width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px',
+              fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+              background: bankLocked ? '#f5f5f0' : 'white', color: bankLocked ? '#888' : '#1a1a2e',
+              cursor: bankLocked ? 'not-allowed' : 'text',
+            }} />
         </div>
       ))}
 
       <div>
         <label style={{ fontSize: '13px', color: '#666', fontWeight: '600', display: 'block', marginBottom: '6px' }}>Account Type</label>
         <select value={bankDetails.account_type || 'savings'}
+          disabled={bankLocked}
           onChange={e => setBankDetails({ ...bankDetails, account_type: e.target.value })}
-          style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+          style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', background: bankLocked ? '#f5f5f0' : 'white', color: bankLocked ? '#888' : '#1a1a2e', cursor: bankLocked ? 'not-allowed' : 'pointer' }}>
           <option value="savings">Savings Account</option>
           <option value="current">Current Account</option>
         </select>
@@ -1324,10 +1355,12 @@ const saveProduct = async () => {
       </div>
     </div>
 
-    <button onClick={saveBankDetails} disabled={bankLoading}
-      style={{ marginTop: '20px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '14px 40px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', opacity: bankLoading ? 0.7 : 1 }}>
-      {bankLoading ? 'Saving...' : '💾 Save Bank Details'}
-    </button>
+    {!bankLocked && (
+  <button onClick={saveBankDetails} disabled={bankLoading}
+    style={{ marginTop: '20px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '14px 40px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', opacity: bankLoading ? 0.7 : 1 }}>
+    {bankLoading ? 'Saving...' : '💾 Save Bank Details'}
+  </button>
+)}
   </div>
 )}
 
