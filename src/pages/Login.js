@@ -18,10 +18,13 @@ export default function Login() {
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       const userRole = res.data.user.role;
-      if (userRole === 'admin') window.location.href = '/admin';
-      else if (userRole === 'seller') window.location.href = '/seller';
-      else if (userRole === 'delivery') window.location.href = '/delivery';
-      else window.location.href = '/buyer';
+      // location.replace (not href) — swaps the login page out of history
+      // instead of pushing a new entry, so pressing Back after login never
+      // lands the user back on the login screen.
+      if (userRole === 'admin') window.location.replace('/admin');
+      else if (userRole === 'seller') window.location.replace('/seller');
+      else if (userRole === 'delivery') window.location.replace('/delivery');
+      else window.location.replace('/buyer');
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid phone or password');
     } finally {
