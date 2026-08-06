@@ -540,10 +540,15 @@ export default function DeliveryDashboard() {
                     </div>
 
                     {order.distance_km && (
-                      <div style={{ fontSize: 13, color: T.ink2, marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <Icon.Pin /> Approx <strong style={{ color: T.ink }}>&nbsp;{order.distance_km} km</strong>
-                      </div>
-                    )}
+                    <div style={{ fontSize: 13, color: T.ink2, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Icon.Pin /> You → Pickup: <strong style={{ color: T.ink }}>&nbsp;{order.distance_km} km</strong>
+                    </div>
+                  )}
+                  {order.seller_buyer_distance_km && (
+                    <div style={{ fontSize: 13, color: T.ink2, marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Icon.Nav /> Pickup → Drop: <strong style={{ color: T.ink }}>&nbsp;{parseFloat(order.seller_buyer_distance_km).toFixed(1)} km</strong>
+                    </div>
+                  )}
 
                     <button onClick={() => acceptDelivery(order.id)}
                       style={{ width: '100%', padding: '13px', background: T.ink, color: '#fff', border: 'none', borderRadius: 11, fontSize: 14.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -678,6 +683,11 @@ export default function DeliveryDashboard() {
                       ₹{order.total_amount}
                       <span style={{ fontSize: 12, color: T.mute, fontWeight: 500, marginLeft: 8 }}>{order.payment_method}</span>
                     </div>
+                    {order.seller_buyer_distance_km && (
+                      <div style={{ fontSize: 12, color: T.mute }}>
+                        Pickup → Drop: <strong style={{ color: T.ink }}>{parseFloat(order.seller_buyer_distance_km).toFixed(1)} km</strong>
+                      </div>
+                    )}
                   </div>
 
                   {order.payment_method === 'COD' && !order.delivery_payment_confirmed && (
