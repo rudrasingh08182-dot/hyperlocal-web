@@ -14,7 +14,7 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const res = await loginUser(form);
+      const res = await loginUser({ ...form, role });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       const userRole = res.data.user.role;
