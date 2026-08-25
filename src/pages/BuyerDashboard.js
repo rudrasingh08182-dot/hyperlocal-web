@@ -2654,7 +2654,7 @@ export default function BuyerDashboard() {
           </div>
 
           <div style={{ textAlign: 'center', color: T.textFaint, fontSize: '11px', marginTop: '6px' }}>
-            App version 1.0.0
+            App version 1.1.0
           </div>
         </div>
       )}
