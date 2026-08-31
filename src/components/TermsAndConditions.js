@@ -32,7 +32,7 @@ const SECTIONS = [
   },
   {
     title: '3. Orders & payments',
-    body: 'Orders can be paid via Cash on Delivery or Online payment (processed securely through Razorpay). Zaplo charges a 10% platform commission on the order value; the remaining 90% is paid to the Seller. Prices, availability, and stock are set by individual Sellers and may change without notice.',
+    body: 'Orders can be paid via Cash on Delivery, or directly to the Seller via UPI/QR code shown at checkout. Zaplo does not process online payments and does not collect or store any payment credentials — payment for the order is completed directly between the Buyer and Seller. Separately, Zaplo collects a 10% platform commission from the Seller on each order value; this commission is settled directly between Zaplo and the Seller and does not involve the Buyer. Prices, availability, and stock are set by individual Sellers and may change without notice.',
   },
   {
     title: '4. Delivery charges & earnings',
@@ -51,11 +51,23 @@ const SECTIONS = [
     body: 'Delivery Partners are responsible for timely pickup and delivery, accurate status updates, and professional conduct with Buyers and Sellers. Delivery charges collected from Buyers belong to the Delivery Partner completing that order.',
   },
   {
-    title: '8. Limitation of liability',
+    title: '8. Account suspension & termination',
+    body: 'Zaplo may suspend or permanently delete the account of any Buyer, Seller, or Delivery Partner found to be violating these Terms & Conditions, engaging in fraudulent activity, or behaving in a manner that harms other users or the platform. Where possible, Zaplo will attempt to notify the affected user of the reason for suspension or deletion.',
+  },
+  {
+    title: '9. Content ownership & usage',
+    body: 'Sellers retain ownership of the product photos they upload, and Buyers retain ownership of the reviews and ratings they submit. By uploading this content to Zaplo, you grant Zaplo a non-exclusive, royalty-free licence to display, reproduce, and use it within the app and in Zaplo\'s promotional materials, for the purpose of showcasing Sellers and building trust between Buyers and Sellers on the platform.',
+  },
+  {
+    title: '10. Limitation of liability',
     body: 'Zaplo acts as a platform connecting Buyers, Sellers, and Delivery Partners. We are not the manufacturer or seller of any listed product, and we are not liable for product quality, delivery delays outside our reasonable control, or disputes between parties, beyond facilitating a resolution in good faith.',
   },
   {
-    title: '9. Changes to these terms',
+    title: '11. Governing law & dispute resolution',
+    body: 'These Terms & Conditions are governed by the laws of India. Any disputes arising out of or relating to the use of Zaplo shall be subject to the exclusive jurisdiction of the courts of Lucknow, Uttar Pradesh.',
+  },
+  {
+    title: '12. Changes to these terms',
     body: 'We may update these Terms & Conditions from time to time. Continued use of the app after changes are posted means you accept the revised terms.',
   },
 ];
@@ -77,7 +89,7 @@ export default function TermsAndConditions({ onBack }) {
           </motion.button>
         )}
         <h2 style={{ color: 'white', margin: 0, fontSize: '19px', fontWeight: '800' }}>Terms & Conditions</h2>
-        <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '12px', marginTop: '6px' }}>Last updated: July 2026</div>
+        <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '12px', marginTop: '6px' }}>Last updated: August 2026</div>
       </div>
 
       <div style={{ padding: '20px' }}>
