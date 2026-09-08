@@ -500,6 +500,7 @@ const viewPaymentForOrder = async (orderId) => {
   fetchProducts();
   fetchOrders();
   fetchShopSettings();
+  fetchServerNotifications();
   // Request FCM token for seller — sellers table mein save hoga
   import('../services/fcmToken').then(({ registerFCMToken, onForegroundMessage }) => {
     registerFCMToken('seller');
@@ -543,6 +544,7 @@ useEffect(() => {
         }
       }
       setDashboardData(newData);
+      fetchServerNotifications();
     } catch (err) {
       console.error('Poll failed');
     }
@@ -579,6 +581,30 @@ useEffect(() => {
       setOrders(res.data);
     } catch (err) {
       console.error('Orders fetch failed:', err);
+    }
+  };
+
+  const [serverNotifications, setServerNotifications] = useState([]);
+
+  const fetchServerNotifications = async () => {
+    try {
+      const res = await API.get('/notifications');
+      setServerNotifications(res.data);
+    } catch (err) {
+      console.error('Notifications fetch failed:', err);
+    }
+  };
+
+  const openNotifPanel = async () => {
+    const opening = !showNotif;
+    setShowNotif(opening);
+    if (opening && serverNotifications.some(n => !n.is_read)) {
+      try {
+        await API.patch('/notifications/mark-all-read');
+        setServerNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      } catch (err) {
+        console.error('Mark read failed:', err);
+      }
     }
   };
 const [storeOnline, setStoreOnline] = useState(true);
@@ -708,7 +734,7 @@ const saveProduct = async () => {
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = serverNotifications.filter(n => !n.is_read).length;
 
   const navItems = [
   { id: 'dashboard', icon: <FiHome />, label: 'Dashboard' },
@@ -800,11 +826,7 @@ const saveProduct = async () => {
             </div>
 
             <div style={{ position: 'relative' }}>
-              <button onClick={() => {
-                setShowNotif(!showNotif);
-                // Mark all as read when opened
-                if (!showNotif) setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-              }} style={{ background: '#f8f8f0', border: 'none', borderRadius: '10px', padding: '10px', cursor: 'pointer', fontSize: '18px', position: 'relative' }}>
+              <button onClick={openNotifPanel} style={{ background: '#f8f8f0', border: 'none', borderRadius: '10px', padding: '10px', cursor: 'pointer', fontSize: '18px', position: 'relative' }}>
                 <FiBell color={unreadCount > 0 ? '#6c63ff' : '#666'} />
                 {unreadCount > 0 && <span style={{ position: 'absolute', top: '4px', right: '4px', background: '#ff4444', color: 'white', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>{unreadCount}</span>}
               </button>
@@ -815,26 +837,21 @@ const saveProduct = async () => {
                   {/* Header */}
                   <div style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: '700', fontSize: '14px', color: '#1a1a2e' }}>🔔 Notifications</span>
-                    {notifications.length > 0 && (
-                      <button onClick={() => setNotifications([])}
-                        style={{ background: 'none', border: 'none', fontSize: '11px', color: '#999', cursor: 'pointer' }}>
-                        Clear all
-                      </button>
-                    )}
                   </div>
 
                   {/* List */}
                   <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
-                    {notifications.length === 0 ? (
+                    {serverNotifications.length === 0 ? (
                       <div style={{ padding: '40px 16px', textAlign: 'center', color: '#bbb' }}>
                         <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔔</div>
                         <div style={{ fontSize: '13px' }}>Koi notification nahi hai</div>
                       </div>
                     ) : (
-                      notifications.map(n => (
-                        <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f8f8f0', background: n.read ? 'white' : '#f5f3ff' }}>
-                          <div style={{ fontSize: '13px', color: '#1a1a2e', fontWeight: n.read ? '400' : '600', lineHeight: '1.5' }}>{n.msg}</div>
-                          <div style={{ fontSize: '11px', color: '#bbb', marginTop: '4px' }}>{n.time}</div>
+                      serverNotifications.map(n => (
+                        <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f8f8f0', background: n.is_read ? 'white' : '#f5f3ff' }}>
+                          <div style={{ fontSize: '13px', color: '#1a1a2e', fontWeight: n.is_read ? '400' : '600', lineHeight: '1.5' }}>{n.title}</div>
+                          <div style={{ fontSize: '12px', color: '#666', marginTop: '2px', lineHeight: '1.5' }}>{n.body}</div>
+                          <div style={{ fontSize: '11px', color: '#bbb', marginTop: '4px' }}>{new Date(n.created_at).toLocaleString()}</div>
                         </div>
                       ))
                     )}

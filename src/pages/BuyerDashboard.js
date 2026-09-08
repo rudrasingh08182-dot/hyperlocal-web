@@ -1467,10 +1467,37 @@ export default function BuyerDashboard() {
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
 
  const [banners, setBanners] = useState([]);
+  const [myNotifications, setMyNotifications] = useState([]);
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+
+  const fetchMyNotifications = async () => {
+    try {
+      const res = await API.get('/notifications');
+      setMyNotifications(res.data);
+    } catch (err) {
+      console.error('Notifications fetch failed:', err);
+    }
+  };
+
+  const openBuyerNotifPanel = async () => {
+    const opening = !showNotifPanel;
+    setShowNotifPanel(opening);
+    if (opening && myNotifications.some(n => !n.is_read)) {
+      try {
+        await API.patch('/notifications/mark-all-read');
+        setMyNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      } catch (err) {
+        console.error('Mark read failed:', err);
+      }
+    }
+  };
 
   useEffect(() => {
     loadAllProducts();
     fetchBanners();
+    fetchMyNotifications();
+    const interval = setInterval(fetchMyNotifications, 30000);
+    return () => clearInterval(interval);
   }, []);
 
 
@@ -1893,10 +1920,19 @@ export default function BuyerDashboard() {
                   📍 <span style={{ fontWeight: '600' }}>Your Location ▾</span>
                 </div>
               </div>
-              <motion.div {...btnTap} onClick={() => navigate({ screen: 'profile' })}
-                style={{ width: '40px', height: '40px', background: T.text, color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: '800', fontSize: '15px', flexShrink: 0 }}>
-                {user.name?.[0]?.toUpperCase() || '👤'}
-              </motion.div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                <motion.div {...btnTap} onClick={openBuyerNotifPanel}
+                  style={{ position: 'relative', width: '40px', height: '40px', background: 'rgba(0,0,0,0.08)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px' }}>
+                  🔔
+                  {myNotifications.some(n => !n.is_read) && (
+                    <span style={{ position: 'absolute', top: '4px', right: '4px', width: '9px', height: '9px', borderRadius: '50%', background: T.error, border: '2px solid white' }} />
+                  )}
+                </motion.div>
+                <motion.div {...btnTap} onClick={() => navigate({ screen: 'profile' })}
+                  style={{ width: '40px', height: '40px', background: T.text, color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: '800', fontSize: '15px' }}>
+                  {user.name?.[0]?.toUpperCase() || '👤'}
+                </motion.div>
+              </div>
             </div>
 
             {/* Search Bar */}
@@ -3243,6 +3279,30 @@ export default function BuyerDashboard() {
       )}
       {receiptOrder && (
         <ReceiptModal order={receiptOrder} onClose={() => setReceiptOrder(null)} />
+      )}
+      {showNotifPanel && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: 'rgba(17,17,39,0.55)', zIndex: 350, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', backdropFilter: 'blur(3px)', fontFamily: T.font }}
+          onClick={() => setShowNotifPanel(false)}>
+          <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.22 }}
+            onClick={e => e.stopPropagation()}
+            style={{ background: T.card, borderRadius: '24px 24px 0 0', padding: '18px 18px 32px', width: '100%', maxHeight: '75vh', overflowY: 'auto' }}>
+            <div style={{ width: '40px', height: '4px', background: T.borderStrong, borderRadius: '999px', margin: '0 auto 16px' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: T.text, fontSize: '17px', fontWeight: '800' }}>Notifications</h3>
+              <motion.button {...btnTap} onClick={() => setShowNotifPanel(false)}
+                style={{ background: T.bg, border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', color: T.text }}>✕</motion.button>
+            </div>
+            {myNotifications.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: T.textFaint, fontSize: '13px' }}>No notifications yet</div>
+            ) : myNotifications.map(n => (
+              <div key={n.id} style={{ padding: '13px 14px', marginBottom: '8px', borderRadius: T.radiusMd, background: n.is_read ? T.bg : T.primaryTint, border: `1px solid ${T.border}` }}>
+                <div style={{ fontWeight: '700', fontSize: '13px', color: T.text, marginBottom: '3px' }}>{n.title}</div>
+                <div style={{ fontSize: '12px', color: T.textSoft, lineHeight: '1.5' }}>{n.body}</div>
+                <div style={{ fontSize: '10px', color: T.textFaint, marginTop: '4px' }}>{new Date(n.created_at).toLocaleString()}</div>
+              </div>
+            ))}
+          </motion.div>
+        </div>
       )}
       {returnModalOrder && (
         <ReturnRequestModal
