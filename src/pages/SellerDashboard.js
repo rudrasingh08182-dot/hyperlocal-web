@@ -739,14 +739,35 @@ const saveProduct = async () => {
           {sidebarOpen && <span style={{ fontWeight: '700', fontSize: '16px', color: '#1a1a2e' }}>Zaplo Seller</span>}
         </div>
         <nav style={{ flex: 1, padding: '12px 8px' }}>
-          {navItems.map(item => (
-            <div key={item.id} onClick={() => setActiveTab(item.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px', cursor: 'pointer', marginBottom: '4px', background: activeTab === item.id ? 'linear-gradient(135deg, #6c63ff15, #a78bfa15)' : 'transparent', color: activeTab === item.id ? '#6c63ff' : '#666', fontWeight: activeTab === item.id ? '600' : '400', borderLeft: activeTab === item.id ? '3px solid #6c63ff' : '3px solid transparent' }}>
-              <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon}</span>
-              {sidebarOpen && <span style={{ fontSize: '14px' }}>{item.label}</span>}
-            </div>
-          ))}
+          {navItems.map(item => {
+            // Pending order count badge — only for 'orders' tab
+            const pendingCount = item.id === 'orders'
+              ? (dashboardData?.sales?.pending_orders || 0)
+              : 0;
+
+            return (
+              <div key={item.id} onClick={() => setActiveTab(item.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px', cursor: 'pointer', marginBottom: '4px', background: activeTab === item.id ? 'linear-gradient(135deg, #6c63ff15, #a78bfa15)' : 'transparent', color: activeTab === item.id ? '#6c63ff' : '#666', fontWeight: activeTab === item.id ? '600' : '400', borderLeft: activeTab === item.id ? '3px solid #6c63ff' : '3px solid transparent', position: 'relative' }}>
+                <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon}</span>
+                {sidebarOpen && <span style={{ fontSize: '14px', flex: 1 }}>{item.label}</span>}
+                {pendingCount > 0 && (
+                  <span style={{
+                    background: '#ff4444', color: 'white', borderRadius: '50%',
+                    minWidth: '18px', height: '18px', fontSize: '10px', fontWeight: '700',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '0 4px',
+                    position: sidebarOpen ? 'static' : 'absolute',
+                    top: sidebarOpen ? 'auto' : '4px',
+                    right: sidebarOpen ? 'auto' : '4px',
+                  }}>
+                    {pendingCount}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </nav>
+
         <div onClick={logout} style={{ padding: '16px', borderTop: '1px solid #f0f0e8', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', color: '#ff4444' }}>
           <FiLogOut style={{ flexShrink: 0 }} />
           {sidebarOpen && <span style={{ fontSize: '14px' }}>Logout</span>}

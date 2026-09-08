@@ -1326,6 +1326,9 @@ export default function BuyerDashboard() {
   useEffect(() => {
     if (buyerLocation?.lat && buyerLocation?.lng) {
       fetchDeliveryEstimate(buyerLocation.lat, buyerLocation.lng);
+    } else if (cart.length > 0) {
+      // Location nahi hai — try to get it automatically
+      getBuyerLocation();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart.length]);
