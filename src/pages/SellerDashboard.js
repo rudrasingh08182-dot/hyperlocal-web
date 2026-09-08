@@ -500,9 +500,20 @@ const viewPaymentForOrder = async (orderId) => {
   fetchProducts();
   fetchOrders();
   fetchShopSettings();
-  // Request FCM token
-  import('../services/fcmToken').then(({ registerFCMToken }) => {
+  // Request FCM token for seller — sellers table mein save hoga
+  import('../services/fcmToken').then(({ registerFCMToken, onForegroundMessage }) => {
     registerFCMToken('seller');
+
+    // Foreground FCM notification listener — jab seller dashboard khula ho
+    onForegroundMessage(({ title, body }) => {
+      const timeStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      setNotifications(prev => [
+        { id: Date.now(), msg: `${title} — ${body}`, time: timeStr, read: false },
+        ...prev,
+      ]);
+      // Toast bhi dikhao
+      showToast(`${title}`, 'info');
+    });
   });
 }, []);
 
@@ -768,11 +779,49 @@ const saveProduct = async () => {
             </div>
 
             <div style={{ position: 'relative' }}>
-              <button onClick={() => setShowNotif(!showNotif)} style={{ background: '#f8f8f0', border: 'none', borderRadius: '10px', padding: '10px', cursor: 'pointer', fontSize: '18px' }}>
-                <FiBell color="#666" />
-                {unreadCount > 0 && <span style={{ position: 'absolute', top: '6px', right: '6px', background: '#ff4444', color: 'white', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unreadCount}</span>}
+              <button onClick={() => {
+                setShowNotif(!showNotif);
+                // Mark all as read when opened
+                if (!showNotif) setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+              }} style={{ background: '#f8f8f0', border: 'none', borderRadius: '10px', padding: '10px', cursor: 'pointer', fontSize: '18px', position: 'relative' }}>
+                <FiBell color={unreadCount > 0 ? '#6c63ff' : '#666'} />
+                {unreadCount > 0 && <span style={{ position: 'absolute', top: '4px', right: '4px', background: '#ff4444', color: 'white', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>{unreadCount}</span>}
               </button>
+
+              {/* Notification Dropdown Panel */}
+              {showNotif && (
+                <div style={{ position: 'absolute', right: 0, top: '48px', width: '320px', background: 'white', borderRadius: '14px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)', border: '1px solid #f0f0e8', zIndex: 999, overflow: 'hidden' }}>
+                  {/* Header */}
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '700', fontSize: '14px', color: '#1a1a2e' }}>🔔 Notifications</span>
+                    {notifications.length > 0 && (
+                      <button onClick={() => setNotifications([])}
+                        style={{ background: 'none', border: 'none', fontSize: '11px', color: '#999', cursor: 'pointer' }}>
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+
+                  {/* List */}
+                  <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
+                    {notifications.length === 0 ? (
+                      <div style={{ padding: '40px 16px', textAlign: 'center', color: '#bbb' }}>
+                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔔</div>
+                        <div style={{ fontSize: '13px' }}>Koi notification nahi hai</div>
+                      </div>
+                    ) : (
+                      notifications.map(n => (
+                        <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f8f8f0', background: n.read ? 'white' : '#f5f3ff' }}>
+                          <div style={{ fontSize: '13px', color: '#1a1a2e', fontWeight: n.read ? '400' : '600', lineHeight: '1.5' }}>{n.msg}</div>
+                          <div style={{ fontSize: '11px', color: '#bbb', marginTop: '4px' }}>{n.time}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #6c63ff, #a78bfa)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700' }}>
                 {user.name?.[0] || 'S'}
