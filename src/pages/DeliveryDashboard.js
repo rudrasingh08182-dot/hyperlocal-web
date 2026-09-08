@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import API from '../services/api';
 import { useTabHistory } from '../hooks/useTabHistory';
 import { Toast, showToast } from '../components/Toast';
-
+import { registerFCMToken, onForegroundMessage } from '../services/fcmToken';
 
 // Compresses an image file in-browser before upload — resizes to max 1000px
 // wide and re-encodes as JPEG at 70% quality. Cuts file size drastically
@@ -184,6 +184,24 @@ export default function DeliveryDashboard() {
     fetchMyReturnPickups();
   }, [getLocation]);
 
+  // ── FCM Push Notification — token register + foreground listener ──
+  useEffect(() => {
+    // Permission maango aur token backend mein save karo
+    registerFCMToken();
+
+    // Foreground notification (jab app khuli ho)
+    const unsubscribe = onForegroundMessage(({ title, body, data }) => {
+      showToast(`${title} — ${body}`, 'info');
+
+      // Agar new order available hai toh list auto-refresh karo
+      if (data?.type === 'order_available' && location) {
+        fetchAvailableOrders(location.lat, location.lng);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [location]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const activeOrder = myDeliveries.find(o => o.status === 'picked_up' || o.status === 'out_for_delivery');
     if (!activeOrder) return;
@@ -198,6 +216,7 @@ export default function DeliveryDashboard() {
     }, 30000);
     return () => clearInterval(interval);
   }, [myDeliveries]);
+
 
   const acceptDelivery = async (id) => {
     try {

@@ -196,6 +196,17 @@ const [editForm, setEditForm] = useState(null);
 const [editSaving, setEditSaving] = useState(false);
 const [editUploadingImage, setEditUploadingImage] = useState(false);
 
+// ── Color + Size Variant Manager (Fashion) ──
+const [colorVariantProduct, setColorVariantProduct] = useState(null);
+const [colorVariantList, setColorVariantList] = useState([]);
+const [colorVariantLoading, setColorVariantLoading] = useState(false);
+const [newColorName, setNewColorName] = useState('');
+const [newColorImages, setNewColorImages] = useState([]);
+const [colorImageUploading, setColorImageUploading] = useState(false);
+const [addingColor, setAddingColor] = useState(false);
+const [newSizeInputs, setNewSizeInputs] = useState({});
+const [addingSizeFor, setAddingSizeFor] = useState(null);
+
 const openEditModal = (product) => {
   setEditingProduct(product);
   setEditForm({
@@ -233,6 +244,119 @@ const saveEditedProduct = async () => {
     showToast(err.response?.data?.error || 'Failed to update product', 'error');
   } finally {
     setEditSaving(false);
+  }
+};
+
+const openColorVariantModal = async (product) => {
+  setColorVariantProduct(product);
+  setColorVariantList([]);
+  setNewColorName('');
+  setNewColorImages([]);
+  setColorVariantLoading(true);
+  try {
+    const res = await API.get(`/products/${product.id}/colors`);
+    setColorVariantList(res.data);
+  } catch (err) {
+    showToast('Failed to load color variants', 'error');
+  } finally {
+    setColorVariantLoading(false);
+  }
+};
+
+const closeColorVariantModal = () => {
+  setColorVariantProduct(null);
+  setColorVariantList([]);
+};
+
+const uploadColorImage = async (file) => {
+  setColorImageUploading(true);
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await API.post('/uploads/product-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    setNewColorImages(prev => [...prev, res.data.url]);
+  } catch (err) {
+    showToast('Image upload failed', 'error');
+  } finally {
+    setColorImageUploading(false);
+  }
+};
+
+const addColorVariant = async () => {
+  if (!newColorName.trim()) { showToast('Please enter a color name', 'error'); return; }
+  if (newColorImages.length === 0) { showToast('Please upload at least one image for this color', 'error'); return; }
+  setAddingColor(true);
+  try {
+    await API.post(`/products/${colorVariantProduct.id}/colors`, {
+      color_name: newColorName.trim(),
+      images: newColorImages,
+    });
+    showToast('Color added!', 'success');
+    setNewColorName('');
+    setNewColorImages([]);
+    const res = await API.get(`/products/${colorVariantProduct.id}/colors`);
+    setColorVariantList(res.data);
+    fetchProducts();
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to add color', 'error');
+  } finally {
+    setAddingColor(false);
+  }
+};
+
+const deleteColorVariant = async (colorId) => {
+  if (!window.confirm('Delete this color and all its sizes?')) return;
+  try {
+    await API.delete(`/products/colors/${colorId}`);
+    setColorVariantList(prev => prev.filter(c => c.id !== colorId));
+    showToast('Color removed', 'info');
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to delete color', 'error');
+  }
+};
+
+const addSizeToColor = async (colorId) => {
+  const input = newSizeInputs[colorId] || {};
+  if (!input.size || input.stock === undefined || input.stock === '') {
+    showToast('Please fill size and stock', 'error');
+    return;
+  }
+  setAddingSizeFor(colorId);
+  try {
+    const res = await API.post(`/products/colors/${colorId}/sizes`, {
+      size: input.size.trim(),
+      stock: parseInt(input.stock),
+      price: input.price ? parseFloat(input.price) : null,
+    });
+    setColorVariantList(prev => prev.map(c => c.id === colorId ? { ...c, sizes: [...(c.sizes || []), res.data] } : c));
+    setNewSizeInputs(prev => ({ ...prev, [colorId]: { size: '', stock: '', price: '' } }));
+    showToast('Size added!', 'success');
+    fetchProducts();
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to add size', 'error');
+  } finally {
+    setAddingSizeFor(null);
+  }
+};
+
+const updateSizeStock = async (colorId, sizeId, newStock) => {
+  try{
+    await API.put(`/products/colors/sizes/${sizeId}`, { stock: parseInt(newStock) });
+    setColorVariantList(prev => prev.map(c => c.id === colorId
+      ? { ...c, sizes: c.sizes.map(s => s.id === sizeId ? { ...s, stock: parseInt(newStock) } : s) }
+      : c));
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to update stock', 'error');
+  }
+};
+
+const deleteSizeFromColor = async (colorId, sizeId) => {
+  if (!window.confirm('Remove this size?')) return;
+  try {
+    await API.delete(`/products/colors/sizes/${sizeId}`);
+    setColorVariantList(prev => prev.map(c => c.id === colorId ? { ...c, sizes: c.sizes.filter(s => s.id !== sizeId) } : c));
+  } catch (err) {
+    showToast(err.response?.data?.error || 'Failed to remove size', 'error');
   }
 };
 
@@ -370,19 +494,6 @@ const viewPaymentForOrder = async (orderId) => {
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
-  const getShopLocation = () => {
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    try {
-      await API.patch('/sellers/me', {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      });
-      alert('Shop location saved! ✅');
-    } catch (err) {
-      alert('Failed to save location');
-    }
-  });
-};
 
  useEffect(() => {
   fetchDashboard();
@@ -390,12 +501,11 @@ const viewPaymentForOrder = async (orderId) => {
   fetchOrders();
   fetchShopSettings();
   // Request FCM token
-  requestNotificationPermission().then(token => {
-    if (token) {
-      API.post('/sellers/fcm-token', { token });
-    }
+  import('../services/fcmToken').then(({ registerFCMToken }) => {
+    registerFCMToken('seller');
   });
 }, []);
+
 
 useEffect(() => {
   if (activeTab === 'paymentVerifications') fetchPendingVerifications();
@@ -462,6 +572,7 @@ useEffect(() => {
   };
 const [storeOnline, setStoreOnline] = useState(true);
 const [storeStatusLoading, setStoreStatusLoading] = useState(false);
+const [shopHasLocation, setShopHasLocation] = useState(true); // assume true until we know otherwise
 
 const fetchShopSettings = async () => {
   try {
@@ -473,9 +584,42 @@ const fetchShopSettings = async () => {
       locality: res.data.locality || '',
     });
     setStoreOnline(res.data.is_online !== false);
+
+    const hasLocation = !!(res.data.latitude && res.data.longitude);
+    setShopHasLocation(hasLocation);
+
+    // First time ever (no location saved) — auto-request GPS and save silently.
+    if (!hasLocation) {
+      requestAndSaveShopLocation(true);
+    }
   } catch (err) {
     console.error('Shop settings fetch failed');
   }
+};
+
+// silent=true → no alert popups (used for the automatic first-time capture)
+const requestAndSaveShopLocation = (silent = false) => {
+  if (!navigator.geolocation) {
+    if (!silent) showToast('GPS not supported on this device', 'error');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      try {
+        await API.patch('/sellers/me', {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+        setShopHasLocation(true);
+        if (!silent) showToast('Shop location saved! ✅', 'success');
+      } catch (err) {
+        if (!silent) showToast('Failed to save location', 'error');
+      }
+    },
+    () => {
+      if (!silent) showToast('Could not get location. Please enable GPS and try again.', 'error');
+    }
+  );
 };
 
 const toggleStoreStatus = async () => {
@@ -917,7 +1061,7 @@ const saveProduct = async () => {
     <option value="FASHION">👕 Fashion (3 days - Wrong size/Damaged)</option>
     <option value="GROCERY">🛒 Grocery (1 day - Damaged/Expired)</option>
     <option value="FRESH">🥦 Fresh Produce (No returns)</option>
-    <option value="MEDICAL">💊 Medical (Return only if expired)</option>
+    <option value="BEAUTY_ACCESSORIES">💄 Beauty & Accessories (Return only if damaged/expired)</option>
   </select>
 </div>
 <div style={{ gridColumn: 'span 2', marginTop: '8px', borderTop: '1px solid #f0f0e8', paddingTop: '16px' }}>
@@ -1030,6 +1174,11 @@ const saveProduct = async () => {
                             <td style={{ padding: '14px 16px' }}>
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <button onClick={() => openEditModal(p)} style={{ background: '#e8f4ff', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#0984e3' }}><FiEdit2 /></button>
+                                <button onClick={() => openColorVariantModal(p)}
+                                  title="Manage Color + Size Variants"
+                                  style={{ background: '#f8f0ff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: '#6c63ff', fontWeight: '700', fontSize: '12px' }}>
+                                  🎨 Colors
+                                </button>
                                 <button onClick={() => deleteProduct(p.id)} style={{ background: '#fff0f0', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#e17055' }}><FiTrash2 /></button>
                               </div>
                             </td>
@@ -1588,9 +1737,9 @@ const saveProduct = async () => {
       💾 Save Settings
     </button>
 
-    <button onClick={getShopLocation}
+    <button onClick={() => requestAndSaveShopLocation(false)}
       style={{ marginTop: '16px', marginLeft: '12px', background: '#00b894', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600' }}>
-      📍 Set Shop Location
+      📍 {shopHasLocation ? 'Update Shop Location' : 'Set Shop Location'}
     </button>
   </div>
 )}
@@ -1727,6 +1876,135 @@ const saveProduct = async () => {
                 {editSaving ? 'Saving...' : '💾 Save Changes'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Color + Size Variant Manager Modal */}
+      {colorVariantProduct && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '20px' }}
+          onClick={closeColorVariantModal}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: 'white', borderRadius: '16px', padding: '24px', maxWidth: '640px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <h3 style={{ margin: 0, color: '#1a1a2e' }}>🎨 Color & Size Variants</h3>
+              <button onClick={closeColorVariantModal}
+                style={{ background: '#f0f0e8', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+            </div>
+            <p style={{ color: '#999', fontSize: '13px', marginBottom: '20px' }}>{colorVariantProduct.name}</p>
+
+            {colorVariantLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>Loading...</div>
+            ) : (
+              <>
+                {/* Existing colors */}
+                {colorVariantList.map(color => (
+                  <div key={color.id} style={{ border: '1px solid #f0f0e8', borderRadius: '12px', padding: '16px', marginBottom: '16px', background: '#fafaf5' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {(color.images || []).slice(0, 3).map((img, i) => (
+                            <img key={i} src={img} alt="" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #e8e8e0' }} />
+                          ))}
+                        </div>
+                        <span style={{ fontWeight: '700', color: '#1a1a2e', fontSize: '14px' }}>{color.color_name}</span>
+                      </div>
+                      <button onClick={() => deleteColorVariant(color.id)}
+                        style={{ background: '#fff0f0', color: '#ff4444', border: 'none', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}>
+                        🗑️ Delete Color
+                      </button>
+                    </div>
+
+                    {/* Sizes table */}
+                    {(color.sizes || []).length > 0 && (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
+                        <thead>
+                          <tr style={{ background: '#f0f0e8' }}>
+                            {['Size', 'Stock', 'Price (₹)', 'Status', ''].map(h => (
+                              <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: '#999', fontWeight: '600' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {color.sizes.map(s => (
+                            <tr key={s.id} style={{ borderBottom: '1px solid #f0f0e8' }}>
+                              <td style={{ padding: '8px 10px', fontSize: '13px', fontWeight: '700' }}>{s.size}</td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input type="number" defaultValue={s.stock}
+                                  onBlur={e => updateSizeStock(color.id, s.id, e.target.value)}
+                                  style={{ width: '70px', padding: '5px 8px', border: '1px solid #e8e8e0', borderRadius: '6px', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '8px 10px', fontSize: '13px', color: '#666' }}>{s.price ?? colorVariantProduct.price}</td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', background: s.stock > 0 ? '#e8fff8' : '#fff0f0', color: s.stock > 0 ? '#00b894' : '#e17055' }}>
+                                  {s.stock > 0 ? 'Available' : 'Out of Stock'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <button onClick={() => deleteSizeFromColor(color.id, s.id)}
+                                  style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '13px' }}>✕</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+
+                    {/* Add size row */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input placeholder="Size (e.g. M)" value={newSizeInputs[color.id]?.size || ''}
+                        onChange={e => setNewSizeInputs(prev => ({ ...prev, [color.id]: { ...prev[color.id], size: e.target.value } }))}
+                        style={{ width: '90px', padding: '8px 10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px' }} />
+                      <input type="number" placeholder="Stock" value={newSizeInputs[color.id]?.stock || ''}
+                        onChange={e => setNewSizeInputs(prev => ({ ...prev, [color.id]: { ...prev[color.id], stock: e.target.value } }))}
+                        style={{ width: '80px', padding: '8px 10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px' }} />
+                      <input type="number" placeholder="Price (optional)" value={newSizeInputs[color.id]?.price || ''}
+                        onChange={e => setNewSizeInputs(prev => ({ ...prev, [color.id]: { ...prev[color.id], price: e.target.value } }))}
+                        style={{ width: '120px', padding: '8px 10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px' }} />
+                      <button onClick={() => addSizeToColor(color.id)} disabled={addingSizeFor === color.id}
+                        style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: '700', fontSize: '12px' }}>
+                        {addingSizeFor === color.id ? '...' : '+ Add Size'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add new color */}
+                <div style={{ border: '2px dashed #6c63ff', borderRadius: '12px', padding: '18px', background: '#f8f7ff' }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#6c63ff', fontSize: '14px' }}>+ Add New Color</h4>
+                  <input placeholder="Color name (e.g. Beige)" value={newColorName}
+                    onChange={e => setNewColorName(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box' }} />
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                    {newColorImages.map((url, i) => (
+                      <div key={i} style={{ position: 'relative' }}>
+                        <img src={url} alt="" style={{ width: '64px', height: '64px', borderRadius: '8px', objectFit: 'cover', border: '2px solid #e8e8e0' }} />
+                        <button onClick={() => setNewColorImages(prev => prev.filter((_, idx) => idx !== i))}
+                          style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#ff4444', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', fontSize: '11px' }}>✕</button>
+                      </div>
+                    ))}
+                    {newColorImages.length < 6 && (
+                      <label style={{
+                        width: '64px', height: '64px', border: '2px dashed #6c63ff', borderRadius: '8px',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        cursor: colorImageUploading ? 'not-allowed' : 'pointer', color: '#6c63ff', background: 'white',
+                      }}>
+                        {colorImageUploading ? <span style={{ fontSize: '18px' }}>⏳</span> : <span style={{ fontSize: '22px' }}>📷</span>}
+                        <input type="file" accept="image/*" style={{ display: 'none' }} disabled={colorImageUploading}
+                          onChange={(e) => { const file = e.target.files[0]; if (file) uploadColorImage(file); e.target.value = ''; }} />
+                      </label>
+                    )}
+                  </div>
+
+                  <button onClick={addColorVariant} disabled={addingColor}
+                    style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 24px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', opacity: addingColor ? 0.7 : 1 }}>
+                    {addingColor ? 'Adding...' : '+ Add Color'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

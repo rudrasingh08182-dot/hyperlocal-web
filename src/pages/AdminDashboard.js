@@ -73,10 +73,40 @@ export default function AdminDashboard() {
   const [newPincode, setNewPincode] = useState('');
   const [newAreaName, setNewAreaName] = useState('');
   const [pincodeLoading, setPincodeLoading] = useState(false);
+
+  // ── Notification Broadcast State ──
+  const [notifTarget, setNotifTarget] = useState('buyers');
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifBody, setNotifBody] = useState('');
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifResult, setNotifResult] = useState(null);
+
  
- useTabHistory(tab, setTab, ['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners', 'pincodes']);
+ useTabHistory(tab, setTab, ['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners', 'pincodes', 'notifications']);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  const sendBroadcast = async () => {
+    if (!notifTitle.trim() || !notifBody.trim()) {
+      showToast('Title aur message dono fill karo!', 'error');
+      return;
+    }
+    setNotifLoading(true);
+    setNotifResult(null);
+    try {
+      const res = await API.post(`/admin/notify/${notifTarget}`, {
+        title: notifTitle,
+        body: notifBody,
+      });
+      setNotifResult({ success: true, data: res.data });
+      setNotifTitle('');
+      setNotifBody('');
+    } catch (err) {
+      setNotifResult({ success: false, error: err.response?.data?.error || 'Something went wrong' });
+    } finally {
+      setNotifLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -423,24 +453,104 @@ const suspendDelivery = async (id) => {
 
         {/* Tabs */}
        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-         {['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners', 'pincodes'].map(t => (
+         {['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners', 'pincodes', 'notifications'].map(t => (
          
   <button key={t} onClick={() => setTab(t)}
     style={{
       padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold',
       background: tab === t ? '#6c63ff' : '#1a1a2e', color: 'white', fontSize: '14px',
     }}>
-   {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : t === 'delivery' ? '🚴 Delivery Boys' : t === 'bulk-upload' ? '📦 Bulk Upload' : t === 'banners' ? '🖼️ Banners' : '📍 Pincodes'}
+   {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : t === 'delivery' ? '🚴 Delivery Boys' : t === 'bulk-upload' ? '📦 Bulk Upload' : t === 'banners' ? '🖼️ Banners' : t === 'pincodes' ? '📍 Pincodes' : '🔔 Notifications'}
   </button>
 ))}
         </div>
 
-        {/* Table */}
-        {loading ? (
+        {/* Table / Tab Content */}
+        {tab === 'notifications' ? (
+          /* ── 🔔 Notifications Broadcast Tab ── */
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            style={{ maxWidth: 600 }}>
+            <h2 style={{ color: '#A78BFA', marginBottom: 24, fontSize: '20px' }}>
+              📢 Broadcast Notification
+            </h2>
+
+            {/* Target Selector */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: 10 }}>Send To:</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {[
+                  { value: 'buyers',  label: '🛒 All Buyers'  },
+                  { value: 'sellers', label: '🏪 All Sellers' },
+                  { value: 'all',     label: '🌐 Everyone'    },
+                ].map(opt => (
+                  <button key={opt.value} onClick={() => setNotifTarget(opt.value)}
+                    style={{
+                      padding: '8px 20px', borderRadius: '8px', border: '1px solid',
+                      borderColor: notifTarget === opt.value ? '#7C3AED' : 'rgba(255,255,255,0.1)',
+                      background: notifTarget === opt.value ? 'rgba(124,58,237,0.25)' : '#1a1a2e',
+                      color: notifTarget === opt.value ? '#A78BFA' : '#64748b',
+                      cursor: 'pointer', fontWeight: notifTarget === opt.value ? 700 : 400, fontSize: '13px',
+                    }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Title */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: 6 }}>Notification Title</div>
+              <input type="text" value={notifTitle} onChange={e => setNotifTitle(e.target.value)}
+                placeholder="Eg: Diwali Sale! 🎉"
+                maxLength={60}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Message */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: 6 }}>Message</div>
+              <textarea value={notifBody} onChange={e => setNotifBody(e.target.value)}
+                placeholder="Eg: Aaj sabhi orders par 20% cashback! Abhi order karo."
+                maxLength={200} rows={4}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', fontSize: '14px', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+              />
+              <div style={{ fontSize: '11px', color: '#475569', textAlign: 'right', marginTop: 4 }}>
+                {notifBody.length}/200
+              </div>
+            </div>
+
+            {/* Send Button */}
+            <button onClick={sendBroadcast} disabled={notifLoading}
+              style={{ width: '100%', padding: '13px', borderRadius: '10px', border: 'none', background: notifLoading ? 'rgba(124,58,237,0.4)' : 'linear-gradient(135deg, #7C3AED, #3B82F6)', color: 'white', fontSize: '15px', fontWeight: 700, cursor: notifLoading ? 'not-allowed' : 'pointer' }}>
+              {notifLoading ? '⏳ Sending...' : '📤 Send Notification'}
+            </button>
+
+            {/* Result */}
+            {notifResult && (
+              <div style={{ marginTop: 18, padding: '14px 18px', borderRadius: '10px',
+                background: notifResult.success ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                border: `1px solid ${notifResult.success ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                color: notifResult.success ? '#10B981' : '#EF4444', fontSize: '14px',
+              }}>
+                {notifResult.success ? (
+                  <>✅ <strong>Broadcast successful!</strong><br />
+                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>
+                      Sent: {notifResult.data?.sent ?? 0} &nbsp;|&nbsp; Failed: {notifResult.data?.failed ?? 0}
+                    </span>
+                  </>
+                ) : (
+                  <>❌ Error: {notifResult.error}</>
+                )}
+              </div>
+            )}
+          </motion.div>
+        ) : loading ? (
           <div style={{ textAlign: 'center', padding: '60px', color: '#aaa' }}>Loading...</div>
         ) : tab !== 'delivery' ? (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
   style={{ background: '#1a1a2e', borderRadius: '16px', overflowX: 'auto', border: '1px solid #2a2a4a' }}>
+
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
               <thead>
                 <tr style={{ background: '#6c63ff22' }}>

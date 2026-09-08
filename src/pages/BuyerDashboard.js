@@ -3,11 +3,14 @@ import { motion } from 'framer-motion';
 import API from '../services/api';
 import TermsAndConditions from '../components/TermsAndConditions';
 import { Toast, showToast } from '../components/Toast';
+import { registerFCMToken, onForegroundMessage } from '../services/fcmToken';
+
 import HeroBannerCarousel from '../components/HeroBannerCarousel';
 import UnserviceableModal from '../components/UnserviceableModal';
 import OfflinePage from '../components/OfflinePage';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
 /* ============================================================
    ZAPLO — BLINKIT-INSPIRED DESIGN SYSTEM
    Punchy, dense, quick-commerce. All backend routes/APIs are
@@ -644,10 +647,11 @@ const useCart = () => {
     localStorage.setItem('zaplo_cart', JSON.stringify(cart));
   }, [cart]);
 
-  const getCartKey = (productId, variantId) => variantId ? `${productId}::${variantId}` : productId;
+  const getCartKey = (productId, variantId, colorSizeId) =>
+    colorSizeId ? `${productId}::cs::${colorSizeId}` : variantId ? `${productId}::${variantId}` : productId;
 
-  const addToCart = (product, variant = null) => {
-    const cartKey = getCartKey(product.id, variant?.id);
+  const addToCart = (product, variant = null, colorSize = null) => {
+    const cartKey = getCartKey(product.id, variant?.id, colorSize?.id);
     setCart(prev => {
       const exists = prev.find(i => i.cartKey === cartKey);
       if (exists) return prev.map(i => i.cartKey === cartKey ? { ...i, qty: i.qty + 1 } : i);
@@ -655,7 +659,8 @@ const useCart = () => {
         ...product,
         cartKey,
         variant: variant || null,
-        price: variant ? variant.price : product.price,
+        colorSize: colorSize || null,
+        price: colorSize ? (colorSize.price ?? product.price) : variant ? variant.price : product.price,
         qty: 1,
       }];
     });
@@ -685,7 +690,7 @@ const categories = [
   { id: 'fashion', label: 'Fashion', emoji: '👕', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233681/artem-beliaikin-UdQt3FT6rxM-unsplash_atgfs1.jpg' },
   { id: 'food', label: 'Food', emoji: '🍔', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233754/david-foodphototasty-E94j3rMcxlw-unsplash_qhm984.jpg' },
   { id: 'stationery', label: 'Stationery', emoji: '📚', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233835/tim-gouw-KigTvXqetXA-unsplash_s4gm0v.jpg' },
-  { id: 'medical', label: 'Medical', emoji: '💊', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233743/christine-sandu-jwWtZrm67VI-unsplash_lsfqny.jpg' },
+  { id: 'beauty', label: 'Beauty & Accessories', emoji: '💄', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1788828925/file_000000004c988208a4807c9b029ca233_edkqlz.png' },
   { id: 'sweets', label: 'Sweets & Confectionery', emoji: '🍬', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1784435004/WhatsApp_Image_2026-07-19_at_9.46.06_AM_vfypyj.jpg' },
 ];
 
@@ -698,7 +703,7 @@ const RETURN_POLICY_LABELS = {
   FASHION: '3 days — Wrong size/Damaged',
   GROCERY: '1 day — Damaged/Expired',
   FRESH: 'No returns',
-  MEDICAL: 'Return only if expired',
+  BEAUTY_ACCESSORIES: 'Return only if damaged/expired',
 };
 
 /* ---------- Reusable header (Blinkit yellow bar) ---------- */
@@ -1150,6 +1155,11 @@ export default function BuyerDashboard() {
   const { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
+  const [productColors, setProductColors] = useState([]);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedSize, setSelectedSize] = useState(null);
+  const touchStartXRef = useRef(null);
+  const touchDeltaXRef = useRef(0);
   const [showUnserviceable, setShowUnserviceable] = useState(false);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [orderRatings, setOrderRatings] = useState({});
@@ -1274,6 +1284,19 @@ export default function BuyerDashboard() {
     };
   }, []);
 
+  // ── FCM Push Notification — token register + foreground listener ──
+  useEffect(() => {
+    // Permission maango aur token backend mein save karo
+    registerFCMToken();
+
+    // Foreground notification (jab app khuli ho) — Toast show karo
+    const unsubscribe = onForegroundMessage(({ title, body }) => {
+      showToast(`${title} — ${body}`, 'info');
+    });
+
+    return () => unsubscribe();
+  }, []);
+
  
 
   
@@ -1298,12 +1321,35 @@ export default function BuyerDashboard() {
     sessionStorage.setItem('zaplo_checkout_address', JSON.stringify(address));
   }, [address]);
 
+  // Recalculate delivery charge whenever cart contents change and we
+  // already have the buyer's location (e.g. item added/removed in cart).
+  useEffect(() => {
+    if (buyerLocation?.lat && buyerLocation?.lng) {
+      fetchDeliveryEstimate(buyerLocation.lat, buyerLocation.lng);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.length]);
+
   useEffect(() => {
     if (selectedProduct?.has_variants && selectedProduct.variants?.length > 0) {
       const firstAvailable = selectedProduct.variants.find(v => v.stock > 0) || selectedProduct.variants[0];
       setSelectedVariant(firstAvailable);
     } else {
       setSelectedVariant(null);
+    }
+
+    if (selectedProduct?.has_color_variants) {
+      API.get(`/products/${selectedProduct.id}/colors`).then(res => {
+        setProductColors(res.data);
+        const firstAvailable = res.data.find(c => c.sizes?.some(s => s.stock > 0)) || res.data[0] || null;
+        setSelectedColor(firstAvailable);
+        setSelectedSize(null);
+        setActiveImageIndex(0);
+      }).catch(() => { setProductColors([]); setSelectedColor(null); });
+    } else {
+      setProductColors([]);
+      setSelectedColor(null);
+      setSelectedSize(null);
     }
   }, [selectedProduct]);
 
@@ -1389,6 +1435,32 @@ export default function BuyerDashboard() {
     }
   };
 
+  const handleImageTouchStart = (e) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    touchDeltaXRef.current = 0;
+  };
+
+  const handleImageTouchMove = (e) => {
+    if (touchStartXRef.current === null) return;
+    touchDeltaXRef.current = e.touches[0].clientX - touchStartXRef.current;
+  };
+
+  const handleImageTouchEnd = (imagesLength) => {
+    const delta = touchDeltaXRef.current;
+    const SWIPE_THRESHOLD = 40; // px
+    if (Math.abs(delta) > SWIPE_THRESHOLD) {
+      if (delta < 0) {
+        // swiped left → next image
+        setActiveImageIndex(prev => Math.min(prev + 1, imagesLength - 1));
+      } else {
+        // swiped right → previous image
+        setActiveImageIndex(prev => Math.max(prev - 1, 0));
+      }
+    }
+    touchStartXRef.current = null;
+    touchDeltaXRef.current = 0;
+  };
+
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
 
  const [banners, setBanners] = useState([]);
@@ -1398,6 +1470,8 @@ export default function BuyerDashboard() {
     fetchBanners();
   }, []);
 
+
+
   const fetchBanners = async () => {
     try {
       const res = await API.get('/banners/active');
@@ -1406,6 +1480,8 @@ export default function BuyerDashboard() {
       console.error('Banners fetch failed');
     }
   };
+
+
 
   // Routes a banner tap based on what the admin configured for it.
   const handleBannerClick = (banner) => {
@@ -1505,10 +1581,31 @@ export default function BuyerDashboard() {
     }
   };
 
+  // Sums the real by-road delivery charge across every distinct seller in
+  // the cart (in the common case there's just one seller).
+  const fetchDeliveryEstimate = async (lat, lng) => {
+    if (!lat || !lng || cart.length === 0) return;
+    try {
+      const sellerIds = [...new Set(cart.map(item => item.seller_id || item.shop_id))].filter(Boolean);
+      let totalCharge = 0;
+      for (const sellerId of sellerIds) {
+        const res = await API.get(`/orders/delivery-estimate?seller_id=${sellerId}&buyer_lat=${lat}&buyer_lng=${lng}`);
+        totalCharge += res.data.delivery_charge || 20;
+      }
+      setDeliveryCharge(totalCharge || 20);
+    } catch (err) {
+      console.error('Delivery charge estimate failed:', err);
+    }
+  };
+
   const getBuyerLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setBuyerLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setBuyerLocation(loc);
+          fetchDeliveryEstimate(loc.lat, loc.lng);
+        },
         () => console.log('Location not available')
       );
     }
@@ -1588,7 +1685,7 @@ export default function BuyerDashboard() {
       for (const [seller_id, items] of Object.entries(sellerGroups)) {
         const res = await API.post('/orders', {
           seller_id,
-          items: items.map(i => ({ product_id: i.id, quantity: i.qty, variant_id: i.variant?.id || null })),
+          items: items.map(i => ({ product_id: i.id, quantity: i.qty, variant_id: i.variant?.id || null, color_size_id: i.colorSize?.id || null })),
           payment_method: backendPaymentMethod,
           delivery_address: address.full_address,
           delivery_phone: address.phone,
@@ -1619,8 +1716,8 @@ export default function BuyerDashboard() {
     }
   };
 
-  const getCartQty = (productId, variantId = null) => {
-    const cartKey = variantId ? `${productId}::${variantId}` : productId;
+  const getCartQty = (productId, variantId = null, colorSizeId = null) => {
+    const cartKey = colorSizeId ? `${productId}::cs::${colorSizeId}` : variantId ? `${productId}::${variantId}` : productId;
     const item = cart.find(i => i.cartKey === cartKey);
     return item ? item.qty : 0;
   };
@@ -2069,6 +2166,9 @@ export default function BuyerDashboard() {
                       <div style={{ fontWeight: '600', fontSize: '13px', color: T.text, lineHeight: 1.3 }}>{item.name}</div>
                       {item.variant && (
                         <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>{item.variant.variant_type}: {item.variant.variant_value}</div>
+                      )}
+                      {item.colorSize && (
+                        <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>{item.colorSize.color_name} · Size {item.colorSize.size}</div>
                       )}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                         <span style={{ fontWeight: '800', color: T.text, fontSize: '14px' }}>₹{item.price * item.qty}</span>
@@ -2795,7 +2895,9 @@ export default function BuyerDashboard() {
       {screen === 'terms' && <TermsAndConditions onBack={() => window.history.back()} />}
 
       {/* PRODUCT DETAIL MODAL */}
-      {selectedProduct && (
+      {selectedProduct && (() => {
+        const displayImagesGlobal = (selectedColor?.images?.length > 0) ? selectedColor.images : (selectedProduct.image_urls || []);
+        return (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: T.card, zIndex: 200, overflowY: 'hidden' }}>
           <div style={{ height: 'calc(100vh - 96px)', overflowY: 'auto' }}>
             {/* Back button */}
@@ -2807,30 +2909,35 @@ export default function BuyerDashboard() {
             </div>
 
             {/* Product Image */}
-            <div style={{ width: '100%', height: '320px', background: T.bg, position: 'relative' }}>
-              {selectedProduct.image_urls?.[0] || selectedProduct.image_url ? (
-                <img src={optimizeImage(selectedProduct.image_urls?.[activeImageIndex] || selectedProduct.image_url, 800)}
+            <div
+              style={{ width: '100%', height: '320px', background: T.bg, position: 'relative', touchAction: 'pan-y' }}
+              onTouchStart={handleImageTouchStart}
+              onTouchMove={handleImageTouchMove}
+              onTouchEnd={() => handleImageTouchEnd(displayImagesGlobal.length)}
+            >
+              {displayImagesGlobal[0] || selectedProduct.image_url ? (
+                <img src={optimizeImage(displayImagesGlobal[activeImageIndex] || displayImagesGlobal[0] || selectedProduct.image_url, 800)}
                   alt={selectedProduct.name} decoding="async"
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '80px' }}>📦</div>
               )}
 
-              {selectedProduct.image_urls?.length > 1 && activeImageIndex > 0 && (
+              {displayImagesGlobal.length > 1 && activeImageIndex > 0 && (
                 <button onClick={() => setActiveImageIndex(prev => prev - 1)}
                   style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', border: 'none', borderRadius: '50%', width: '34px', height: '34px', color: 'white', fontSize: '18px', cursor: 'pointer' }}>
                   ‹
                 </button>
               )}
-              {selectedProduct.image_urls?.length > 1 && activeImageIndex < selectedProduct.image_urls.length - 1 && (
+              {displayImagesGlobal.length > 1 && activeImageIndex < displayImagesGlobal.length - 1 && (
                 <button onClick={() => setActiveImageIndex(prev => prev + 1)}
                   style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.4)', border: 'none', borderRadius: '50%', width: '34px', height: '34px', color: 'white', fontSize: '18px', cursor: 'pointer' }}>
                   ›
                 </button>
               )}
-              {selectedProduct.image_urls?.length > 1 && (
+              {displayImagesGlobal.length > 1 && (
                 <div style={{ position: 'absolute', bottom: '14px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px' }}>
-                  {selectedProduct.image_urls.map((_, i) => (
+                  {displayImagesGlobal.map((_, i) => (
                     <div key={i} onClick={() => setActiveImageIndex(i)}
                       style={{ width: '7px', height: '7px', borderRadius: '50%', background: i === activeImageIndex ? T.primary : T.border, cursor: 'pointer' }} />
                   ))}
@@ -2933,6 +3040,84 @@ export default function BuyerDashboard() {
                 </div>
               )}
 
+              {/* Color + Size variant selector */}
+              {selectedProduct.has_color_variants && productColors.length > 0 && (
+                <div style={{ marginBottom: '14px' }}>
+                  <h4 style={{ margin: '0 0 10px', color: T.text, fontSize: '14px', fontWeight: '800' }}>Color: {selectedColor?.color_name || ''}</h4>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                    {productColors.map(c => {
+                      const hasStock = c.sizes?.some(s => s.stock > 0);
+                      const isSelected = selectedColor?.id === c.id;
+                      const thumb = c.images?.[0];
+                      return (
+                        <motion.div key={c.id} whileTap={{ scale: hasStock ? 0.94 : 1 }}
+                          onClick={() => { if (!hasStock) return; setSelectedColor(c); setSelectedSize(null); setActiveImageIndex(0); }}
+                          style={{
+                            width: '58px', height: '58px', borderRadius: T.radiusSm, overflow: 'hidden',
+                            border: isSelected ? `2.5px solid ${T.primary}` : `1.5px solid ${T.border}`,
+                            opacity: hasStock ? 1 : 0.4, cursor: hasStock ? 'pointer' : 'not-allowed',
+                            position: 'relative', flexShrink: 0, background: T.bg,
+                          }}>
+                          {thumb ? (
+                            <img src={optimizeImage(thumb, 120)} alt={c.color_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: T.textFaint, textAlign: 'center' }}>{c.color_name}</div>
+                          )}
+                          {!hasStock && (
+                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: '800', color: T.error }}>SOLD OUT</div>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+
+                  {selectedColor && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h4 style={{ margin: 0, color: T.text, fontSize: '14px', fontWeight: '800' }}>Select Size</h4>
+                        <span style={{ fontSize: '12px', color: T.primary, fontWeight: '700', cursor: 'pointer' }}>Size Chart</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                        {(selectedColor.sizes || []).map(s => {
+                          const isOut = s.stock === 0;
+                          const isSel = selectedSize?.id === s.id;
+                          return (
+                            <motion.button key={s.id} whileTap={{ scale: isOut ? 1 : 0.95 }}
+                              onClick={() => !isOut && setSelectedSize(s)}
+                              disabled={isOut}
+                              style={{
+                                position: 'relative', minWidth: '46px', padding: '10px 14px', borderRadius: T.radiusSm,
+                                border: isSel ? `2px solid ${T.primary}` : `1px solid ${T.border}`,
+                                background: isOut ? T.bg : isSel ? T.primary : 'white',
+                                color: isOut ? T.textFaint : isSel ? 'white' : T.text,
+                                fontWeight: '700', fontSize: '13px', cursor: isOut ? 'not-allowed' : 'pointer',
+                                textDecoration: isOut ? 'line-through' : 'none',
+                              }}>
+                              {s.size}
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+
+                      {selectedSize && (
+                        <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                            <span style={{ color: T.textSoft }}>Price</span>
+                            <span style={{ fontWeight: '800', color: T.text, fontSize: '15px' }}>₹{selectedSize.price ?? selectedProduct.price}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                            <span style={{ color: T.textSoft }}>Stock</span>
+                            <span style={{ fontWeight: '700', color: selectedSize.stock > 0 ? T.success : T.error }}>
+                              {selectedSize.stock > 0 ? `${selectedSize.stock} available` : 'Out of stock'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* Delivery info */}
               <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '20px' }}>⚡</span>
@@ -2974,10 +3159,11 @@ export default function BuyerDashboard() {
           <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', background: T.card, padding: '14px 16px', boxShadow: '0 -6px 20px rgba(17,17,39,0.08)', zIndex: 201, borderTop: `1px solid ${T.border}` }}>
             {(() => {
               const sellerClosed = selectedProduct.seller_is_online === false;
-              const isVariantProduct = selectedProduct.has_variants && selectedProduct.variants?.length > 0;
-              const effectiveStock = isVariantProduct ? (selectedVariant?.stock ?? 0) : selectedProduct.stock;
-              const currentQty = getCartQty(selectedProduct.id, isVariantProduct ? selectedVariant?.id : null);
-              const canAdd = !sellerClosed && (!isVariantProduct || (isVariantProduct && selectedVariant));
+              const isColorProduct = selectedProduct.has_color_variants && productColors.length > 0;
+              const isVariantProduct = !isColorProduct && selectedProduct.has_variants && selectedProduct.variants?.length > 0;
+
+              const effectiveStock = isColorProduct ? (selectedSize?.stock ?? 0) : isVariantProduct ? (selectedVariant?.stock ?? 0) : selectedProduct.stock;
+              const currentQty = getCartQty(selectedProduct.id, isVariantProduct ? selectedVariant?.id : null, isColorProduct ? selectedSize?.id : null);
 
               if (sellerClosed) {
                 return (
@@ -2989,20 +3175,52 @@ export default function BuyerDashboard() {
                 );
               }
 
+              // Color+Size flow needs explicit selection before adding
+              if (isColorProduct) {
+                if (!selectedColor) {
+                  return (
+                    <div style={{ width: '100%', padding: '16px', background: T.errorTint, color: T.error, borderRadius: T.radiusSm, fontWeight: '800', fontSize: '13px', textAlign: 'center' }}>
+                      Please select a color
+                    </div>
+                  );
+                }
+                if (!selectedSize) {
+                  return (
+                    <div style={{ width: '100%', padding: '16px', background: T.errorTint, color: T.error, borderRadius: T.radiusSm, fontWeight: '800', fontSize: '13px', textAlign: 'center' }}>
+                      Please select a size
+                    </div>
+                  );
+                }
+              }
+
+              const handleAdd = () => {
+                const productPayload = { ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id };
+                if (isColorProduct) {
+                  addToCart(productPayload, null, { ...selectedSize, color_name: selectedColor.color_name });
+                } else if (isVariantProduct) {
+                  addToCart(productPayload, selectedVariant, null);
+                } else {
+                  addToCart(productPayload, null, null);
+                }
+              };
+
               return currentQty === 0 ? (
                 <motion.button {...btnTap}
-                  onClick={() => canAdd && addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id }, isVariantProduct ? selectedVariant : null)}
-                  disabled={effectiveStock === 0 || !canAdd}
+                  onClick={handleAdd}
+                  disabled={effectiveStock === 0}
                   style={{ width: '100%', padding: '16px', background: effectiveStock === 0 ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', fontSize: '15px', cursor: effectiveStock === 0 ? 'not-allowed' : 'pointer', letterSpacing: '0.03em' }}>
                   {effectiveStock === 0 ? 'OUT OF STOCK' : 'ADD TO CART'}
                 </motion.button>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: T.radiusSm, overflow: 'hidden', flex: 1 }}>
-                    <button onClick={() => updateQty(isVariantProduct ? `${selectedProduct.id}::${selectedVariant.id}` : selectedProduct.id, currentQty - 1)}
+                    <button onClick={() => updateQty(
+                        isColorProduct ? `${selectedProduct.id}::cs::${selectedSize.id}` : isVariantProduct ? `${selectedProduct.id}::${selectedVariant.id}` : selectedProduct.id,
+                        currentQty - 1
+                      )}
                       style={{ flex: 1, padding: '15px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', fontWeight: '700' }}>−</button>
                     <span style={{ color: 'white', fontWeight: '800', fontSize: '16px', minWidth: '36px', textAlign: 'center' }}>{currentQty}</span>
-                    <button onClick={() => addToCart({ ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id }, isVariantProduct ? selectedVariant : null)}
+                    <button onClick={handleAdd}
                       style={{ flex: 1, padding: '15px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', fontWeight: '700' }}>+</button>
                   </div>
                   <motion.button {...btnTap} onClick={() => navigate({ screen: 'cart', selectedProduct: null })}
@@ -3014,7 +3232,8 @@ export default function BuyerDashboard() {
             })()}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {trackingOrderId && (
         <OrderTracking orderId={trackingOrderId} onClose={() => window.history.back()} />
