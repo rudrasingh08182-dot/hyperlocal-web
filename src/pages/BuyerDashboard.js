@@ -1754,10 +1754,13 @@ export default function BuyerDashboard() {
 
   /* ---------- Blinkit-style Product Card ---------- */
   const ProductCard = ({ product }) => {
-    const qty = product.has_variants ? 0 : getCartQty(product.id);
+    const hasAnyVariants = product.has_variants || product.has_color_variants;
+    const qty = hasAnyVariants ? 0 : getCartQty(product.id);
     const minVariantPrice = product.has_variants && product.variants?.length > 0
       ? Math.min(...product.variants.map(v => parseFloat(v.price)))
-      : null;
+      : product.has_color_variants && product.colors?.length > 0
+        ? Math.min(...product.colors.flatMap(c => (c.sizes || []).map(s => parseFloat(s.price ?? product.price))))
+        : null;
     const sellerClosed = product.seller_is_online === false;
 
     return (
@@ -1809,7 +1812,7 @@ export default function BuyerDashboard() {
           {/* Price + ADD */}
           <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
             <div style={{ fontWeight: '700', fontSize: '15px', color: T.text, letterSpacing: '-0.01em' }}>
-              {product.has_variants ? `₹${minVariantPrice}+` : `₹${product.price}`}
+              {hasAnyVariants ? `₹${minVariantPrice}+` : `₹${product.price}`}
             </div>
 
             <div onClick={e => e.stopPropagation()}>
@@ -1817,7 +1820,7 @@ export default function BuyerDashboard() {
                 <span style={{ padding: '7px 14px', background: T.errorTint, color: T.error, borderRadius: T.radiusSm, fontWeight: '800', fontSize: '11px', letterSpacing: '0.02em' }}>
                   CLOSED
                 </span>
-              ) : product.has_variants ? (
+              ) : hasAnyVariants ? (
                 <motion.button {...btnTap}
                   style={{ padding: '7px 16px', background: 'white', color: T.primary, border: `1.5px solid ${T.primary}`, borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer', fontSize: '12px', letterSpacing: '0.02em' }}>
                   OPTIONS
@@ -2949,15 +2952,15 @@ export default function BuyerDashboard() {
 
             {/* Product Image */}
             <div
-              style={{ width: '100%', height: '320px', background: T.bg, position: 'relative', touchAction: 'pan-y' }}
+              style={{ width: '100%', aspectRatio: '4 / 5', background: T.bg, position: 'relative', touchAction: 'pan-y' }}
               onTouchStart={handleImageTouchStart}
               onTouchMove={handleImageTouchMove}
               onTouchEnd={() => handleImageTouchEnd(displayImagesGlobal.length)}
             >
               {displayImagesGlobal[0] || selectedProduct.image_url ? (
-                <img src={optimizeImage(displayImagesGlobal[activeImageIndex] || displayImagesGlobal[0] || selectedProduct.image_url, 800)}
+                <img src={optimizeImage(displayImagesGlobal[activeImageIndex] || displayImagesGlobal[0] || selectedProduct.image_url, 900)}
                   alt={selectedProduct.name} decoding="async"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '80px' }}>📦</div>
               )}
@@ -3012,31 +3015,75 @@ export default function BuyerDashboard() {
               </h2>
 
               {/* Price block */}
-              <div style={{ background: T.bg, borderRadius: T.radiusMd, padding: '14px 16px', marginBottom: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '26px', fontWeight: '800', color: T.text, letterSpacing: '-0.02em' }}>₹{selectedProduct.price}</span>
-                  <span style={{ fontSize: '13px', color: T.textSoft }}>
-                    per {selectedProduct.unit_type || 'piece'}
-                    {selectedProduct.unit_weight && ` (${selectedProduct.unit_weight}g)`}
-                  </span>
-                </div>
+              {(() => {
+                const isColorProduct = selectedProduct.has_color_variants && productColors.length > 0;
+                const isVariantProduct = !isColorProduct && selectedProduct.has_variants && selectedProduct.variants?.length > 0;
 
-                {selectedProduct.price_per_kg && (
-                  <div style={{ background: T.accentTint, borderRadius: '6px', padding: '5px 10px', marginBottom: '8px', display: 'inline-block' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#5B21B6' }}>₹{selectedProduct.price_per_kg}/kg</span>
+                let displayPrice, priceLabel, displayStock;
+                if (isColorProduct) {
+                  const allSizes = productColors.flatMap(c => c.sizes || []);
+                  const minPrice = allSizes.length > 0
+                    ? Math.min(...allSizes.map(s => parseFloat(s.price ?? selectedProduct.price)))
+                    : selectedProduct.price;
+                  if (selectedSize) {
+                    displayPrice = selectedSize.price ?? selectedProduct.price;
+                    priceLabel = null;
+                    displayStock = selectedSize.stock;
+                  } else {
+                    displayPrice = minPrice;
+                    priceLabel = 'Starting from';
+                    displayStock = null;
+                  }
+                } else if (isVariantProduct) {
+                  const minPrice = Math.min(...selectedProduct.variants.map(v => parseFloat(v.price)));
+                  if (selectedVariant) {
+                    displayPrice = selectedVariant.price;
+                    priceLabel = null;
+                    displayStock = selectedVariant.stock;
+                  } else {
+                    displayPrice = minPrice;
+                    priceLabel = 'Starting from';
+                    displayStock = null;
+                  }
+                } else {
+                  displayPrice = selectedProduct.price;
+                  priceLabel = null;
+                  displayStock = selectedProduct.stock;
+                }
+
+                return (
+                  <div style={{ background: T.bg, borderRadius: T.radiusMd, padding: '14px 16px', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px' }}>
+                      {priceLabel && <span style={{ fontSize: '12px', color: T.textSoft, fontWeight: '600' }}>{priceLabel}</span>}
+                      <span style={{ fontSize: '26px', fontWeight: '800', color: T.text, letterSpacing: '-0.02em' }}>₹{displayPrice}</span>
+                      {!isColorProduct && !isVariantProduct && (
+                        <span style={{ fontSize: '13px', color: T.textSoft }}>
+                          per {selectedProduct.unit_type || 'piece'}
+                          {selectedProduct.unit_weight && ` (${selectedProduct.unit_weight}g)`}
+                        </span>
+                      )}
+                    </div>
+
+                    {selectedProduct.price_per_kg && (
+                      <div style={{ background: T.accentTint, borderRadius: '6px', padding: '5px 10px', marginBottom: '8px', display: 'inline-block' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '800', color: '#5B21B6' }}>₹{selectedProduct.price_per_kg}/kg</span>
+                      </div>
+                    )}
+
+                    {displayStock !== null && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: displayStock > 10 ? T.success : displayStock > 0 ? T.headerYellowDark : T.error }} />
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: displayStock > 10 ? T.success : displayStock > 0 ? '#8B5A00' : T.error }}>
+                          {displayStock > 10 ? 'In stock' : displayStock > 0 ? 'Limited stock' : 'Out of stock'}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
+                );
+              })()}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
-                  <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: selectedProduct.stock > 10 ? T.success : selectedProduct.stock > 0 ? T.headerYellowDark : T.error }} />
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: selectedProduct.stock > 10 ? T.success : selectedProduct.stock > 0 ? '#8B5A00' : T.error }}>
-                    {selectedProduct.stock > 10 ? 'In stock' : selectedProduct.stock > 0 ? 'Limited stock' : 'Out of stock'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Variants */}
-              {selectedProduct.has_variants && selectedProduct.variants?.length > 0 && (
+              {/* Variants — only for non-fashion products with weight/pack-size etc; hidden when color+size system is active */}
+              {!selectedProduct.has_color_variants && selectedProduct.has_variants && selectedProduct.variants?.length > 0 && (
                 <div style={{ marginBottom: '14px' }}>
                   <h4 style={{ margin: '0 0 10px', color: T.text, fontSize: '14px', fontWeight: '800' }}>
                     Choose {selectedProduct.variants[0].variant_type}
