@@ -1308,13 +1308,71 @@ const saveProduct = async () => {
     {/* Product / Quantity Details */}
     {order.items && (
       <div style={{ background: '#f8f8f0', borderRadius: '10px', padding: '10px 12px', marginBottom: '10px' }}>
-        <div style={{ fontSize: '11px', fontWeight: '700', color: '#6c63ff', marginBottom: '6px', textTransform: 'uppercase' }}>Order Items</div>
-        {order.items.map((item, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '13px', borderBottom: i < order.items.length - 1 ? '1px solid #f0f0e8' : 'none' }}>
-            <span style={{ color: '#333', fontWeight: '600' }}>📦 {item.name}</span>
-            <span style={{ color: '#6c63ff', fontWeight: '700' }}>x{item.quantity} — ₹{item.unit_price * item.quantity}</span>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#6c63ff', marginBottom: '8px', textTransform: 'uppercase' }}>Order Items</div>
+        {order.items.map((item, i) => {
+          // Variant detail string banana
+          const variantDetail = item.color_name && item.size
+            ? `${item.color_name} / ${item.size}`
+            : item.color_name
+            ? item.color_name
+            : item.size
+            ? item.size
+            : item.variant_value
+            ? `${item.variant_type || 'Variant'}: ${item.variant_value}`
+            : null;
+
+          return (
+            <div key={i} style={{ padding: '8px 0', borderBottom: i < order.items.length - 1 ? '1px solid #f0f0e8' : 'none' }}>
+              {/* Product name + price */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <span style={{ color: '#333', fontWeight: '700', fontSize: '13px' }}>📦 {item.name}</span>
+                <span style={{ color: '#6c63ff', fontWeight: '700', fontSize: '13px', flexShrink: 0, marginLeft: '8px' }}>
+                  x{item.quantity} — ₹{(item.unit_price * item.quantity).toFixed(0)}
+                </span>
+              </div>
+              {/* Variant tag */}
+              {variantDetail && (
+                <div style={{ marginTop: '4px' }}>
+                  <span style={{ background: '#ede9fe', color: '#6c63ff', borderRadius: '20px', fontSize: '11px', fontWeight: '600', padding: '2px 10px' }}>
+                    🎨 {variantDetail}
+                  </span>
+                </div>
+              )}
+              {/* Unit price */}
+              <div style={{ fontSize: '11px', color: '#999', marginTop: '3px' }}>
+                ₹{item.unit_price} per piece
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Order totals */}
+        <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #d8d8d0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+            <span>Items Total</span>
+            <span style={{ fontWeight: '600' }}>₹{order.total_amount}</span>
           </div>
-        ))}
+          {order.delivery_charge != null && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+              <span>Delivery Charge</span>
+              <span style={{ fontWeight: '600' }}>₹{order.delivery_charge}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '800', color: '#1a1a2e', marginTop: '4px' }}>
+            <span>Grand Total</span>
+            <span>₹{order.grand_total || (parseFloat(order.total_amount) + parseFloat(order.delivery_charge || 0)).toFixed(0)}</span>
+          </div>
+          {/* Payment method */}
+          <div style={{ marginTop: '8px' }}>
+            <span style={{
+              background: order.payment_method === 'COD' ? '#fff3e0' : '#e8f4ff',
+              color: order.payment_method === 'COD' ? '#e67e22' : '#0984e3',
+              borderRadius: '20px', fontSize: '11px', fontWeight: '700', padding: '3px 10px'
+            }}>
+              {order.payment_method === 'COD' ? '💵 Cash on Delivery' : order.payment_method === 'ONLINE_QR' ? '📱 UPI / QR Payment' : `💳 ${order.payment_method}`}
+            </span>
+          </div>
+        </div>
       </div>
     )}
 

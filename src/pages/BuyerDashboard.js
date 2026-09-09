@@ -677,9 +677,18 @@ const useCart = () => {
     setCart([]);
     localStorage.removeItem('zaplo_cart');
   };
+
+  // Sirf ek seller ke items cart se hatao (multi-shop case)
+  const clearSellerCart = (sellerId) => {
+    setCart(prev => prev.filter(i => {
+      const sid = i.seller_id || i.shop_id;
+      return sid !== sellerId;
+    }));
+  };
+
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
-  return { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount, getCartKey };
+  return { cart, addToCart, removeFromCart, updateQty, clearCart, clearSellerCart, total, cartCount, getCartKey };
 };
 
 const categories = [
@@ -1148,6 +1157,7 @@ export default function BuyerDashboard() {
 
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderingForSelf, setOrderingForSelf] = useState(null); // null=not chosen, true/false
+  const [selectedSellerGroup, setSelectedSellerGroup] = useState(null); // multi-shop: selected seller_id
   const [checkoutLat, setCheckoutLat] = useState(null);
   const [checkoutLng, setCheckoutLng] = useState(null);
   const [showAddressSearch, setShowAddressSearch] = useState(false);
@@ -1160,7 +1170,7 @@ export default function BuyerDashboard() {
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState(null);
   const [newAddress, setNewAddress] = useState({ label: 'Home', full_address: '', landmark: '', phone: '' });
-  const { cart, addToCart, removeFromCart, updateQty, clearCart, total, cartCount } = useCart();
+  const { cart, addToCart, removeFromCart, updateQty, clearCart, clearSellerCart, total, cartCount } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [productColors, setProductColors] = useState([]);
@@ -1764,55 +1774,83 @@ export default function BuyerDashboard() {
 
 
   const placeOrder = async () => {
-    if (!address.full_address || !address.phone) {
-
-          if (user?.serviceable === false) {
+    if (user?.serviceable === false) {
       showToast('Service not available in your area', 'error');
       return;
     }
+    if (!address.full_address || !address.phone) {
       showToast('Please fill address and phone', 'error');
       return;
     }
 
-    const sellerGroups = {};
-    cart.forEach(item => {
-      const sid = item.seller_id || item.shop_id;
-      if (!sellerGroups[sid]) sellerGroups[sid] = [];
-      sellerGroups[sid].push(item);
-    });
+    // Sirf selected seller ke items — multi-shop case mein ek shop ka order
+    const targetSellerId = selectedSellerGroup;
+    const itemsToOrder = targetSellerId
+      ? cart.filter(i => (i.seller_id || i.shop_id) === targetSellerId)
+      : cart; // fallback: sab items (single shop)
+
+    if (itemsToOrder.length === 0) {
+      showToast('No items to order', 'error');
+      return;
+    }
+
+    // Seller ID resolve karo
+    const seller_id = targetSellerId || itemsToOrder[0]?.seller_id || itemsToOrder[0]?.shop_id;
 
     try {
-      const placedOrderIds = [];
       const backendPaymentMethod = paymentMethod === 'ONLINE' ? 'ONLINE_QR' : paymentMethod;
 
-      for (const [seller_id, items] of Object.entries(sellerGroups)) {
-        const res = await API.post('/orders', {
-          seller_id,
-          items: items.map(i => ({ product_id: i.id, quantity: i.qty, variant_id: i.variant?.id || null, color_size_id: i.colorSize?.id || null })),
-          payment_method: backendPaymentMethod,
-          delivery_address: address.full_address,
-          delivery_phone: address.phone,
-          delivery_landmark: address.landmark,
-          buyer_lat: checkoutLat || buyerLocation?.lat,
-          buyer_lng: checkoutLng || buyerLocation?.lng,
-          ordering_for_self: orderingForSelf !== false,
-        });
-        placedOrderIds.push(res.data.order.id || res.data.id);
-      }
+      const res = await API.post('/orders', {
+        seller_id,
+        items: itemsToOrder.map(i => ({
+          product_id: i.id,
+          quantity: i.qty,
+          variant_id: i.variant?.id || null,
+          color_size_id: i.colorSize?.id || null,
+        })),
+        payment_method: backendPaymentMethod,
+        delivery_address: address.full_address,
+        delivery_phone: address.phone,
+        delivery_landmark: address.landmark,
+        buyer_lat: checkoutLat || buyerLocation?.lat,
+        buyer_lng: checkoutLng || buyerLocation?.lng,
+        ordering_for_self: orderingForSelf !== false,
+      });
+
+      const placedOrderId = res.data.order?.id || res.data.id;
+      const remainingCart = cart.filter(i => (i.seller_id || i.shop_id) !== seller_id);
 
       if (paymentMethod === 'COD') {
-        clearCart();
+        // Sirf is seller ke items hatao
+        if (targetSellerId) {
+          clearSellerCart(seller_id);
+        } else {
+          clearCart();
+        }
         sessionStorage.removeItem('zaplo_checkout_address');
-        showToast('Order placed successfully! 🎉 Pay cash on delivery.', 'success');
-        navigate({ screen: 'orders', checkoutStep: 1 });
-        fetchMyOrders();
+        setSelectedSellerGroup(null);
+
+        if (remainingCart.length > 0) {
+          // Aur bhi shops ke items hain — cart pe wapas jao
+          showToast('Order placed! 🎉 Aapka ek order confirm ho gaya. Baaki shops ke orders bhi place karein.', 'success');
+          navigate({ screen: 'cart', checkoutStep: 1 });
+        } else {
+          showToast('Order placed successfully! 🎉 Pay cash on delivery.', 'success');
+          navigate({ screen: 'orders', checkoutStep: 1 });
+          fetchMyOrders();
+        }
         return;
       }
 
       if (paymentMethod === 'ONLINE') {
-        clearCart();
+        if (targetSellerId) {
+          clearSellerCart(seller_id);
+        } else {
+          clearCart();
+        }
         sessionStorage.removeItem('zaplo_checkout_address');
-        startQrPayment(placedOrderIds);
+        setSelectedSellerGroup(null);
+        startQrPayment([placedOrderId]);
       }
 
     } catch (err) {
@@ -2265,7 +2303,7 @@ export default function BuyerDashboard() {
             ) : checkoutStep === 1 ? (
               <>
                 {/* Delivery ETA banner */}
-                <div style={{ background: T.primary, color: 'white', padding: '12px 14px', borderRadius: T.radiusMd, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ background: T.primary, color: 'white', padding: '12px 14px', borderRadius: T.radiusMd, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '20px' }}>⚡</span>
                   <div>
                     <div style={{ fontWeight: '800', fontSize: '14px' }}>Delivery in ~45 mins</div>
@@ -2273,58 +2311,113 @@ export default function BuyerDashboard() {
                   </div>
                 </div>
 
-                {cart.map(item => (
-                  <div key={item.cartKey} style={{ background: T.card, borderRadius: T.radiusMd, padding: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px', border: `1px solid ${T.border}` }}>
-                    <div style={{ width: '54px', height: '54px', background: T.bg, borderRadius: T.radiusSm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', overflow: 'hidden', flexShrink: 0 }}>
-                      {item.image_url ? <img src={optimizeImage(item.image_url, 120)} alt={item.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📦'}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: '600', fontSize: '13px', color: T.text, lineHeight: 1.3 }}>{item.name}</div>
-                      {item.variant && (
-                        <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>{item.variant.variant_type}: {item.variant.variant_value}</div>
-                      )}
-                      {item.colorSize && (
-                        <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>{item.colorSize.color_name} · Size {item.colorSize.size}</div>
-                      )}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                        <span style={{ fontWeight: '800', color: T.text, fontSize: '14px' }}>₹{item.price * item.qty}</span>
-                        <span style={{ fontSize: '11px', color: T.textFaint }}>₹{item.price}/pc</span>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: T.radiusSm, overflow: 'hidden', flexShrink: 0 }}>
-                      <button onClick={() => updateQty(item.cartKey, item.qty - 1)}
-                        style={{ width: '28px', height: '30px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer', fontWeight: '700' }}>−</button>
-                      <span style={{ color: 'white', fontWeight: '800', minWidth: '20px', textAlign: 'center', fontSize: '13px' }}>{item.qty}</span>
-                      <button onClick={() => updateQty(item.cartKey, item.qty + 1)}
-                        style={{ width: '28px', height: '30px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer', fontWeight: '700' }}>+</button>
-                    </div>
-                  </div>
-                ))}
+                {/* ── Shop-grouped cart ── */}
+                {(() => {
+                  // Cart items ko shop ke hisaab se group karo
+                  const shopGroups = {};
+                  cart.forEach(item => {
+                    const sid = item.seller_id || item.shop_id || 'unknown';
+                    const shopName = item.shop_name || item.seller_name || 'Shop';
+                    if (!shopGroups[sid]) shopGroups[sid] = { seller_id: sid, shop_name: shopName, items: [] };
+                    shopGroups[sid].items.push(item);
+                  });
+                  const groups = Object.values(shopGroups);
+                  const isMultiShop = groups.length > 1;
 
-                {/* Bill details */}
-                <div style={{ background: T.card, borderRadius: T.radiusMd, padding: '16px', border: `1px solid ${T.border}`, marginTop: '10px' }}>
-                  <div style={{ fontWeight: '800', fontSize: '13px', color: T.text, marginBottom: '12px', letterSpacing: '0.02em' }}>BILL DETAILS</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
-                    <span style={{ color: T.textSoft }}>Item total</span>
-                    <span style={{ fontWeight: '600' }}>₹{total}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
-                    <span style={{ color: T.textSoft }}>Delivery charge</span>
-                    <span style={{ fontWeight: '600' }}>{deliveryCharge != null ? `₹${deliveryCharge}` : '—'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: `1px dashed ${T.border}`, marginTop: '4px' }}>
-                    <span style={{ fontWeight: '800', fontSize: '14px' }}>To Pay</span>
-                    <span style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>₹{total + (deliveryCharge || 0)}</span>
-                  </div>
-                   <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '10px 12px', marginTop: '12px', fontSize: '11px', color: '#5B21B6' }}>
-                    Delivery: ₹20 upto 3km · ₹30 upto 5km · ₹6/km after. Pay to delivery partner.
-                  </div>
-                  <motion.button {...btnTap} onClick={() => { setOrderingForSelf(null); navigate({ checkoutStep: 'who' }); }}
-                    disabled={user?.serviceable === false}
-                    style={{ width: '100%', marginTop: '14px', padding: '15px', background: user?.serviceable === false ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', fontSize: '15px', cursor: user?.serviceable === false ? 'not-allowed' : 'pointer', letterSpacing: '0.02em', opacity: user?.serviceable === false ? 0.6 : 1 }}>
-                    {user?.serviceable === false ? 'Service Not Available' : 'PROCEED TO CHECKOUT →'}
-                  </motion.button>
-                </div>
+                  return groups.map((group, gIdx) => {
+                    const groupTotal = group.items.reduce((sum, i) => sum + i.price * i.qty, 0);
+
+                    return (
+                      <div key={group.seller_id}>
+                        {/* ── Green separator between shops ── */}
+                        {gIdx > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '16px 0' }}>
+                            <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to right, #00b894, #55efc4)' }} />
+                            <span style={{ fontSize: '11px', color: '#00b894', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                              🛍️ Next Shop's Order
+                            </span>
+                            <div style={{ flex: 1, height: '2px', background: 'linear-gradient(to left, #00b894, #55efc4)' }} />
+                          </div>
+                        )}
+
+                        {/* Shop header */}
+                        {isMultiShop && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', padding: '10px 12px', background: T.primaryTint, borderRadius: T.radiusMd, border: `1px solid ${T.border}` }}>
+                            <span style={{ fontSize: '18px' }}>🏪</span>
+                            <div>
+                              <div style={{ fontWeight: '800', fontSize: '13px', color: T.primary }}>{group.shop_name}</div>
+                              <div style={{ fontSize: '11px', color: T.textSoft }}>{group.items.length} item{group.items.length > 1 ? 's' : ''}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Items in this shop */}
+                        {group.items.map(item => (
+                          <div key={item.cartKey} style={{ background: T.card, borderRadius: T.radiusMd, padding: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px', border: `1px solid ${T.border}` }}>
+                            <div style={{ width: '54px', height: '54px', background: T.bg, borderRadius: T.radiusSm, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', overflow: 'hidden', flexShrink: 0 }}>
+                              {item.image_url ? <img src={optimizeImage(item.image_url, 120)} alt={item.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📦'}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: '600', fontSize: '13px', color: T.text, lineHeight: 1.3 }}>{item.name}</div>
+                              {item.variant && (
+                                <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>{item.variant.variant_type}: {item.variant.variant_value}</div>
+                              )}
+                              {item.colorSize && (
+                                <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>{item.colorSize.color_name} · Size {item.colorSize.size}</div>
+                              )}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                                <span style={{ fontWeight: '800', color: T.text, fontSize: '14px' }}>₹{item.price * item.qty}</span>
+                                <span style={{ fontSize: '11px', color: T.textFaint }}>₹{item.price}/pc</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: T.radiusSm, overflow: 'hidden', flexShrink: 0 }}>
+                              <button onClick={() => updateQty(item.cartKey, item.qty - 1)}
+                                style={{ width: '28px', height: '30px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer', fontWeight: '700' }}>−</button>
+                              <span style={{ color: 'white', fontWeight: '800', minWidth: '20px', textAlign: 'center', fontSize: '13px' }}>{item.qty}</span>
+                              <button onClick={() => updateQty(item.cartKey, item.qty + 1)}
+                                style={{ width: '28px', height: '30px', background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer', fontWeight: '700' }}>+</button>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Per-shop bill + proceed button */}
+                        <div style={{ background: T.card, borderRadius: T.radiusMd, padding: '14px', border: `1px solid ${T.border}`, marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
+                            <span style={{ color: T.textSoft }}>Items subtotal</span>
+                            <span style={{ fontWeight: '700' }}>₹{groupTotal}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '10px' }}>
+                            <span style={{ color: T.textSoft }}>Delivery charge</span>
+                            <span style={{ fontWeight: '700' }}>₹{deliveryCharge || 20}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: `1px dashed ${T.border}`, marginBottom: '12px' }}>
+                            <span style={{ fontWeight: '800', fontSize: '14px' }}>To Pay</span>
+                            <span style={{ fontWeight: '800', fontSize: '15px', color: T.text }}>₹{groupTotal + (deliveryCharge || 20)}</span>
+                          </div>
+                          <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '8px 12px', marginBottom: '12px', fontSize: '11px', color: '#5B21B6' }}>
+                            Delivery: ₹20 upto 3km · ₹30 upto 5km · ₹6/km after. Pay to delivery partner.
+                          </div>
+                          <motion.button {...btnTap}
+                            onClick={() => {
+                              // Sirf is shop ke items ke liye checkout shuru karo
+                              // selectedSellerGroup set karo
+                              setSelectedSellerGroup(group.seller_id);
+                              setOrderingForSelf(null);
+                              navigate({ checkoutStep: 'who' });
+                            }}
+                            disabled={user?.serviceable === false}
+                            style={{ width: '100%', padding: '14px', background: user?.serviceable === false ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', fontSize: '14px', cursor: user?.serviceable === false ? 'not-allowed' : 'pointer', letterSpacing: '0.02em', opacity: user?.serviceable === false ? 0.6 : 1 }}>
+                            {user?.serviceable === false
+                              ? 'Service Not Available'
+                              : isMultiShop
+                              ? `ORDER FROM ${(group.shop_name || 'Shop').toUpperCase()} · ₹${groupTotal + (deliveryCharge || 20)} →`
+                              : `PROCEED TO CHECKOUT · ₹${groupTotal + (deliveryCharge || 20)} →`}
+                          </motion.button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </>
             ) : checkoutStep === 'who' ? (
               <div>
