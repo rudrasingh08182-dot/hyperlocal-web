@@ -1147,6 +1147,14 @@ export default function BuyerDashboard() {
   });
 
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [orderingForSelf, setOrderingForSelf] = useState(null); // null=not chosen, true/false
+  const [checkoutLat, setCheckoutLat] = useState(null);
+  const [checkoutLng, setCheckoutLng] = useState(null);
+  const [showAddressSearch, setShowAddressSearch] = useState(false);
+  const [addressSearchQuery, setAddressSearchQuery] = useState('');
+  const [addressSearchResults, setAddressSearchResults] = useState([]);
+  const [addressSearchLoading, setAddressSearchLoading] = useState(false);
+  const [locatingLive, setLocatingLive] = useState(false);
   const [orderFilter, setOrderFilter] = useState('All');
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
@@ -1618,14 +1626,79 @@ export default function BuyerDashboard() {
     try {
       const sellerIds = [...new Set(cart.map(item => item.seller_id || item.shop_id))].filter(Boolean);
       let totalCharge = 0;
+      let unserviceable = false;
       for (const sellerId of sellerIds) {
         const res = await API.get(`/orders/delivery-estimate?seller_id=${sellerId}&buyer_lat=${lat}&buyer_lng=${lng}`);
+        if (res.data.serviceable === false) { unserviceable = true; break; }
         totalCharge += res.data.delivery_charge || 20;
       }
-      setDeliveryCharge(totalCharge || 20);
+      if (unserviceable) {
+        showToast('Sorry, hum abhi wahan available nahi hain, lekin jaldi hi aa rahe hain! 🚀', 'error');
+        setDeliveryCharge(null);
+      } else {
+        setDeliveryCharge(totalCharge || 20);
+      }
     } catch (err) {
       console.error('Delivery charge estimate failed:', err);
     }
+  };
+
+  const searchAddress = async (query) => {
+    if (!query || query.trim().length < 3) { setAddressSearchResults([]); return; }
+    setAddressSearchLoading(true);
+    try {
+      const res = await API.get(`/auth/geocode-search?q=${encodeURIComponent(query)}`);
+      setAddressSearchResults(res.data);
+    } catch (err) {
+      console.error('Address search failed:', err);
+      setAddressSearchResults([]);
+    } finally {
+      setAddressSearchLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => searchAddress(addressSearchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [addressSearchQuery]);
+
+  const useLiveLocationForSelf = () => {
+    setLocatingLive(true);
+    if (!navigator.geolocation) {
+      showToast('GPS not supported on this device', 'error');
+      setLocatingLive(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        setCheckoutLat(lat);
+        setCheckoutLng(lng);
+        try {
+          await API.patch('/auth/save-delivery-location', { latitude: lat, longitude: lng, label: 'Home' });
+        } catch (err) {
+          console.error('Save location failed:', err);
+        }
+        setLocatingLive(false);
+        fetchDeliveryEstimate(lat, lng);
+        setOrderingForSelf(true);
+        navigate({ checkoutStep: 2 });
+      },
+      () => {
+        showToast('Location access denied. Please enable GPS.', 'error');
+        setLocatingLive(false);
+      }
+    );
+  };
+
+  const selectSearchedAddress = (result) => {
+    setCheckoutLat(result.lat);
+    setCheckoutLng(result.lng);
+    setAddress(prev => ({ ...prev, full_address: result.display_name }));
+    setOrderingForSelf(false);
+    setShowAddressSearch(false);
+    fetchDeliveryEstimate(result.lat, result.lng);
+    navigate({ checkoutStep: 2 });
   };
 
   const getBuyerLocation = () => {
@@ -1720,8 +1793,9 @@ export default function BuyerDashboard() {
           delivery_address: address.full_address,
           delivery_phone: address.phone,
           delivery_landmark: address.landmark,
-          buyer_lat: buyerLocation?.lat,
-          buyer_lng: buyerLocation?.lng,
+          buyer_lat: checkoutLat || buyerLocation?.lat,
+          buyer_lng: checkoutLng || buyerLocation?.lng,
+          ordering_for_self: orderingForSelf !== false,
         });
         placedOrderIds.push(res.data.order.id || res.data.id);
       }
@@ -2236,22 +2310,52 @@ export default function BuyerDashboard() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
                     <span style={{ color: T.textSoft }}>Delivery charge</span>
-                    <span style={{ fontWeight: '600' }}>₹{deliveryCharge}</span>
+                    <span style={{ fontWeight: '600' }}>{deliveryCharge != null ? `₹${deliveryCharge}` : '—'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: `1px dashed ${T.border}`, marginTop: '4px' }}>
                     <span style={{ fontWeight: '800', fontSize: '14px' }}>To Pay</span>
-                    <span style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>₹{total + deliveryCharge}</span>
+                    <span style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>₹{total + (deliveryCharge || 0)}</span>
                   </div>
                    <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '10px 12px', marginTop: '12px', fontSize: '11px', color: '#5B21B6' }}>
                     Delivery: ₹20 upto 3km · ₹30 upto 5km · ₹6/km after. Pay to delivery partner.
                   </div>
-                  <motion.button {...btnTap} onClick={() => navigate({ checkoutStep: 2 })}
+                  <motion.button {...btnTap} onClick={() => { setOrderingForSelf(null); navigate({ checkoutStep: 'who' }); }}
                     disabled={user?.serviceable === false}
                     style={{ width: '100%', marginTop: '14px', padding: '15px', background: user?.serviceable === false ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', fontSize: '15px', cursor: user?.serviceable === false ? 'not-allowed' : 'pointer', letterSpacing: '0.02em', opacity: user?.serviceable === false ? 0.6 : 1 }}>
                     {user?.serviceable === false ? 'Service Not Available' : 'PROCEED TO CHECKOUT →'}
                   </motion.button>
                 </div>
               </>
+            ) : checkoutStep === 'who' ? (
+              <div>
+                <h3 style={{ margin: '0 0 6px', color: T.text, fontSize: '16px', fontWeight: '800' }}>Yeh order kiske liye hai?</h3>
+                <p style={{ color: T.textSoft, fontSize: '12px', marginBottom: '18px' }}>Sahi delivery charge dikhane ke liye zaroori hai</p>
+
+                <motion.div whileTap={{ scale: 0.98 }} onClick={useLiveLocationForSelf}
+                  style={{ background: T.card, border: `1.5px solid ${T.primary}`, borderRadius: T.radiusMd, padding: '18px', marginBottom: '12px', cursor: locatingLive ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: T.primaryTint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>👤</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '700', fontSize: '14px', color: T.text }}>Apne liye</div>
+                    <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '2px' }}>{locatingLive ? 'Location le rahe hain...' : 'Live location use karein'}</div>
+                  </div>
+                  <span style={{ fontSize: '18px', color: T.primary }}>📍</span>
+                </motion.div>
+
+                <motion.div whileTap={{ scale: 0.98 }} onClick={() => { setShowAddressSearch(true); setAddressSearchQuery(''); setAddressSearchResults([]); }}
+                  style={{ background: T.card, border: `1.5px solid ${T.border}`, borderRadius: T.radiusMd, padding: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: T.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🎁</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '700', fontSize: '14px', color: T.text }}>Kisi aur ke liye</div>
+                    <div style={{ fontSize: '12px', color: T.textSoft, marginTop: '2px' }}>Address search karke chunein</div>
+                  </div>
+                  <span style={{ fontSize: '18px', color: T.textFaint }}>🔍</span>
+                </motion.div>
+
+                <motion.button {...btnTap} onClick={() => window.history.back()}
+                  style={{ width: '100%', marginTop: '16px', padding: '13px', background: T.card, color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, fontWeight: '700', cursor: 'pointer' }}>
+                  ← Back
+                </motion.button>
+              </div>
             ) : checkoutStep === 2 ? (
               <div>
                 {!showNewAddressForm && savedAddresses.length > 0 ? (
@@ -3320,6 +3424,40 @@ export default function BuyerDashboard() {
         </div>
         );
       })()}
+
+      {showAddressSearch && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: T.card, zIndex: 400, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: T.headerGradient, padding: '14px 16px 16px', boxShadow: T.shadowHeader }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <motion.button {...btnTap} onClick={() => setShowAddressSearch(false)}
+                style={{ width: '34px', height: '34px', background: 'rgba(0,0,0,0.08)', border: 'none', borderRadius: '50%', cursor: 'pointer', fontSize: '17px' }}>←</motion.button>
+              <h2 style={{ margin: 0, color: T.text, fontSize: '16px', fontWeight: '800' }}>Delivery address dhoondein</h2>
+            </div>
+            <input
+              autoFocus
+              placeholder="Area, landmark, colony, city..."
+              value={addressSearchQuery}
+              onChange={e => setAddressSearchQuery(e.target.value)}
+              style={{ width: '100%', padding: '13px 16px', border: 'none', borderRadius: T.radiusSm, fontSize: '14px', outline: 'none' }}
+            />
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+            {addressSearchLoading ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: T.textFaint, fontSize: '13px' }}>Dhoondh rahe hain...</div>
+            ) : addressSearchResults.length === 0 && addressSearchQuery.trim().length >= 3 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: T.textFaint, fontSize: '13px' }}>Koi result nahi mila</div>
+            ) : (
+              addressSearchResults.map((r, i) => (
+                <motion.div key={i} whileTap={{ scale: 0.98 }} onClick={() => selectSearchedAddress(r)}
+                  style={{ padding: '14px 16px', borderBottom: `1px solid ${T.border}`, cursor: 'pointer', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '16px', marginTop: '2px' }}>📍</span>
+                  <span style={{ fontSize: '13px', color: T.text, lineHeight: '1.5' }}>{r.display_name}</span>
+                </motion.div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {trackingOrderId && (
         <OrderTracking orderId={trackingOrderId} onClose={() => window.history.back()} />

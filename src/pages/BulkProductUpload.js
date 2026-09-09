@@ -28,6 +28,7 @@ export default function BulkProductUpload() {
   const [excelFile, setExcelFile] = useState(null);
   const [zipFile, setZipFile] = useState(null);
   const [variantsFile, setVariantsFile] = useState(null);
+  const [colorsFile, setColorsFile] = useState(null);
 
   // Validation / preview
   const [validating, setValidating] = useState(false);
@@ -36,6 +37,7 @@ export default function BulkProductUpload() {
   const [preview, setPreview] = useState([]);
   const [invalidRows, setInvalidRows] = useState([]);
   const [orphanVariantErrors, setOrphanVariantErrors] = useState([]);
+  const [orphanColorErrors, setOrphanColorErrors] = useState([]);
   const [rowWarnings, setRowWarnings] = useState([]);
 
   // Import
@@ -51,12 +53,14 @@ export default function BulkProductUpload() {
   setExcelFile(null);
   setZipFile(null);
   setVariantsFile(null);
+  setColorsFile(null);
 
   setUploadId(null);
   setSummary(null);
   setPreview([]);
   setInvalidRows([]);
   setOrphanVariantErrors([]);
+  setOrphanColorErrors([]);
   setRowWarnings([]);
 
   setImportResult(null);
@@ -128,6 +132,23 @@ const downloadVariantsTemplate = () => {
 
   XLSX.writeFile(wb, 'zaplo_variants_template.xlsx');
 };
+  const downloadColorsTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Product Name', 'Color Name', 'Color Images', 'Size', 'Stock', 'Price'],
+      ["Men's Casual Shirt", 'Beige', 'beige_front.jpg, beige_back.jpg', 'S', 10, 499],
+      ["Men's Casual Shirt", 'Beige', 'beige_front.jpg, beige_back.jpg', 'M', 5, 499],
+      ["Men's Casual Shirt", 'Beige', 'beige_front.jpg, beige_back.jpg', 'L', 0, 499],
+      ["Men's Casual Shirt", 'Black', 'black_front.jpg, black_back.jpg', 'S', 4, 499],
+      ["Men's Casual Shirt", 'Black', 'black_front.jpg, black_back.jpg', 'M', 7, 499],
+    ]);
+    ws['!cols'] = [
+      { wch: 28 }, { wch: 16 }, { wch: 34 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Colors');
+    XLSX.writeFile(wb, 'zaplo_colors_template.xlsx');
+  };
+
   // Step 2: Seller search
   const searchSellers = async () => {
     if (!sellerQuery.trim()) return;
@@ -159,6 +180,9 @@ const downloadVariantsTemplate = () => {
     if (variantsFile) {
       formData.append('variants', variantsFile);
     }
+    if (colorsFile) {
+      formData.append('colors', colorsFile);
+    }
 
     const res = await API.post('/admin/bulk-upload/validate', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -170,6 +194,7 @@ const downloadVariantsTemplate = () => {
       setPreview(res.data.preview);
       setInvalidRows(res.data.invalid);
       setOrphanVariantErrors(res.data.orphanVariantErrors || []);
+      setOrphanColorErrors(res.data.orphanColorErrors || []);
       setRowWarnings(res.data.rowWarnings || []);
       setStep(3);
     } catch (err) {
@@ -258,11 +283,21 @@ const downloadVariantsTemplate = () => {
 
     <div style={{ background: '#fff8e8', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #ffe0a3' }}>
       <p style={{ fontSize: '13px', color: '#666', margin: '0 0 14px' }}>
-        <strong>Optional:</strong> if a product has multiple sizes/weights/colors (e.g. a pizza with 7", 9", 12" options), list them in a separate Variants file. Products without variants don't need this file at all.
+        <strong>Optional:</strong> if a product has multiple sizes/weights (e.g. a pizza with 7", 9", 12" options), list them in a separate Variants file. Products without variants don't need this file at all.
       </p>
       <button onClick={downloadVariantsTemplate}
         style={{ background: '#B45309', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
         ⬇️ Download Variants Template (Optional)
+      </button>
+    </div>
+
+    <div style={{ background: '#f8f0ff', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #e0c8ff' }}>
+      <p style={{ fontSize: '13px', color: '#666', margin: '0 0 14px' }}>
+        <strong>🎨 Optional — Fashion (Color + Size):</strong> for products like shirts/dresses with multiple colors, each with its own images and sizes (e.g. Beige/S, Beige/M, Black/S), list them in the Colors file. Do NOT use this together with the Variants file for the same product — pick one system per product.
+      </p>
+      <button onClick={downloadColorsTemplate}
+        style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '12px 24px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
+        ⬇️ Download Colors Template (Optional)
       </button>
     </div>
 
@@ -356,6 +391,20 @@ const downloadVariantsTemplate = () => {
   )}
 </div>
 
+<div style={{ marginBottom: '20px' }}>
+  <div style={{ fontWeight: '700', fontSize: '13px', marginBottom: '8px' }}>🎨 Colors File — Fashion (Optional)</div>
+  <label style={{ display: 'block', padding: '16px', border: '2px dashed #6c63ff', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', background: '#f8f0ff', color: '#6c63ff', fontWeight: '600', fontSize: '13px' }}>
+    {colorsFile ? `📄 ${colorsFile.name}` : '📁 Choose Colors.xlsx (only for products with color+size variants)'}
+    <input type="file" accept=".xlsx,.xls" onChange={e => setColorsFile(e.target.files[0])} style={{ display: 'none' }} />
+  </label>
+  {colorsFile && (
+    <button onClick={() => setColorsFile(null)}
+      style={{ marginTop: '8px', background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline' }}>
+      Remove file
+    </button>
+  )}
+</div>
+
           <div style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => setStep(1)} style={{ background: '#f0f0e8', color: '#666', border: 'none', borderRadius: '10px', padding: '12px 24px', cursor: 'pointer' }}>← Back</button>
             <button onClick={runValidation} disabled={validating || !excelFile || !zipFile}
@@ -397,12 +446,31 @@ const downloadVariantsTemplate = () => {
     <div style={{ fontSize: '12px', color: '#999' }}>Total Variants</div>
   </div>
 </div>
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+  <div style={{ background: '#f8f0ff', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#6c63ff' }}>{summary.colorProductCount || 0}</div>
+    <div style={{ fontSize: '12px', color: '#999' }}>🎨 Color Products</div>
+  </div>
+  <div style={{ background: '#f0eeff', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#6c63ff' }}>{summary.totalColors || 0}</div>
+    <div style={{ fontSize: '12px', color: '#999' }}>Total Colors</div>
+  </div>
+</div>
 
 {orphanVariantErrors.length > 0 && (
   <div style={{ background: '#fff8e8', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
     <div style={{ fontWeight: '700', color: '#B45309', fontSize: '13px', marginBottom: '8px' }}>⚠️ Variants file notice:</div>
     <ul style={{ margin: 0, paddingLeft: '18px' }}>
       {orphanVariantErrors.map((e, i) => <li key={i} style={{ fontSize: '12px', color: '#666' }}>{e}</li>)}
+    </ul>
+  </div>
+)}
+
+{orphanColorErrors.length > 0 && (
+  <div style={{ background: '#f8f0ff', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+    <div style={{ fontWeight: '700', color: '#6c63ff', fontSize: '13px', marginBottom: '8px' }}>🎨 Colors file notice:</div>
+    <ul style={{ margin: 0, paddingLeft: '18px' }}>
+      {orphanColorErrors.map((e, i) => <li key={i} style={{ fontSize: '12px', color: '#666' }}>{e}</li>)}
     </ul>
   </div>
 )}
@@ -452,6 +520,7 @@ const downloadVariantsTemplate = () => {
                      <td style={{ padding: '8px 10px' }}>
   {p.name}{p.warnings?.length > 0 && ' ⚠️'}
   {p.variants && <span style={{ marginLeft: '6px', fontSize: '10px', background: '#fff8e8', color: '#B45309', padding: '2px 6px', borderRadius: '6px', fontWeight: '700' }}>{p.variants.length} variants</span>}
+  {p.colors && <span style={{ marginLeft: '6px', fontSize: '10px', background: '#f8f0ff', color: '#6c63ff', padding: '2px 6px', borderRadius: '6px', fontWeight: '700' }}>🎨 {p.colors.length} colors</span>}
 </td>
                       <td style={{ padding: '8px 10px', textTransform: 'capitalize' }}>{p.category}</td>
                       <td style={{ padding: '8px 10px' }}>₹{p.price}</td>

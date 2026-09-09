@@ -610,6 +610,7 @@ useEffect(() => {
 const [storeOnline, setStoreOnline] = useState(true);
 const [storeStatusLoading, setStoreStatusLoading] = useState(false);
 const [shopHasLocation, setShopHasLocation] = useState(true); // assume true until we know otherwise
+const [showLocationPrompt, setShowLocationPrompt] = useState(false);
 
 const fetchShopSettings = async () => {
   try {
@@ -625,9 +626,10 @@ const fetchShopSettings = async () => {
     const hasLocation = !!(res.data.latitude && res.data.longitude);
     setShopHasLocation(hasLocation);
 
-    // First time ever (no location saved) — auto-request GPS and save silently.
+    // No location saved yet — show a visible prompt asking for permission,
+    // instead of silently requesting GPS in the background.
     if (!hasLocation) {
-      requestAndSaveShopLocation(true);
+      setShowLocationPrompt(true);
     }
   } catch (err) {
     console.error('Shop settings fetch failed');
@@ -1963,6 +1965,27 @@ const saveProduct = async () => {
                 {editSaving ? 'Saving...' : '💾 Save Changes'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shop Location Prompt — shown on first login until location is saved */}
+      {showLocationPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '18px', padding: '28px', maxWidth: '400px', width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: '44px', marginBottom: '12px' }}>📍</div>
+            <h3 style={{ margin: '0 0 10px', color: '#1a1a2e', fontSize: '18px' }}>Apni Shop ka Location Save Karein</h3>
+            <p style={{ color: '#666', fontSize: '13px', lineHeight: '1.6', marginBottom: '22px' }}>
+              Accurate delivery charge calculate karne ke liye zaroori hai. Aap jahan khade hain wahi apni shop ka live location save ho jayega.
+            </p>
+            <button onClick={() => { requestAndSaveShopLocation(false); setShowLocationPrompt(false); }}
+              style={{ width: '100%', padding: '14px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '14px', cursor: 'pointer', marginBottom: '10px' }}>
+              📍 Allow & Save Location
+            </button>
+            <button onClick={() => setShowLocationPrompt(false)}
+              style={{ width: '100%', padding: '12px', background: 'none', color: '#999', border: 'none', fontSize: '13px', cursor: 'pointer' }}>
+              Baad mein karunga
+            </button>
           </div>
         </div>
       )}
