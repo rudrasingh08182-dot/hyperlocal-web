@@ -2952,7 +2952,7 @@ export default function BuyerDashboard() {
 
             {/* Product Image */}
             <div
-              style={{ width: '100%', aspectRatio: '4 / 5', background: T.bg, position: 'relative', touchAction: 'pan-y' }}
+              style={{ width: '100%', minHeight: '320px', maxHeight: '65vh', background: T.bg, position: 'relative', touchAction: 'pan-y', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
               onTouchStart={handleImageTouchStart}
               onTouchMove={handleImageTouchMove}
               onTouchEnd={() => handleImageTouchEnd(displayImagesGlobal.length)}
@@ -2960,7 +2960,7 @@ export default function BuyerDashboard() {
               {displayImagesGlobal[0] || selectedProduct.image_url ? (
                 <img src={optimizeImage(displayImagesGlobal[activeImageIndex] || displayImagesGlobal[0] || selectedProduct.image_url, 900)}
                   alt={selectedProduct.name} decoding="async"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  style={{ width: '100%', height: '100%', maxHeight: '65vh', objectFit: 'contain' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '80px' }}>📦</div>
               )}
