@@ -1151,7 +1151,7 @@ export default function BuyerDashboard() {
       setReturnSubmitting(false);
     }
   };
-  const [deliveryCharge, setDeliveryCharge] = useState(20);
+  const [deliveryCharge, setDeliveryCharge] = useState(null);
   const [buyerLocation, setBuyerLocation] = useState(null);
   const [savedAddresses, setSavedAddresses] = useState(() => {
     try {
@@ -1349,13 +1349,10 @@ export default function BuyerDashboard() {
   }, [address]);
 
   // Recalculate delivery charge whenever cart contents change and we
-  // already have the buyer's location (e.g. item added/removed in cart).
+  // already have the buyer's location from an earlier explicit "Live Location" tap.
   useEffect(() => {
     if (buyerLocation?.lat && buyerLocation?.lng) {
       fetchDeliveryEstimate(buyerLocation.lat, buyerLocation.lng);
-    } else if (cart.length > 0) {
-      // Location nahi hai — try to get it automatically
-      getBuyerLocation();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart.length]);
@@ -1658,27 +1655,31 @@ export default function BuyerDashboard() {
     }
   };
 
-  // Sums the real by-road delivery charge across every distinct seller in
-  // the cart (in the common case there's just one seller).
+  // Computes the real by-road delivery charge, scoped to the shop currently
+  // being checked out (selectedSellerGroup) — since with multi-shop carts,
+  // each shop is now ordered and paid for separately. Returns true if
+  // serviceable (<=15km), false if not (toast already shown to buyer).
   const fetchDeliveryEstimate = async (lat, lng) => {
-    if (!lat || !lng || cart.length === 0) return;
+    if (!lat || !lng || cart.length === 0) return true;
     try {
-      const sellerIds = [...new Set(cart.map(item => item.seller_id || item.shop_id))].filter(Boolean);
+      const sellerIds = selectedSellerGroup
+        ? [selectedSellerGroup]
+        : [...new Set(cart.map(item => item.seller_id || item.shop_id))].filter(Boolean);
       let totalCharge = 0;
-      let unserviceable = false;
       for (const sellerId of sellerIds) {
         const res = await API.get(`/orders/delivery-estimate?seller_id=${sellerId}&buyer_lat=${lat}&buyer_lng=${lng}`);
-        if (res.data.serviceable === false) { unserviceable = true; break; }
+        if (res.data.serviceable === false) {
+          showToast('Sorry, hum abhi wahan available nahi hain, lekin jaldi hi aa rahe hain! 🚀', 'error');
+          setDeliveryCharge(null);
+          return false;
+        }
         totalCharge += res.data.delivery_charge || 20;
       }
-      if (unserviceable) {
-        showToast('Sorry, hum abhi wahan available nahi hain, lekin jaldi hi aa rahe hain! 🚀', 'error');
-        setDeliveryCharge(null);
-      } else {
-        setDeliveryCharge(totalCharge || 20);
-      }
+      setDeliveryCharge(totalCharge || 20);
+      return true;
     } catch (err) {
       console.error('Delivery charge estimate failed:', err);
+      return true; // transient network error — don't block checkout
     }
   };
 
@@ -1708,6 +1709,7 @@ export default function BuyerDashboard() {
       setLocatingLive(false);
       return;
     }
+    // HTML5 Geolocation API — buyer ka real live location yahin se milta hai
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
@@ -1718,8 +1720,9 @@ export default function BuyerDashboard() {
         } catch (err) {
           console.error('Save location failed:', err);
         }
+        const serviceable = await fetchDeliveryEstimate(lat, lng);
         setLocatingLive(false);
-        fetchDeliveryEstimate(lat, lng);
+        if (!serviceable) return; // "who" screen pe hi rahega, toast already dikh chuka hai
         setOrderingForSelf(true);
         navigate({ checkoutStep: 2 });
       },
@@ -1730,13 +1733,14 @@ export default function BuyerDashboard() {
     );
   };
 
-  const selectSearchedAddress = (result) => {
+  const selectSearchedAddress = async (result) => {
     setCheckoutLat(result.lat);
     setCheckoutLng(result.lng);
+    const serviceable = await fetchDeliveryEstimate(result.lat, result.lng);
+    if (!serviceable) { setShowAddressSearch(false); return; } // toast already dikh chuka hai
     setAddress(prev => ({ ...prev, full_address: result.display_name }));
     setOrderingForSelf(false);
     setShowAddressSearch(false);
-    fetchDeliveryEstimate(result.lat, result.lng);
     navigate({ checkoutStep: 2 });
   };
 
@@ -1993,7 +1997,7 @@ export default function BuyerDashboard() {
     if (cartCount === 0 || screen === 'cart') return null;
     return (
       <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-        onClick={() => { getBuyerLocation(); navigate({ screen: 'cart' }); }}
+        onClick={() => navigate({ screen: 'cart' })}
         style={{
           position: 'fixed', bottom: '76px', left: '50%', transform: 'translateX(-50%)',
           width: 'calc(100% - 24px)', background: T.primary,
@@ -2449,27 +2453,19 @@ export default function BuyerDashboard() {
 
                         {/* Per-shop bill + proceed button */}
                         <div style={{ background: T.card, borderRadius: T.radiusMd, padding: '14px', border: `1px solid ${T.border}`, marginBottom: '6px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '10px' }}>
                             <span style={{ color: T.textSoft }}>Items subtotal</span>
                             <span style={{ fontWeight: '700' }}>₹{groupTotal}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '10px' }}>
-                            <span style={{ color: T.textSoft }}>Delivery charge</span>
-                            <span style={{ fontWeight: '700' }}>₹{deliveryCharge || 20}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: `1px dashed ${T.border}`, marginBottom: '12px' }}>
-                            <span style={{ fontWeight: '800', fontSize: '14px' }}>To Pay</span>
-                            <span style={{ fontWeight: '800', fontSize: '15px', color: T.text }}>₹{groupTotal + (deliveryCharge || 20)}</span>
-                          </div>
                           <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '8px 12px', marginBottom: '12px', fontSize: '11px', color: '#5B21B6' }}>
-                            Delivery: ₹20 upto 3km · ₹30 upto 5km · ₹6/km after. Pay to delivery partner.
+                            📍 Delivery charge aapki live location ke baad calculate hoga
                           </div>
                           <motion.button {...btnTap}
                             onClick={() => {
                               // Sirf is shop ke items ke liye checkout shuru karo
-                              // selectedSellerGroup set karo
                               setSelectedSellerGroup(group.seller_id);
                               setOrderingForSelf(null);
+                              setDeliveryCharge(null);
                               navigate({ checkoutStep: 'who' });
                             }}
                             disabled={user?.serviceable === false}
@@ -2477,8 +2473,8 @@ export default function BuyerDashboard() {
                             {user?.serviceable === false
                               ? 'Service Not Available'
                               : isMultiShop
-                              ? `ORDER FROM ${(group.shop_name || 'Shop').toUpperCase()} · ₹${groupTotal + (deliveryCharge || 20)} →`
-                              : `PROCEED TO CHECKOUT · ₹${groupTotal + (deliveryCharge || 20)} →`}
+                              ? `ORDER FROM ${(group.shop_name || 'Shop').toUpperCase()} →`
+                              : `PROCEED TO CHECKOUT →`}
                           </motion.button>
                         </div>
                       </div>
@@ -2579,12 +2575,18 @@ export default function BuyerDashboard() {
                     style={{ flex: 2, padding: '14px', background: T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: 'pointer' }}>Continue →</motion.button>
                 </div>
               </div>
-            ) : (
+            ) : (() => {
+              // Sirf jis shop ka checkout ho raha hai uske items — poora cart nahi
+              const itemsForCheckout = selectedSellerGroup
+                ? cart.filter(i => (i.seller_id || i.shop_id) === selectedSellerGroup)
+                : cart;
+              const checkoutTotal = itemsForCheckout.reduce((sum, i) => sum + i.price * i.qty, 0);
+              return (
               <div>
                 {/* Summary */}
                 <div style={{ background: T.card, borderRadius: T.radiusMd, padding: '16px', marginBottom: '12px', border: `1px solid ${T.border}` }}>
                   <div style={{ fontWeight: '800', fontSize: '13px', color: T.text, marginBottom: '12px', letterSpacing: '0.02em' }}>ORDER SUMMARY</div>
-                  {cart.map(item => (
+                  {itemsForCheckout.map(item => (
                     <div key={item.cartKey} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px' }}>
                       <span style={{ color: T.textSoft }}>{item.name} × {item.qty}</span>
                       <span style={{ fontWeight: '600' }}>₹{item.price * item.qty}</span>
@@ -2592,10 +2594,10 @@ export default function BuyerDashboard() {
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', marginTop: '6px', borderTop: `1px dashed ${T.border}` }}>
                     <span style={{ fontWeight: '800' }}>Total</span>
-                    <span style={{ fontWeight: '800', color: T.text, fontSize: '15px' }}>₹{total}</span>
+                    <span style={{ fontWeight: '800', color: T.text, fontSize: '15px' }}>₹{checkoutTotal}</span>
                   </div>
                   <div style={{ background: T.accentTint, borderRadius: T.radiusSm, padding: '10px 12px', marginTop: '10px', fontSize: '11px', color: '#5B21B6' }}>
-                    Delivery ₹{deliveryCharge} — paid directly to delivery partner
+                    {deliveryCharge != null ? `Delivery ₹${deliveryCharge} — paid directly to delivery partner` : 'Delivery charge calculated'}
                   </div>
                 </div>
 
@@ -2631,11 +2633,12 @@ export default function BuyerDashboard() {
                   <motion.button {...btnTap} onClick={placeOrder}
                     disabled={user?.serviceable === false}
                     style={{ flex: 2, padding: '14px', background: user?.serviceable === false ? T.textFaint : T.primary, color: 'white', border: 'none', borderRadius: T.radiusSm, fontWeight: '800', cursor: user?.serviceable === false ? 'not-allowed' : 'pointer', fontSize: '14px', letterSpacing: '0.02em', opacity: user?.serviceable === false ? 0.6 : 1 }}>
-                    {user?.serviceable === false ? 'Service Not Available' : `PLACE ORDER · ₹${total + deliveryCharge}`}
+                    {user?.serviceable === false ? 'Service Not Available' : `PLACE ORDER · ₹${checkoutTotal + (deliveryCharge || 0)}`}
                   </motion.button>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}
@@ -3824,7 +3827,7 @@ export default function BuyerDashboard() {
           { id: 'home', icon: '🏠', label: 'Home' },
           { id: 'shoplist', icon: '🏪', label: 'Shops', action: () => { API.get('/sellers/search?q=').then(r => { setShops(r.data); navigate({ screen: 'shoplist' }); }); } },
           { id: 'cart', icon: '🛒', label: 'Cart', badge: cartCount,
-            action: () => { getBuyerLocation(); navigate({ screen: 'cart' }); } },
+            action: () => navigate({ screen: 'cart' }) },
           { id: 'orders', icon: '📦', label: 'Orders', action: () => { fetchMyOrders(); navigate({ screen: 'orders' }); } },
           { id: 'profile', icon: '👤', label: 'Profile' },
         ].map(item => {
