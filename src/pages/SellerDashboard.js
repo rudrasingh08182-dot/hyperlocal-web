@@ -207,6 +207,18 @@ const [addingColor, setAddingColor] = useState(false);
 const [newSizeInputs, setNewSizeInputs] = useState({});
 const [addingSizeFor, setAddingSizeFor] = useState(null);
 
+const CATEGORY_OPTIONS = [
+  { value: 'grocery', label: '🛒 Grocery' },
+  { value: 'fresh', label: '🥬 Fresh' },
+  { value: 'electronics', label: '🎧 Electronics' },
+  { value: 'fashion', label: '👕 Fashion' },
+  { value: 'food', label: '🍔 Food' },
+  { value: 'sweets', label: '🍬 Sweets & Confectionery' },
+  { value: 'beauty', label: '💄 Beauty & Accessories' },
+  { value: 'footwear', label: '👟 Footwear' },
+  { value: 'kids_zone', label: "🧸 Kid's Zone" },
+];
+
 const openEditModal = (product) => {
   setEditingProduct(product);
   setEditForm({
@@ -701,6 +713,12 @@ const saveProduct = async () => {
     }));
   }
 
+  if (newProduct.category === 'footwear' && (!newProduct.gender || !newProduct.footwear_type)) {
+    showToast('Please select Gender and Footwear Type', 'error');
+    setLoading(false);
+    return;
+  }
+
   setLoading(true);
   try {
     await API.post('/products', {
@@ -709,11 +727,13 @@ const saveProduct = async () => {
       unit_type: newProduct.unit_type || 'piece',
       unit_weight: newProduct.unit_weight || null,
       price_per_kg: newProduct.price_per_kg || null,
+      gender: newProduct.category === 'footwear' ? newProduct.gender : null,
+      footwear_type: newProduct.category === 'footwear' ? newProduct.footwear_type : null,
       variants: variantsPayload,
     });
     showToast('Product added!', 'success');
     setShowAddProduct(false);
-    setNewProduct({ name: '', description: '', sku: '', price: '', stock: '', category: '', return_policy: 'STANDARD_ELECTRONICS', image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: '' });
+    setNewProduct({ name: '', description: '', sku: '', price: '', stock: '', category: '', return_policy: 'STANDARD_ELECTRONICS', image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: '', gender: '', footwear_type: '' });
     setHasVariants(false);
     setVariantType('Size');
     setCustomVariantType('');
@@ -988,20 +1008,52 @@ const saveProduct = async () => {
                       { placeholder: 'SKU (optional)', key: 'sku' },
                       { placeholder: 'Price (₹) *', key: 'price' },
                       { placeholder: 'Stock Quantity *', key: 'stock' },
-                      { placeholder: 'Category', key: 'category' },
-                      
                     ].map(f => (
                       <input key={f.key} placeholder={f.placeholder}
-                        value={f.key === 'image_url_input' ? '' : newProduct[f.key]}
-                        onChange={e => {
-                          if (f.key === 'image_url_input') {
-                            setNewProduct({ ...newProduct, image_urls: [e.target.value] });
-                          } else {
-                            setNewProduct({ ...newProduct, [f.key]: e.target.value });
-                          }
-                        }}
+                        value={newProduct[f.key]}
+                        onChange={e => setNewProduct({ ...newProduct, [f.key]: e.target.value })}
                         style={{ padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }} />
                     ))}
+
+                    <div>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Category *</label>
+                      <select value={newProduct.category || ''}
+                        onChange={e => {
+                          const cat = e.target.value;
+                          const autoReturnPolicy = (cat === 'footwear' || cat === 'kids_zone') ? 'FOOTWEAR_KIDS_ZONE' : newProduct.return_policy;
+                          setNewProduct({ ...newProduct, category: cat, return_policy: autoReturnPolicy, gender: '', footwear_type: '' });
+                        }}
+                        style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+                        <option value="">Select category...</option>
+                        {CATEGORY_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      </select>
+                    </div>
+
+                    {newProduct.category === 'footwear' && (
+                      <>
+                        <div>
+                          <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Gender *</label>
+                          <select value={newProduct.gender || ''}
+                            onChange={e => setNewProduct({ ...newProduct, gender: e.target.value })}
+                            style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+                            <option value="">Select...</option>
+                            <option value="men">Men</option>
+                            <option value="women">Women</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Footwear Type *</label>
+                          <select value={newProduct.footwear_type || ''}
+                            onChange={e => setNewProduct({ ...newProduct, footwear_type: e.target.value })}
+                            style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
+                            <option value="">Select...</option>
+                            <option value="slippers">Slippers</option>
+                            <option value="sandals">Sandals</option>
+                            <option value="shoes">Shoes</option>
+                          </select>
+                        </div>
+                      </>
+                    )}
                    {/* Unit Type & Weight */}
 <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
   <div>
@@ -1151,6 +1203,8 @@ const saveProduct = async () => {
     <option value="GROCERY">🛒 Grocery (1 day - Damaged/Expired)</option>
     <option value="FRESH">🥦 Fresh Produce (No returns)</option>
     <option value="BEAUTY_ACCESSORIES">💄 Beauty & Accessories (Return only if damaged/expired)</option>
+    <option value="KIDS_ZONE">👟🧸 Kids Zone (3 days - Damaged/Expired/Wrong size)</option>
+    <option value="FOOTWEAR">👟 Footwear (3 days - Damaged/Wrong size)</option>
   </select>
 </div>
 <div style={{ gridColumn: 'span 2', marginTop: '8px', borderTop: '1px solid #f0f0e8', paddingTop: '16px' }}>

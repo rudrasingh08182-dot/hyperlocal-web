@@ -698,6 +698,8 @@ const categories = [
   { id: 'electronics', label: 'Electronics', emoji: '🎧', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233820/sebastian-banasiewcz-oXXc-s5nNy8-unsplash_ulul8x.jpg' },
   { id: 'fashion', label: 'Fashion', emoji: '👕', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233681/artem-beliaikin-UdQt3FT6rxM-unsplash_atgfs1.jpg' },
   { id: 'food', label: 'Food', emoji: '🍔', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233754/david-foodphototasty-E94j3rMcxlw-unsplash_qhm984.jpg' },
+  { id: 'footwear', label: 'Footwear', emoji: '👟', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233835/tim-gouw-KigTvXqetXA-unsplash_s4gm0v.jpg' },
+  { id: 'kids_zone', label: "Kid's Zone", emoji: '🧸', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233743/christine-sandu-jwWtZrm67VI-unsplash_lsfqny.jpg' },
   { id: 'stationery', label: 'Stationery', emoji: '📚', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233835/tim-gouw-KigTvXqetXA-unsplash_s4gm0v.jpg' },
   { id: 'beauty', label: 'Beauty & Accessories', emoji: '💄', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1788828925/file_000000004c988208a4807c9b029ca233_edkqlz.png' },
   { id: 'sweets', label: 'Sweets & Confectionery', emoji: '🍬', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1784435004/WhatsApp_Image_2026-07-19_at_9.46.06_AM_vfypyj.jpg' },
@@ -712,7 +714,9 @@ const RETURN_POLICY_LABELS = {
   FASHION: '3 days — Wrong size/Damaged',
   GROCERY: '1 day — Damaged/Expired',
   FRESH: 'No returns',
-  BEAUTY_ACCESSORIES: 'Return only if damaged/expired',
+  BEAUTY_ACCESSORIES: '3 days — Return only if damaged/expired',
+  KIDS_ZONE: '3 days — Damaged/Expired/Wrong size',
+  FOOTWEAR: '3 days — Damaged/Expired/Wrong size',
 };
 
 /* ---------- Reusable header (Blinkit yellow bar) ---------- */
@@ -1096,6 +1100,8 @@ export default function BuyerDashboard() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchMode, setSearchMode] = useState('products');
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [footwearGender, setFootwearGender] = useState(null);
+  const [footwearType, setFootwearType] = useState(null);
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [receiptOrder, setReceiptOrder] = useState(null);
   // ---- Returns ----
@@ -1205,6 +1211,7 @@ export default function BuyerDashboard() {
   const buildNavState = () => ({
     screen, selectedProduct, selectedShop, activeCategory,
     checkoutStep, trackingOrderId, showAddAddress, qrPaymentActive,
+    footwearGender, footwearType,
   });
 
   const applyNavState = async (state) => {
@@ -1216,6 +1223,8 @@ export default function BuyerDashboard() {
     setTrackingOrderId(state.trackingOrderId);
     setShowAddAddress(state.showAddAddress);
     setQrPaymentActive(!!state.qrPaymentActive);
+    setFootwearGender(state.footwearGender || null);
+    setFootwearType(state.footwearType || null);
     setActiveImageIndex(0);
 
     if (state.screen === 'categoryProducts') {
@@ -1600,8 +1609,28 @@ export default function BuyerDashboard() {
   };
 
   const openCategoryScreen = (catId) => {
+    if (catId === 'footwear') {
+      navigate({ screen: 'footwearGender', activeCategory: catId });
+      return;
+    }
     filterByCategory(catId);
     navigate({ screen: 'categoryProducts', activeCategory: catId });
+  };
+
+  const selectFootwearGender = (gender) => {
+    setFootwearGender(gender);
+    navigate({ screen: 'footwearType' });
+  };
+
+  const selectFootwearType = (type) => {
+    setFootwearType(type);
+    const filtered = allProducts.filter(p =>
+      p.category?.toLowerCase() === 'footwear' &&
+      p.gender?.toLowerCase() === footwearGender &&
+      p.footwear_type?.toLowerCase() === type
+    );
+    setProducts(filtered);
+    navigate({ screen: 'categoryProducts', activeCategory: 'footwear' });
   };
 
   const openShop = async (shop) => {
@@ -2202,6 +2231,44 @@ export default function BuyerDashboard() {
                   </div>
                 </div>
                 <span style={{ color: T.primary, fontSize: '20px' }}>›</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* FOOTWEAR — GENDER SELECT */}
+      {screen === 'footwearGender' && (
+        <div style={{ paddingBottom: '104px' }}>
+          <SubHeader title="Footwear" subtitle="Kiske liye chahiye?" onBack={() => window.history.back()} />
+          <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {[{ id: 'men', label: 'Men', emoji: '👞' }, { id: 'women', label: 'Women', emoji: '👡' }].map(g => (
+              <motion.div key={g.id} whileTap={{ scale: 0.97 }} onClick={() => selectFootwearGender(g.id)}
+                style={{ background: T.card, border: `1.5px solid ${T.border}`, borderRadius: T.radiusMd, padding: '22px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}>
+                <span style={{ fontSize: '32px' }}>{g.emoji}</span>
+                <span style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>{g.label}</span>
+                <span style={{ marginLeft: 'auto', color: T.primary, fontSize: '20px' }}>›</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* FOOTWEAR — TYPE SELECT */}
+      {screen === 'footwearType' && (
+        <div style={{ paddingBottom: '104px' }}>
+          <SubHeader title="Footwear" subtitle={`${footwearGender === 'men' ? 'Men' : 'Women'} — Type chunein`} onBack={() => window.history.back()} />
+          <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {[
+              { id: 'slippers', label: 'Slippers', emoji: '🩴' },
+              { id: 'sandals', label: 'Sandals', emoji: '👡' },
+              { id: 'shoes', label: 'Shoes', emoji: '👟' },
+            ].map(t => (
+              <motion.div key={t.id} whileTap={{ scale: 0.97 }} onClick={() => selectFootwearType(t.id)}
+                style={{ background: T.card, border: `1.5px solid ${T.border}`, borderRadius: T.radiusMd, padding: '22px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}>
+                <span style={{ fontSize: '32px' }}>{t.emoji}</span>
+                <span style={{ fontWeight: '800', fontSize: '16px', color: T.text }}>{t.label}</span>
+                <span style={{ marginLeft: 'auto', color: T.primary, fontSize: '20px' }}>›</span>
               </motion.div>
             ))}
           </div>

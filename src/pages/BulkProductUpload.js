@@ -69,10 +69,10 @@ export default function BulkProductUpload() {
   // Step 1: Download Template
   const downloadTemplate = () => {
   const ws = XLSX.utils.aoa_to_sheet([
-    ['Product Name', 'Price', 'Category', 'Stock Quantity', 'Sold By', 'Image File Name', 'Description', 'Return Policy'],
-    ['Amul Gold Milk 500 ml', 35, 'grocery', 100, 'litre', 'amul_milk.jpg, amul_milk_side.jpg', 'Fresh full cream milk rich in calcium and protein.', 'PERISHABLE_FOOD'],
-    ['Apple', 180, 'fresh', 50, 'kg', 'apple.jpg', 'Fresh, juicy apples sourced directly from the farm.', 'FRESH'],
-    ['Maggi 70 g', 15, 'grocery', 500, 'packet', 'maggi.jpg', 'Instant noodles ready in 2 minutes.', 'PACKAGED_FOOD'],
+    ['Product Name', 'Price', 'Category', 'Stock Quantity', 'Sold By', 'Image File Name', 'Description', 'Return Policy', 'Gender', 'Footwear Type'],
+    ['Amul Gold Milk 500 ml', 35, 'grocery', 100, 'litre', 'amul_milk.jpg, amul_milk_side.jpg', 'Fresh full cream milk rich in calcium and protein.', 'PERISHABLE_FOOD', '', ''],
+    ['Apple', 180, 'fresh', 50, 'kg', 'apple.jpg', 'Fresh, juicy apples sourced directly from the farm.', 'FRESH', '', ''],
+    ['Nike Running Shoes', 1499, 'footwear', 30, 'pair', 'nike_shoes.jpg', 'Comfortable running shoes for daily use.', 'FOOTWEAR_KIDS_ZONE', 'men', 'shoes'],
   ]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Products');
