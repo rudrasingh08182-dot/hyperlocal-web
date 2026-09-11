@@ -142,7 +142,9 @@ const generateReceiptPDF = (order) => {
   const startY = Math.max(75, yAfterAddr + 8);
   const rows = (order.items || []).map(i => [
     i.quantity,
-    i.variant_value ? `${i.name} (${i.variant_value})` : i.name,
+    i.variant_value ? `${i.name} (${i.variant_value})`
+      : i.variant_snapshot ? `${i.name} (${Object.values(i.variant_snapshot).join(', ')})`
+      : i.name,
     `Rs.${parseFloat(i.unit_price).toFixed(2)}`,
     `Rs.${(i.unit_price * i.quantity).toFixed(2)}`,
   ]);
@@ -254,7 +256,7 @@ const ReceiptModal = ({ order, onClose }) => (
           {(order.items || []).map((item, i) => (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 70px 70px', padding: '8px 10px', fontSize: '12px', borderTop: '1px solid #F0F0F0', color: '#333' }}>
               <span>{item.quantity}</span>
-              <span>{item.name}{item.variant_value ? ` (${item.variant_value})` : ''}</span>
+              <span>{item.name}{item.variant_value ? ` (${item.variant_value})` : item.variant_snapshot ? ` (${Object.values(item.variant_snapshot).join(', ')})` : ''}</span>
               <span style={{ textAlign: 'right' }}>₹{parseFloat(item.unit_price).toFixed(2)}</span>
               <span style={{ textAlign: 'right', fontWeight: 700 }}>₹{(item.unit_price * item.quantity).toFixed(2)}</span>
             </div>
@@ -647,11 +649,13 @@ const useCart = () => {
     localStorage.setItem('zaplo_cart', JSON.stringify(cart));
   }, [cart]);
 
-  const getCartKey = (productId, variantId, colorSizeId) =>
-    colorSizeId ? `${productId}::cs::${colorSizeId}` : variantId ? `${productId}::${variantId}` : productId;
+  const getCartKey = (productId, variantId, colorSizeId, v2CombinationId) =>
+    v2CombinationId ? `${productId}::v2::${v2CombinationId}` :
+    colorSizeId ? `${productId}::cs::${colorSizeId}` :
+    variantId ? `${productId}::${variantId}` : productId;
 
-  const addToCart = (product, variant = null, colorSize = null) => {
-    const cartKey = getCartKey(product.id, variant?.id, colorSize?.id);
+  const addToCart = (product, variant = null, colorSize = null, v2Combo = null) => {
+    const cartKey = getCartKey(product.id, variant?.id, colorSize?.id, v2Combo?.id);
     setCart(prev => {
       const exists = prev.find(i => i.cartKey === cartKey);
       if (exists) return prev.map(i => i.cartKey === cartKey ? { ...i, qty: i.qty + 1 } : i);
@@ -660,7 +664,8 @@ const useCart = () => {
         cartKey,
         variant: variant || null,
         colorSize: colorSize || null,
-        price: colorSize ? (colorSize.price ?? product.price) : variant ? variant.price : product.price,
+        v2Combo: v2Combo || null,
+        price: v2Combo ? v2Combo.price : colorSize ? (colorSize.price ?? product.price) : variant ? variant.price : product.price,
         qty: 1,
       }];
     });
@@ -1182,6 +1187,9 @@ export default function BuyerDashboard() {
   const [productColors, setProductColors] = useState([]);
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
+  // ── Universal V2 variant system ──
+  const [v2Variants, setV2Variants] = useState(null); // { variantGroups, combinations } or null
+  const [v2Selections, setV2Selections] = useState({}); // { [groupName]: selectedValue }
   const touchStartXRef = useRef(null);
   const touchDeltaXRef = useRef(0);
   const [showUnserviceable, setShowUnserviceable] = useState(false);
@@ -1377,6 +1385,28 @@ export default function BuyerDashboard() {
       setProductColors([]);
       setSelectedColor(null);
       setSelectedSize(null);
+    }
+
+    // ── Universal V2 variant system ──
+    if (selectedProduct?.variant_system === 'v2') {
+      API.get(`/products/${selectedProduct.id}/variants`).then(res => {
+        const data = res.data.data;
+        setV2Variants(data);
+        // Auto-select the first in-stock option per group, so the buyer
+        // sees a valid combination right away instead of an empty state.
+        const initialSelections = {};
+        data.variantGroups.forEach(g => {
+          const firstAvailable = g.options.find(o =>
+            data.combinations.some(c => c.is_active && c.stock > 0 && c.selections[g.name] === o.value)
+          ) || g.options[0];
+          if (firstAvailable) initialSelections[g.name] = firstAvailable.value;
+        });
+        setV2Selections(initialSelections);
+        setActiveImageIndex(0);
+      }).catch(() => { setV2Variants(null); setV2Selections({}); });
+    } else {
+      setV2Variants(null);
+      setV2Selections({});
     }
   }, [selectedProduct]);
 
@@ -1843,6 +1873,7 @@ export default function BuyerDashboard() {
           quantity: i.qty,
           variant_id: i.variant?.id || null,
           color_size_id: i.colorSize?.id || null,
+          variant_combination_id: i.v2Combo?.id || null,
         })),
         payment_method: backendPaymentMethod,
         delivery_address: address.full_address,
@@ -1894,21 +1925,55 @@ export default function BuyerDashboard() {
     }
   };
 
-  const getCartQty = (productId, variantId = null, colorSizeId = null) => {
-    const cartKey = colorSizeId ? `${productId}::cs::${colorSizeId}` : variantId ? `${productId}::${variantId}` : productId;
+  // ── Universal V2 variant helpers ──
+  const resolveV2Combination = () => {
+    if (!v2Variants) return null;
+    const allGroupsSelected = v2Variants.variantGroups.every(g => v2Selections[g.name]);
+    if (!allGroupsSelected) return null;
+    return v2Variants.combinations.find(c =>
+      v2Variants.variantGroups.every(g => c.selections[g.name] === v2Selections[g.name])
+    ) || null;
+  };
+
+  // Is this option still reachable given the OTHER groups' current selections?
+  const isV2OptionAvailable = (groupName, value) => {
+    if (!v2Variants) return false;
+    const trial = { ...v2Selections, [groupName]: value };
+    return v2Variants.combinations.some(c =>
+      c.is_active && Object.entries(trial).every(([g, v]) => c.selections[g] === v)
+    );
+  };
+
+  // Same, but also requires stock > 0 (used to show a strikethrough, not to disable)
+  const isV2OptionInStock = (groupName, value) => {
+    if (!v2Variants) return false;
+    const trial = { ...v2Selections, [groupName]: value };
+    return v2Variants.combinations.some(c =>
+      c.is_active && c.stock > 0 && Object.entries(trial).every(([g, v]) => c.selections[g] === v)
+    );
+  };
+
+  const getCartQty = (productId, variantId = null, colorSizeId = null, v2CombinationId = null) => {
+    const cartKey = v2CombinationId ? `${productId}::v2::${v2CombinationId}` :
+      colorSizeId ? `${productId}::cs::${colorSizeId}` : variantId ? `${productId}::${variantId}` : productId;
     const item = cart.find(i => i.cartKey === cartKey);
     return item ? item.qty : 0;
   };
 
   /* ---------- Blinkit-style Product Card ---------- */
   const ProductCard = ({ product }) => {
-    const hasAnyVariants = product.has_variants || product.has_color_variants;
+    const hasAnyVariants = product.has_variants || product.has_color_variants || product.variant_system === 'v2';
     const qty = hasAnyVariants ? 0 : getCartQty(product.id);
+    // Note: for V2 products the search listing doesn't include combination
+    // prices (only the product detail page fetches those), so we show the
+    // base/fallback price with a "+" as an approximation here.
     const minVariantPrice = product.has_variants && product.variants?.length > 0
       ? Math.min(...product.variants.map(v => parseFloat(v.price)))
       : product.has_color_variants && product.colors?.length > 0
         ? Math.min(...product.colors.flatMap(c => (c.sizes || []).map(s => parseFloat(s.price ?? product.price))))
-        : null;
+        : product.variant_system === 'v2'
+          ? parseFloat(product.price)
+          : null;
     const sellerClosed = product.seller_is_online === false;
 
     return (
@@ -2438,6 +2503,11 @@ export default function BuyerDashboard() {
                               )}
                               {item.colorSize && (
                                 <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>{item.colorSize.color_name} · Size {item.colorSize.size}</div>
+                              )}
+                              {item.v2Combo && (
+                                <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>
+                                  {Object.entries(item.v2Combo.selections).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                                </div>
                               )}
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                                 <span style={{ fontWeight: '800', color: T.text, fontSize: '14px' }}>₹{item.price * item.qty}</span>
@@ -3208,7 +3278,21 @@ export default function BuyerDashboard() {
 
       {/* PRODUCT DETAIL MODAL */}
       {selectedProduct && (() => {
-        const displayImagesGlobal = (selectedColor?.images?.length > 0) ? selectedColor.images : (selectedProduct.image_urls || []);
+        // If the currently-selected V2 option (usually "Color") has its own
+        // images, use those as the gallery. Falls back to legacy color
+        // images, then to the product's own images.
+        const v2SelectedImages = (() => {
+          if (!v2Variants) return [];
+          for (const g of v2Variants.variantGroups) {
+            const val = v2Selections[g.name];
+            const opt = g.options.find(o => o.value === val);
+            if (opt?.images?.length > 0) return opt.images.map(img => img.url || img);
+          }
+          return [];
+        })();
+        const displayImagesGlobal = v2SelectedImages.length > 0 ? v2SelectedImages
+          : (selectedColor?.images?.length > 0) ? selectedColor.images
+          : (selectedProduct.image_urls || []);
         return (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', background: T.card, zIndex: 200, overflowY: 'hidden' }}>
           <div style={{ height: 'calc(100vh - 96px)', overflowY: 'auto' }}>
@@ -3286,11 +3370,25 @@ export default function BuyerDashboard() {
 
               {/* Price block */}
               {(() => {
-                const isColorProduct = selectedProduct.has_color_variants && productColors.length > 0;
-                const isVariantProduct = !isColorProduct && selectedProduct.has_variants && selectedProduct.variants?.length > 0;
+                const isV2Product = v2Variants && v2Variants.variantGroups.length > 0;
+                const selectedV2Combo = isV2Product ? resolveV2Combination() : null;
+                const isColorProduct = !isV2Product && selectedProduct.has_color_variants && productColors.length > 0;
+                const isVariantProduct = !isV2Product && !isColorProduct && selectedProduct.has_variants && selectedProduct.variants?.length > 0;
 
                 let displayPrice, priceLabel, displayStock;
-                if (isColorProduct) {
+                if (isV2Product) {
+                  const activeCombos = v2Variants.combinations.filter(c => c.is_active);
+                  const minPrice = activeCombos.length > 0 ? Math.min(...activeCombos.map(c => c.price)) : parseFloat(selectedProduct.price);
+                  if (selectedV2Combo) {
+                    displayPrice = selectedV2Combo.price;
+                    priceLabel = null;
+                    displayStock = selectedV2Combo.stock;
+                  } else {
+                    displayPrice = minPrice;
+                    priceLabel = 'Starting from';
+                    displayStock = null;
+                  }
+                } else if (isColorProduct) {
                   const allSizes = productColors.flatMap(c => c.sizes || []);
                   const minPrice = allSizes.length > 0
                     ? Math.min(...allSizes.map(s => parseFloat(s.price ?? selectedProduct.price)))
@@ -3326,7 +3424,7 @@ export default function BuyerDashboard() {
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px' }}>
                       {priceLabel && <span style={{ fontSize: '12px', color: T.textSoft, fontWeight: '600' }}>{priceLabel}</span>}
                       <span style={{ fontSize: '26px', fontWeight: '800', color: T.text, letterSpacing: '-0.02em' }}>₹{displayPrice}</span>
-                      {!isColorProduct && !isVariantProduct && (
+                      {!isV2Product && !isColorProduct && !isVariantProduct && (
                         <span style={{ fontSize: '13px', color: T.textSoft }}>
                           per {selectedProduct.unit_type || 'piece'}
                           {selectedProduct.unit_weight && ` (${selectedProduct.unit_weight}g)`}
@@ -3395,6 +3493,65 @@ export default function BuyerDashboard() {
                   )}
                 </div>
               )}
+
+              {/* Universal V2 variant selector — any groups, any category */}
+              {v2Variants && v2Variants.variantGroups.length > 0 && (() => {
+                const selectedV2Combo = resolveV2Combination();
+                return (
+                  <div style={{ marginBottom: '14px' }}>
+                    {v2Variants.variantGroups.map(g => (
+                      <div key={g.id} style={{ marginBottom: '16px' }}>
+                        <h4 style={{ margin: '0 0 10px', color: T.text, fontSize: '14px', fontWeight: '800' }}>
+                          {g.name}{v2Selections[g.name] ? `: ${v2Selections[g.name]}` : ''}
+                        </h4>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {g.options.map(o => {
+                            const available = isV2OptionAvailable(g.name, o.value);
+                            const inStock = isV2OptionInStock(g.name, o.value);
+                            const isSelected = v2Selections[g.name] === o.value;
+                            return (
+                              <motion.button key={o.id} whileTap={{ scale: available ? 0.95 : 1 }}
+                                onClick={() => available && setV2Selections(prev => ({ ...prev, [g.name]: o.value }))}
+                                disabled={!available}
+                                style={{
+                                  padding: '9px 16px', borderRadius: T.radiusSm,
+                                  border: isSelected ? `2px solid ${T.primary}` : `1px solid ${T.border}`,
+                                  background: !available ? T.bg : isSelected ? T.primary : 'white',
+                                  color: !available ? T.textFaint : isSelected ? 'white' : T.text,
+                                  fontWeight: '700', fontSize: '13px',
+                                  cursor: available ? 'pointer' : 'not-allowed',
+                                  textDecoration: available && !inStock ? 'line-through' : 'none',
+                                  opacity: available ? 1 : 0.5,
+                                }}>
+                                {o.value}
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                    {selectedV2Combo ? (
+                      <div style={{ background: T.primaryTint, borderRadius: T.radiusMd, padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                          <span style={{ color: T.textSoft }}>Price</span>
+                          <span style={{ fontWeight: '800', color: T.text, fontSize: '15px' }}>₹{selectedV2Combo.price}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span style={{ color: T.textSoft }}>Stock</span>
+                          <span style={{ fontWeight: '700', color: selectedV2Combo.stock > 0 ? T.success : T.error }}>
+                            {selectedV2Combo.stock > 0 ? `${selectedV2Combo.stock} available` : 'Out of stock'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ background: T.errorTint, color: T.error, borderRadius: T.radiusMd, padding: '12px 16px', fontSize: '13px', fontWeight: '700', textAlign: 'center' }}>
+                        Please select {v2Variants.variantGroups.map(g => g.name).join(' & ')}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Color + Size variant selector */}
               {selectedProduct.has_color_variants && productColors.length > 0 && (
@@ -3515,11 +3672,13 @@ export default function BuyerDashboard() {
           <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', background: T.card, padding: '14px 16px', boxShadow: '0 -6px 20px rgba(17,17,39,0.08)', zIndex: 201, borderTop: `1px solid ${T.border}` }}>
             {(() => {
               const sellerClosed = selectedProduct.seller_is_online === false;
-              const isColorProduct = selectedProduct.has_color_variants && productColors.length > 0;
-              const isVariantProduct = !isColorProduct && selectedProduct.has_variants && selectedProduct.variants?.length > 0;
+              const isV2Product = v2Variants && v2Variants.variantGroups.length > 0;
+              const selectedV2Combo = isV2Product ? resolveV2Combination() : null;
+              const isColorProduct = !isV2Product && selectedProduct.has_color_variants && productColors.length > 0;
+              const isVariantProduct = !isV2Product && !isColorProduct && selectedProduct.has_variants && selectedProduct.variants?.length > 0;
 
-              const effectiveStock = isColorProduct ? (selectedSize?.stock ?? 0) : isVariantProduct ? (selectedVariant?.stock ?? 0) : selectedProduct.stock;
-              const currentQty = getCartQty(selectedProduct.id, isVariantProduct ? selectedVariant?.id : null, isColorProduct ? selectedSize?.id : null);
+              const effectiveStock = isV2Product ? (selectedV2Combo?.stock ?? 0) : isColorProduct ? (selectedSize?.stock ?? 0) : isVariantProduct ? (selectedVariant?.stock ?? 0) : selectedProduct.stock;
+              const currentQty = getCartQty(selectedProduct.id, isVariantProduct ? selectedVariant?.id : null, isColorProduct ? selectedSize?.id : null, isV2Product ? selectedV2Combo?.id : null);
 
               if (sellerClosed) {
                 return (
@@ -3527,6 +3686,15 @@ export default function BuyerDashboard() {
                     <div style={{ width: '100%', padding: '16px', background: T.errorTint, color: T.error, borderRadius: T.radiusSm, fontWeight: '800', fontSize: '13px', marginBottom: '4px' }}>
                       This store is temporarily unavailable. Please check back later.
                     </div>
+                  </div>
+                );
+              }
+
+              // V2 universal variant flow needs a full selection before adding
+              if (isV2Product && !selectedV2Combo) {
+                return (
+                  <div style={{ width: '100%', padding: '16px', background: T.errorTint, color: T.error, borderRadius: T.radiusSm, fontWeight: '800', fontSize: '13px', textAlign: 'center' }}>
+                    Please select {v2Variants.variantGroups.map(g => g.name).join(' & ')}
                   </div>
                 );
               }
@@ -3551,7 +3719,9 @@ export default function BuyerDashboard() {
 
               const handleAdd = () => {
                 const productPayload = { ...selectedProduct, seller_id: selectedProduct.shop_id || selectedProduct.seller_id };
-                if (isColorProduct) {
+                if (isV2Product) {
+                  addToCart(productPayload, null, null, selectedV2Combo);
+                } else if (isColorProduct) {
                   addToCart(productPayload, null, { ...selectedSize, color_name: selectedColor.color_name });
                 } else if (isVariantProduct) {
                   addToCart(productPayload, selectedVariant, null);
@@ -3571,7 +3741,7 @@ export default function BuyerDashboard() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', background: T.primary, borderRadius: T.radiusSm, overflow: 'hidden', flex: 1 }}>
                     <button onClick={() => updateQty(
-                        isColorProduct ? `${selectedProduct.id}::cs::${selectedSize.id}` : isVariantProduct ? `${selectedProduct.id}::${selectedVariant.id}` : selectedProduct.id,
+                        isV2Product ? `${selectedProduct.id}::v2::${selectedV2Combo.id}` : isColorProduct ? `${selectedProduct.id}::cs::${selectedSize.id}` : isVariantProduct ? `${selectedProduct.id}::${selectedVariant.id}` : selectedProduct.id,
                         currentQty - 1
                       )}
                       style={{ flex: 1, padding: '15px', background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', fontWeight: '700' }}>−</button>

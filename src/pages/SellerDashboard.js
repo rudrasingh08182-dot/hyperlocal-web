@@ -6,7 +6,7 @@ import TermsAndConditions from '../components/TermsAndConditions';
 import { requestNotificationPermission } from '../firebase';
 import { Toast, showToast } from '../components/Toast';
 import { useTabHistory } from '../hooks/useTabHistory';
-
+import VariantManagerModal from '../components/VariantManagerModal';
 function SellerReviews() {
   const [reviews, setReviews] = useState([]);
   const [average, setAverage] = useState(null);
@@ -96,20 +96,93 @@ export default function SellerDashboard() {
   image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: ''
 });
 const [hasVariants, setHasVariants] = useState(false);
-const [variantType, setVariantType] = useState('Size');
-const [customVariantType, setCustomVariantType] = useState('');
-const [variantRows, setVariantRows] = useState([
-  { variant_value: '', price: '', stock: '', display_order: 1 }
+const [variantGroups, setVariantGroups] = useState([
+  { name: '', showImages: false, options: [{ value: '', images: [] }] }
 ]);
+const [variantCombos, setVariantCombos] = useState([]);
+const [variantUploadingFor, setVariantUploadingFor] = useState(null);
 
-const addVariantRow = () => {
-  setVariantRows(prev => [...prev, { variant_value: '', price: '', stock: '', display_order: prev.length + 1 }]);
+const VARIANT_GROUP_SUGGESTIONS = ['Color', 'Size', 'Storage', 'RAM', 'Weight', 'Flavor', 'Pack Size', 'Material'];
+
+const sigOfSelections = (selections) =>
+  Object.entries(selections)
+    .map(([k, v]) => [k.trim().toLowerCase(), String(v).trim().toLowerCase()])
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([k, v]) => `${k}=${v}`)
+    .join('|');
+
+const cartesianCombinations = (groups) => {
+  const usable = groups.filter(g => g.name.trim() && g.options.some(o => o.value.trim()));
+  if (usable.length === 0) return [];
+  return usable.reduce((acc, group) => {
+    const opts = group.options.filter(o => o.value.trim());
+    if (acc.length === 0) return opts.map(o => ({ [group.name.trim()]: o.value.trim() }));
+    const next = [];
+    for (const combo of acc) for (const o of opts) next.push({ ...combo, [group.name.trim()]: o.value.trim() });
+    return next;
+  }, []);
 };
-const removeVariantRow = (idx) => {
-  setVariantRows(prev => prev.filter((_, i) => i !== idx).map((row, i) => ({ ...row, display_order: i + 1 })));
+
+const addVariantGroup = () =>
+  setVariantGroups(prev => [...prev, { name: '', showImages: false, options: [{ value: '', images: [] }] }]);
+const removeVariantGroup = (gi) => setVariantGroups(prev => prev.filter((_, i) => i !== gi));
+const updateVariantGroupName = (gi, name) =>
+  setVariantGroups(prev => prev.map((g, i) => i === gi ? { ...g, name, showImages: name.toLowerCase().includes('color') } : g));
+const toggleVariantGroupImages = (gi) =>
+  setVariantGroups(prev => prev.map((g, i) => i === gi ? { ...g, showImages: !g.showImages } : g));
+
+const addVariantOption = (gi) =>
+  setVariantGroups(prev => prev.map((g, i) => i === gi ? { ...g, options: [...g.options, { value: '', images: [] }] } : g));
+const removeVariantOption = (gi, oi) =>
+  setVariantGroups(prev => prev.map((g, i) => i === gi ? { ...g, options: g.options.filter((_, j) => j !== oi) } : g));
+const updateVariantOptionValue = (gi, oi, value) =>
+  setVariantGroups(prev => prev.map((g, i) => i === gi ? { ...g, options: g.options.map((o, j) => j === oi ? { ...o, value } : o) } : g));
+
+const uploadVariantOptionImage = async (gi, oi, file) => {
+  const key = `${gi}-${oi}`;
+  setVariantUploadingFor(key);
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await API.post('/uploads/product-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    setVariantGroups(prev => prev.map((g, i) =>
+      i === gi ? { ...g, options: g.options.map((o, j) => j === oi ? { ...o, images: [...o.images, res.data.url] } : o) } : g
+    ));
+  } catch (err) {
+    showToast('Image upload failed', 'error');
+  } finally {
+    setVariantUploadingFor(null);
+  }
 };
-const updateVariantRow = (idx, field, value) => {
-  setVariantRows(prev => prev.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+
+const removeVariantOptionImage = (gi, oi, imgIdx) =>
+  setVariantGroups(prev => prev.map((g, i) =>
+    i === gi ? { ...g, options: g.options.map((o, j) => j === oi ? { ...o, images: o.images.filter((_, k) => k !== imgIdx) } : o) } : g
+  ));
+
+const generateVariantCombinations = () => {
+  const generated = cartesianCombinations(variantGroups);
+  if (generated.length === 0) {
+    showToast('Add at least one group with a filled-in option first', 'error');
+    return;
+  }
+  const existingBySig = new Map(variantCombos.map(c => [sigOfSelections(c.selections), c]));
+  const next = generated.map(selections => {
+    const sig = sigOfSelections(selections);
+    const existing = existingBySig.get(sig);
+    return existing ? { ...existing, selections } : { selections, price: '', stock: '', sku: '', is_active: true };
+  });
+  setVariantCombos(next);
+  showToast(`${next.length} combination(s) generated`, 'success');
+};
+
+const updateVariantCombo = (idx, field, value) =>
+  setVariantCombos(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
+
+const resetVariantBuilder = () => {
+  setHasVariants(false);
+  setVariantGroups([{ name: '', showImages: false, options: [{ value: '', images: [] }] }]);
+  setVariantCombos([]);
 };
   const [bankDetails, setBankDetails] = useState({
   account_holder_name: '',
@@ -155,7 +228,7 @@ const handleAcceptReturn = async (returnId, refund_or_replacement) => {
     showToast(err.response?.data?.error || 'Failed to accept', 'error');
   }
 };
-
+const [variantManagerProduct, setVariantManagerProduct] = useState(null);
 const handleRejectReturn = async (returnId) => {
   const notes = window.prompt('Reason for rejection (optional):');
   if (notes === null) return; // cancelled
@@ -687,61 +760,71 @@ const toggleStoreStatus = async () => {
   }
 };
 const saveProduct = async () => {
-  if (!newProduct.name || !newProduct.price || !newProduct.stock) {
+  if (!newProduct.name || !newProduct.price || (!hasVariants && !newProduct.stock)) {
     showToast('Please fill name, price and stock', 'error');
     return;
   }
 
-  let variantsPayload = [];
-  if (hasVariants) {
-    const finalVariantType = variantType === 'Custom' ? customVariantType.trim() : variantType;
-    if (!finalVariantType) {
-      showToast('Please enter a custom variant type name', 'error');
-      return;
-    }
-    const incomplete = variantRows.some(r => !r.variant_value || !r.price || r.stock === '');
-    if (incomplete) {
-      showToast('Please fill all variant fields (value, price, stock)', 'error');
-      return;
-    }
-    variantsPayload = variantRows.map((r, i) => ({
-      variant_type: finalVariantType,
-      variant_value: r.variant_value,
-      price: parseFloat(r.price),
-      stock: parseInt(r.stock),
-      display_order: i + 1,
-    }));
-  }
-
   if (newProduct.category === 'footwear' && (!newProduct.gender || !newProduct.footwear_type)) {
     showToast('Please select Gender and Footwear Type', 'error');
-    setLoading(false);
     return;
+  }
+
+  if (hasVariants) {
+    for (const g of variantGroups) {
+      if (!g.name.trim()) { showToast('Every variant group needs a name', 'error'); return; }
+      if (g.options.filter(o => o.value.trim()).length === 0) { showToast(`Group "${g.name}" needs at least one option`, 'error'); return; }
+    }
+    if (variantCombos.length === 0) { showToast('Click "Generate Combinations" first', 'error'); return; }
+    for (const c of variantCombos) {
+      if (c.stock === '' || parseInt(c.stock) < 0) { showToast('Every combination needs a valid stock number', 'error'); return; }
+    }
   }
 
   setLoading(true);
   try {
-    await API.post('/products', {
+    // Step 1 — create the base product. V2 products are created WITHOUT the
+    // old flat `variants` array; variants live in the separate V2 tables.
+    const createRes = await API.post('/products', {
       ...newProduct,
       image_urls: newProduct.image_urls.length > 0 ? newProduct.image_urls : ['https://via.placeholder.com/300'],
+      stock: hasVariants ? 0 : newProduct.stock, // overwritten automatically once variant stock syncs
       unit_type: newProduct.unit_type || 'piece',
       unit_weight: newProduct.unit_weight || null,
       price_per_kg: newProduct.price_per_kg || null,
       gender: newProduct.category === 'footwear' ? newProduct.gender : null,
       footwear_type: newProduct.category === 'footwear' ? newProduct.footwear_type : null,
-      variants: variantsPayload,
+      variants: [],
     });
+    const createdProduct = createRes.data.product;
+
+    // Step 2 — attach the V2 variant configuration, if this product has one
+    if (hasVariants) {
+      await API.post(`/products/${createdProduct.id}/variants`, {
+        variantGroups: variantGroups.map((g, gi) => ({
+          name: g.name.trim(),
+          displayOrder: gi,
+          options: g.options.filter(o => o.value.trim()).map((o, oi) => ({ value: o.value.trim(), displayOrder: oi, images: o.images })),
+        })),
+        combinations: variantCombos.map((c, ci) => ({
+          selections: c.selections,
+          price: c.price !== '' ? parseFloat(c.price) : null,
+          stock: parseInt(c.stock),
+          sku: c.sku || null,
+          displayOrder: ci,
+        })),
+      });
+    }
+
     showToast('Product added!', 'success');
     setShowAddProduct(false);
     setNewProduct({ name: '', description: '', sku: '', price: '', stock: '', category: '', return_policy: 'STANDARD_ELECTRONICS', image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: '', gender: '', footwear_type: '' });
-    setHasVariants(false);
-    setVariantType('Size');
-    setCustomVariantType('');
-    setVariantRows([{ variant_value: '', price: '', stock: '', display_order: 1 }]);
+    resetVariantBuilder();
     fetchProducts();
     fetchDashboard();
   } catch (err) {
-    showToast(err.response?.data?.error || 'Failed to add product', 'error');
+    const errBody = err.response?.data?.error;
+    showToast((typeof errBody === 'object' ? errBody?.message : errBody) || 'Failed to add product', 'error');
   } finally {
     setLoading(false);
   }
@@ -1006,8 +1089,8 @@ const saveProduct = async () => {
                     {[
                       { placeholder: 'Product Name *', key: 'name' },
                       { placeholder: 'SKU (optional)', key: 'sku' },
-                      { placeholder: 'Price (₹) *', key: 'price' },
-                      { placeholder: 'Stock Quantity *', key: 'stock' },
+                      { placeholder: 'Price (₹) * — also used as fallback price for variants', key: 'price' },
+                      ...(hasVariants ? [] : [{ placeholder: 'Stock Quantity *', key: 'stock' }]),
                     ].map(f => (
                       <input key={f.key} placeholder={f.placeholder}
                         value={newProduct[f.key]}
@@ -1211,57 +1294,110 @@ const saveProduct = async () => {
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '14px', color: '#1a1a2e' }}>
                       <input type="checkbox" checked={hasVariants} onChange={e => setHasVariants(e.target.checked)}
                         style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                      This Product Has Variants (e.g. different sizes, weights, colors)
+                      This Product Has Variants (Color, Size, RAM, Flavor — any combination, any category)
                     </label>
 
                     {hasVariants && (
-                      <div style={{ marginTop: '16px', background: '#f8f7ff', borderRadius: '12px', padding: '16px', border: '1px solid #e8e0ff' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                          <div>
-                            <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Variant Type</label>
-                            <select value={variantType} onChange={e => setVariantType(e.target.value)}
-                              style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
-                              {['Size', 'Weight', 'Volume', 'Storage', 'Color', 'RAM', 'Flavor', 'Pack Size', 'Material', 'Custom'].map(t => (
-                                <option key={t} value={t}>{t}</option>
-                              ))}
-                            </select>
-                          </div>
-                          {variantType === 'Custom' && (
-                            <div>
-                              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' }}>Custom Variant Type Name</label>
-                              <input placeholder="e.g. Spice Level" value={customVariantType}
-                                onChange={e => setCustomVariantType(e.target.value)}
-                                style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                      <div style={{ marginTop: '16px' }}>
+                        {variantGroups.map((g, gi) => (
+                          <div key={gi} style={{ border: '1px solid #e8e0ff', borderRadius: '12px', padding: '16px', marginBottom: '14px', background: '#f8f7ff' }}>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '12px' }}>
+                              <input list={`add-group-suggestions-${gi}`} placeholder="Group name (e.g. Color, RAM, Flavor)" value={g.name}
+                                onChange={e => updateVariantGroupName(gi, e.target.value)}
+                                style={{ flex: 1, padding: '10px 12px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', outline: 'none' }} />
+                              <datalist id={`add-group-suggestions-${gi}`}>
+                                {VARIANT_GROUP_SUGGESTIONS.map(n => <option key={n} value={n} />)}
+                              </datalist>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
+                                <input type="checkbox" checked={g.showImages} onChange={() => toggleVariantGroupImages(gi)} />
+                                Has images
+                              </label>
+                              {variantGroups.length > 1 && (
+                                <button onClick={() => removeVariantGroup(gi)} style={{ background: '#fff0f0', color: '#ff4444', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer' }}>✕</button>
+                              )}
                             </div>
-                          )}
-                        </div>
 
-                        <div style={{ fontWeight: '700', fontSize: '13px', color: '#1a1a2e', marginBottom: '10px' }}>
-                          {variantType === 'Custom' ? (customVariantType || 'Custom') : variantType} Options
-                        </div>
+                            {g.options.map((o, oi) => (
+                              <div key={oi} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '10px' }}>
+                                <input placeholder="Option value (e.g. Black, 128GB)" value={o.value}
+                                  onChange={e => updateVariantOptionValue(gi, oi, e.target.value)}
+                                  style={{ width: '200px', padding: '9px 10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
 
-                        {variantRows.map((row, i) => (
-                          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                            <input placeholder={`e.g. ${variantType === 'Size' ? '7 Inch' : 'Value'}`} value={row.variant_value}
-                              onChange={e => updateVariantRow(i, 'variant_value', e.target.value)}
-                              style={{ padding: '10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
-                            <input placeholder="Price ₹" type="number" value={row.price}
-                              onChange={e => updateVariantRow(i, 'price', e.target.value)}
-                              style={{ padding: '10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
-                            <input placeholder="Stock" type="number" value={row.stock}
-                              onChange={e => updateVariantRow(i, 'stock', e.target.value)}
-                              style={{ padding: '10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px', outline: 'none' }} />
-                            <button onClick={() => removeVariantRow(i)} disabled={variantRows.length === 1}
-                              style={{ background: '#fff0f0', color: '#ff4444', border: 'none', borderRadius: '8px', padding: '10px 12px', cursor: variantRows.length === 1 ? 'not-allowed' : 'pointer', opacity: variantRows.length === 1 ? 0.4 : 1 }}>
-                              ✕
+                                {g.showImages && (
+                                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
+                                    {o.images.map((img, ii) => (
+                                      <div key={ii} style={{ position: 'relative' }}>
+                                        <img src={img} alt="" style={{ width: '44px', height: '44px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #e8e8e0' }} />
+                                        <button onClick={() => removeVariantOptionImage(gi, oi, ii)}
+                                          style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#ff4444', color: 'white', border: 'none', borderRadius: '50%', width: '16px', height: '16px', cursor: 'pointer', fontSize: '9px' }}>✕</button>
+                                      </div>
+                                    ))}
+                                    <label style={{ width: '44px', height: '44px', border: '2px dashed #6c63ff', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6c63ff', fontSize: '16px' }}>
+                                      {variantUploadingFor === `${gi}-${oi}` ? '⏳' : '+'}
+                                      <input type="file" accept="image/*" style={{ display: 'none' }}
+                                        onChange={e => { const f = e.target.files[0]; if (f) uploadVariantOptionImage(gi, oi, f); e.target.value = ''; }} />
+                                    </label>
+                                  </div>
+                                )}
+
+                                <button onClick={() => removeVariantOption(gi, oi)} disabled={g.options.length === 1}
+                                  style={{ background: '#fff0f0', color: '#ff4444', border: 'none', borderRadius: '8px', padding: '8px 10px', cursor: g.options.length === 1 ? 'not-allowed' : 'pointer', opacity: g.options.length === 1 ? 0.4 : 1 }}>✕</button>
+                              </div>
+                            ))}
+                            <button onClick={() => addVariantOption(gi)} style={{ background: 'none', border: '1px dashed #6c63ff', color: '#6c63ff', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>
+                              + Add Option
                             </button>
                           </div>
                         ))}
 
-                        <button onClick={addVariantRow}
-                          style={{ marginTop: '8px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                          + Add Another Option
+                        <button onClick={addVariantGroup} style={{ background: '#6c63ff15', color: '#6c63ff', border: 'none', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', fontWeight: '600', fontSize: '13px', marginBottom: '16px' }}>
+                          + Add Variant Group
                         </button>
+
+                        <div style={{ marginBottom: '16px' }}>
+                          <button onClick={generateVariantCombinations} style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '10px 20px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>
+                            ⚙️ Generate Combinations
+                          </button>
+                        </div>
+
+                        {variantCombos.length > 0 && (
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', minWidth: '480px', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ background: '#fafaf5' }}>
+                                  <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: '#999' }}>Combination</th>
+                                  <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: '#999' }}>Price (₹)</th>
+                                  <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: '#999' }}>Stock</th>
+                                  <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: '#999' }}>SKU</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {variantCombos.map((c, i) => (
+                                  <tr key={i} style={{ borderBottom: '1px solid #f8f8f0' }}>
+                                    <td style={{ padding: '8px 10px', fontSize: '12px', fontWeight: '600' }}>
+                                      {Object.entries(c.selections).map(([k, v]) => `${k}: ${v}`).join(' / ')}
+                                    </td>
+                                    <td style={{ padding: '8px 10px' }}>
+                                      <input type="number" placeholder={`base ₹${newProduct.price || 0}`} value={c.price}
+                                        onChange={e => updateVariantCombo(i, 'price', e.target.value)}
+                                        style={{ width: '90px', padding: '6px 8px', border: '1px solid #e8e8e0', borderRadius: '6px', fontSize: '12px' }} />
+                                    </td>
+                                    <td style={{ padding: '8px 10px' }}>
+                                      <input type="number" value={c.stock}
+                                        onChange={e => updateVariantCombo(i, 'stock', e.target.value)}
+                                        style={{ width: '70px', padding: '6px 8px', border: '1px solid #e8e8e0', borderRadius: '6px', fontSize: '12px' }} />
+                                    </td>
+                                    <td style={{ padding: '8px 10px' }}>
+                                      <input value={c.sku} placeholder="optional"
+                                        onChange={e => updateVariantCombo(i, 'sku', e.target.value)}
+                                        style={{ width: '110px', padding: '6px 8px', border: '1px solid #e8e8e0', borderRadius: '6px', fontSize: '12px' }} />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1271,10 +1407,11 @@ const saveProduct = async () => {
                       style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '10px 24px', cursor: 'pointer', fontWeight: '600', opacity: loading ? 0.7 : 1 }}>
                       {loading ? 'Saving...' : 'Save Product'}
                     </button>
-                    <button onClick={() => setShowAddProduct(false)} style={{ background: '#f0f0e8', color: '#666', border: 'none', borderRadius: '10px', padding: '10px 24px', cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={() => { setShowAddProduct(false); resetVariantBuilder(); }} style={{ background: '#f0f0e8', color: '#666', border: 'none', borderRadius: '10px', padding: '10px 24px', cursor: 'pointer' }}>Cancel</button>
                   </div>
                 </div>
               )}
+
 
               <div style={{ background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
                 {products.length === 0 ? (
@@ -1321,6 +1458,11 @@ const saveProduct = async () => {
                                   title="Manage Color + Size Variants"
                                   style={{ background: '#f8f0ff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: '#6c63ff', fontWeight: '700', fontSize: '12px' }}>
                                   🎨 Colors
+                                </button>
+                                <button onClick={() => setVariantManagerProduct(p)}
+                                  title="Universal Variants (any category)"
+                                  style={{ background: '#fff0e8', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: '#e17055', fontWeight: '700', fontSize: '12px' }}>
+                                  🧬 Variants
                                 </button>
                                 <button onClick={() => deleteProduct(p.id)} style={{ background: '#fff0f0', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#e17055' }}><FiTrash2 /></button>
                               </div>
@@ -2229,6 +2371,14 @@ const saveProduct = async () => {
             )}
           </div>
         </div>
+      )}
+
+      {variantManagerProduct && (
+        <VariantManagerModal
+          product={variantManagerProduct}
+          onClose={() => setVariantManagerProduct(null)}
+          onSaved={() => { fetchProducts(); fetchDashboard(); }}
+        />
       )}
     </div>
   );

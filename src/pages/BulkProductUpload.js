@@ -13,7 +13,8 @@ const RETURN_POLICY_LABELS = {
   FASHION: '3 days — Wrong size/Damaged',
   GROCERY: '1 day — Damaged/Expired',
   FRESH: 'No returns',
-  MEDICAL: 'Return only if expired',
+  FOOTWEAR: '3 Days - Wrong size/Damaged ',
+  KIDS_ZONE: '3 Days - Wrong size/Damaged / Expire',
 };
 
 export default function BulkProductUpload() {
