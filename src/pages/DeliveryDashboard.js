@@ -123,7 +123,7 @@ export default function DeliveryDashboard() {
   useTabHistory(tab, setTab, ['available', 'mydeliveries']);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const logout = () => { localStorage.clear(); window.location.href = '/login'; };
+  const logout = () => { localStorage.clear(); window.location.replace('/login'); };
 
   const getLocation = useCallback(() => {
     setLocating(true);

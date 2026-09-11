@@ -505,7 +505,7 @@ const viewPaymentForOrder = async (orderId) => {
 };
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const logout = () => { localStorage.clear(); window.location.href = '/login'; };
+  const logout = () => { localStorage.clear(); window.location.replace('/login'); };
 
  useEffect(() => {
   fetchDashboard();

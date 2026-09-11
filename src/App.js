@@ -13,9 +13,22 @@ const BuyerDashboard = lazy(() => import('./pages/BuyerDashboard'));
 function ProtectedRoute({ children, role }) {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
-  if (!token) return <Navigate to="/login" />;
-  if (role && user.role !== role) return <Navigate to="/login" />;
+  // replace: true — auth redirects never push a stale entry into history,
+  // so Back can never land the user on a page they were denied access to.
+  if (!token) return <Navigate to="/login" replace />;
+  if (role && user.role !== role) return <Navigate to="/login" replace />;
   return children;
+}
+
+function homeRouteForCurrentUser() {
+  const token = localStorage.getItem('token');
+  if (!token) return '/login';
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if (user.role === 'admin') return '/admin';
+  if (user.role === 'seller') return '/seller';
+  if (user.role === 'delivery') return '/delivery';
+  if (user.role === 'buyer') return '/buyer';
+  return '/login';
 }
 
 function useWarmStart() {
@@ -68,7 +81,7 @@ export default function App() {
             </div>
           }>
             <Routes>
-              <Route path="/" element={<Navigate to="/login" />} />
+              <Route path="/" element={<Navigate to={homeRouteForCurrentUser()} replace />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/admin" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />

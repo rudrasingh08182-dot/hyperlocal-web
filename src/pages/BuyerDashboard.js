@@ -1488,7 +1488,10 @@ export default function BuyerDashboard() {
     touchDeltaXRef.current = 0;
   };
 
-  const logout = () => { localStorage.clear(); window.location.href = '/login'; };
+  // replace (not href) — logout swaps the current page out of history
+  // instead of pushing /login as a new entry, so Back after logout can
+  // never return to an authenticated screen (Home, Profile, Cart, etc.)
+  const logout = () => { localStorage.clear(); window.location.replace('/login'); };
 
  const [banners, setBanners] = useState([]);
   const [myNotifications, setMyNotifications] = useState([]);
