@@ -3438,14 +3438,27 @@ export default function BuyerDashboard() {
                       </div>
                     )}
 
-                    {displayStock !== null && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
-                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: displayStock > 10 ? T.success : displayStock > 0 ? T.headerYellowDark : T.error }} />
-                        <span style={{ fontSize: '12px', fontWeight: '700', color: displayStock > 10 ? T.success : displayStock > 0 ? '#8B5A00' : T.error }}>
-                          {displayStock > 10 ? 'In stock' : displayStock > 0 ? 'Limited stock' : 'Out of stock'}
-                        </span>
-                      </div>
-                    )}
+                    {displayStock !== null && (() => {
+                      // Sweets & Confectionery: buyer only ever sees a plain
+                      // in-stock/out-of-stock badge, never the exact count.
+                      const hideGranularity = selectedProduct.category === 'sweets';
+                      const isIn = displayStock > 0;
+                      const label = hideGranularity
+                        ? (isIn ? 'In stock' : 'Out of stock')
+                        : (displayStock > 10 ? 'In stock' : displayStock > 0 ? 'Limited stock' : 'Out of stock');
+                      const color = hideGranularity
+                        ? (isIn ? T.success : T.error)
+                        : (displayStock > 10 ? T.success : displayStock > 0 ? T.headerYellowDark : T.error);
+                      const textColor = hideGranularity
+                        ? (isIn ? T.success : T.error)
+                        : (displayStock > 10 ? T.success : displayStock > 0 ? '#8B5A00' : T.error);
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                          <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: color }} />
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: textColor }}>{label}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })()}
