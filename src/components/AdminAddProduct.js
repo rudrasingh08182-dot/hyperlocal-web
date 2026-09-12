@@ -10,10 +10,6 @@ import { useState, useEffect } from 'react';
 import API from '../services/api';
 import { showToast } from './Toast';
 
-// ── Category -> field profile ────────────────────────────────────────────
-// priceMode: 'flat' (Price ₹) | 'per_kg' (Price per KG ₹, sets unit_type=kg)
-// variantPreset: starting groups pre-filled into the variant builder —
-// admin can still freely add/rename/remove groups, this is just a shortcut.
 const CATEGORY_FIELD_CONFIG = {
   grocery:     { label: '🛒 Grocery', priceMode: 'flat', stockOptional: false, showVariants: false, maxImages: 5, defaultReturnPolicy: 'GROCERY' },
   fresh:       { label: '🥬 Fresh', priceMode: 'per_kg', stockOptional: false, showVariants: false, maxImages: 3, defaultReturnPolicy: 'FRESH' },
@@ -21,7 +17,7 @@ const CATEGORY_FIELD_CONFIG = {
   fashion:     { label: '👕 Fashion', priceMode: 'flat', stockOptional: false, showVariants: true, variantPreset: [{ name: 'Color', hasImages: true }, { name: 'Size', hasImages: false }], maxImages: 5, defaultReturnPolicy: 'FASHION' },
   food:        { label: '🍔 Food', priceMode: 'flat', stockOptional: false, showVariants: true, variantPreset: [{ name: 'Flavor', hasImages: false }], maxImages: 5, defaultReturnPolicy: 'PACKAGED_FOOD' },
   sweets:      { label: '🍬 Sweets & Confectionery', priceMode: 'per_kg', stockOptional: true, showVariants: false, maxImages: 5, defaultReturnPolicy: 'PACKAGED_FOOD' },
-  beauty:      { label: '💄 Beauty & Accessories', priceMode: 'flat', stockOptional: false, showVariants: true, variantPreset: [{ name: 'Shade', hasImages: true }], maxImages: 5, defaultReturnPolicy: 'STATIONERY' }, // see backend note re: return_policy whitelist
+  beauty:      { label: '💄 Beauty & Accessories', priceMode: 'flat', stockOptional: false, showVariants: true, variantPreset: [{ name: 'Shade', hasImages: true }], maxImages: 5, defaultReturnPolicy: 'STATIONERY' },
   footwear:    { label: '👟 Footwear', priceMode: 'flat', stockOptional: false, showVariants: true, variantPreset: [{ name: 'Color', hasImages: true }, { name: 'Size', hasImages: false }], maxImages: 5, defaultReturnPolicy: 'FASHION', extraFields: ['gender', 'footwear_type'] },
   kids_zone:   { label: "🧸 Kid's Zone", priceMode: 'flat', stockOptional: false, showVariants: true, variantPreset: [{ name: 'Age Group', hasImages: false }, { name: 'Size', hasImages: false }], maxImages: 5, defaultReturnPolicy: 'FASHION' },
 };
@@ -71,6 +67,18 @@ function errMsg(err, fallback) {
   return (typeof e === 'object' ? e?.message : e) || fallback;
 }
 
+// ── Dark admin theme tokens (matches AdminDashboard.js) ──
+const CARD_BG = '#1a1a2e';
+const PAGE_BG = '#0a0a1a';
+const BORDER = '#2a2a4a';
+const ACCENT = '#6c63ff';
+const TEXT = '#eee';
+const TEXT_FAINT = '#999';
+const DANGER = '#ff4444';
+
+const inputStyle = { padding: '11px', border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box', background: PAGE_BG, color: TEXT };
+const labelStyle = { fontSize: '12px', fontWeight: '600', color: TEXT_FAINT, display: 'block', marginBottom: '6px' };
+
 export default function AdminAddProduct() {
   const [sellers, setSellers] = useState([]);
   const [loadingSellers, setLoadingSellers] = useState(true);
@@ -101,7 +109,6 @@ export default function AdminAddProduct() {
       .finally(() => setLoadingSellers(false));
   }, []);
 
-  // Re-configure the form whenever category changes
   useEffect(() => {
     if (!cfg) return;
     setReturnPolicy(cfg.defaultReturnPolicy);
@@ -125,7 +132,6 @@ export default function AdminAddProduct() {
     setVariantCombos([]);
   };
 
-  // ── Product images ──
   const uploadProductImage = async (file) => {
     setUploadingImage(true);
     try {
@@ -140,7 +146,6 @@ export default function AdminAddProduct() {
     }
   };
 
-  // ── Variant group/option editing (create-only — this is a fresh product) ──
   const addVariantGroup = () => setVariantGroups((prev) => [...prev, { name: '', showImages: false, options: [{ value: '', images: [] }] }]);
   const removeVariantGroup = (gi) => setVariantGroups((prev) => prev.filter((_, i) => i !== gi));
   const updateVariantGroupName = (gi, name) =>
@@ -192,7 +197,6 @@ export default function AdminAddProduct() {
   };
   const updateVariantCombo = (idx, field, value) => setVariantCombos((prev) => prev.map((c, i) => (i === idx ? { ...c, [field]: value } : c)));
 
-  // ── Submit ──
   const submit = async () => {
     if (!shopId) return showToast('Please select a shop', 'error');
     if (!category) return showToast('Please select a category', 'error');
@@ -263,17 +267,13 @@ export default function AdminAddProduct() {
     }
   };
 
-  const inputStyle = { padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' };
-  const labelStyle = { fontSize: '13px', fontWeight: '600', color: '#333', display: 'block', marginBottom: '6px' };
-
   return (
-    <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', maxWidth: '720px' }}>
-      <h2 style={{ margin: '0 0 6px', color: '#1a1a2e' }}>➕ Add Product to a Shop</h2>
-      <p style={{ color: '#999', fontSize: '13px', marginBottom: '20px' }}>
+    <div style={{ background: CARD_BG, borderRadius: '16px', padding: '24px', border: `1px solid ${BORDER}`, maxWidth: '740px' }}>
+      <h2 style={{ margin: '0 0 6px', color: 'white' }}>➕ Add Product to a Shop</h2>
+      <p style={{ color: TEXT_FAINT, fontSize: '13px', marginBottom: '20px' }}>
         Faster than bulk upload for one-off products — pick a shop, pick a category, and only the fields that category needs show up.
       </p>
 
-      {/* Step 1 — Shop */}
       <div style={{ marginBottom: '16px' }}>
         <label style={labelStyle}>Shop *</label>
         <select value={shopId} onChange={(e) => setShopId(e.target.value)} style={inputStyle} disabled={loadingSellers}>
@@ -284,7 +284,6 @@ export default function AdminAddProduct() {
         </select>
       </div>
 
-      {/* Step 2 — Category */}
       <div style={{ marginBottom: '20px' }}>
         <label style={labelStyle}>Category *</label>
         <select value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle}>
@@ -295,7 +294,6 @@ export default function AdminAddProduct() {
         </select>
       </div>
 
-      {/* Step 3 — everything else, only once a category is chosen */}
       {cfg && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -323,9 +321,7 @@ export default function AdminAddProduct() {
 
             {!hasVariants && (
               <div>
-                <label style={labelStyle}>
-                  Stock {cfg.stockOptional ? '(optional — leave blank for always In Stock)' : '*'}
-                </label>
+                <label style={labelStyle}>Stock {cfg.stockOptional ? '(optional — leave blank for always In Stock)' : '*'}</label>
                 <input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })}
                   placeholder={cfg.stockOptional ? 'Leave blank = In Stock' : ''} style={inputStyle} />
               </div>
@@ -367,19 +363,18 @@ export default function AdminAddProduct() {
             </div>
           </div>
 
-          {/* Images */}
           <div style={{ marginBottom: '20px' }}>
             <label style={labelStyle}>📷 Product Photos * (max {cfg.maxImages})</label>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {images.map((url, i) => (
                 <div key={i} style={{ position: 'relative' }}>
-                  <img src={url} alt="" style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', border: '2px solid #e8e8e0' }} />
+                  <img src={url} alt="" style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', border: `2px solid ${BORDER}` }} />
                   <button onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
-                    style={{ position: 'absolute', top: '-8px', right: '-8px', background: '#ff4444', color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '13px' }}>✕</button>
+                    style={{ position: 'absolute', top: '-8px', right: '-8px', background: DANGER, color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontSize: '13px' }}>✕</button>
                 </div>
               ))}
               {images.length < cfg.maxImages && (
-                <label style={{ width: '80px', height: '80px', border: '2px dashed #6c63ff', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: uploadingImage ? 'not-allowed' : 'pointer', color: '#6c63ff', background: '#f8f7ff' }}>
+                <label style={{ width: '80px', height: '80px', border: `2px dashed ${ACCENT}`, borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: uploadingImage ? 'not-allowed' : 'pointer', color: ACCENT, background: PAGE_BG }}>
                   {uploadingImage ? <span style={{ fontSize: '20px' }}>⏳</span> : <span style={{ fontSize: '24px' }}>📷</span>}
                   <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingImage}
                     onChange={(e) => { const f = e.target.files[0]; if (f) uploadProductImage(f); e.target.value = ''; }} />
@@ -388,10 +383,9 @@ export default function AdminAddProduct() {
             </div>
           </div>
 
-          {/* Variants (only categories that use them) */}
           {cfg.showVariants && (
-            <div style={{ marginBottom: '20px', borderTop: '1px solid #f0f0e8', paddingTop: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '14px', color: '#1a1a2e', marginBottom: '12px' }}>
+            <div style={{ marginBottom: '20px', borderTop: `1px solid ${BORDER}`, paddingTop: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '14px', color: 'white', marginBottom: '12px' }}>
                 <input type="checkbox" checked={hasVariants} onChange={(e) => setHasVariants(e.target.checked)} style={{ width: '18px', height: '18px' }} />
                 This Product Has Variants
               </label>
@@ -399,19 +393,19 @@ export default function AdminAddProduct() {
               {hasVariants && (
                 <>
                   {variantGroups.map((g, gi) => (
-                    <div key={gi} style={{ border: '1px solid #e8e0ff', borderRadius: '12px', padding: '16px', marginBottom: '14px', background: '#f8f7ff' }}>
+                    <div key={gi} style={{ border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '16px', marginBottom: '14px', background: PAGE_BG }}>
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '12px' }}>
                         <input list={`admin-group-suggestions-${gi}`} placeholder="Group name (e.g. Color, Size, RAM)" value={g.name}
                           onChange={(e) => updateVariantGroupName(gi, e.target.value)}
-                          style={{ flex: 1, padding: '10px 12px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px' }} />
+                          style={{ flex: 1, padding: '10px 12px', border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '14px', background: CARD_BG, color: TEXT }} />
                         <datalist id={`admin-group-suggestions-${gi}`}>
                           {VARIANT_GROUP_SUGGESTIONS.map((n) => <option key={n} value={n} />)}
                         </datalist>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#666', whiteSpace: 'nowrap' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: TEXT_FAINT, whiteSpace: 'nowrap' }}>
                           <input type="checkbox" checked={g.showImages} onChange={() => toggleVariantGroupImages(gi)} /> Has images
                         </label>
                         {variantGroups.length > 1 && (
-                          <button onClick={() => removeVariantGroup(gi)} style={{ background: '#fff0f0', color: '#ff4444', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer' }}>✕</button>
+                          <button onClick={() => removeVariantGroup(gi)} style={{ background: '#ff444422', color: DANGER, border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer' }}>✕</button>
                         )}
                       </div>
 
@@ -419,18 +413,18 @@ export default function AdminAddProduct() {
                         <div key={oi} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '10px' }}>
                           <input placeholder="Option value (e.g. Black, 128GB)" value={o.value}
                             onChange={(e) => updateVariantOptionValue(gi, oi, e.target.value)}
-                            style={{ width: '200px', padding: '9px 10px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '13px' }} />
+                            style={{ width: '200px', padding: '9px 10px', border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '13px', background: CARD_BG, color: TEXT }} />
 
                           {g.showImages && (
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
                               {o.images.map((img, ii) => (
                                 <div key={ii} style={{ position: 'relative' }}>
-                                  <img src={img} alt="" style={{ width: '44px', height: '44px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #e8e8e0' }} />
+                                  <img src={img} alt="" style={{ width: '44px', height: '44px', borderRadius: '6px', objectFit: 'cover', border: `1px solid ${BORDER}` }} />
                                   <button onClick={() => removeVariantOptionImage(gi, oi, ii)}
-                                    style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#ff4444', color: 'white', border: 'none', borderRadius: '50%', width: '16px', height: '16px', cursor: 'pointer', fontSize: '9px' }}>✕</button>
+                                    style={{ position: 'absolute', top: '-6px', right: '-6px', background: DANGER, color: 'white', border: 'none', borderRadius: '50%', width: '16px', height: '16px', cursor: 'pointer', fontSize: '9px' }}>✕</button>
                                 </div>
                               ))}
-                              <label style={{ width: '44px', height: '44px', border: '2px dashed #6c63ff', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6c63ff' }}>
+                              <label style={{ width: '44px', height: '44px', border: `2px dashed ${ACCENT}`, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: ACCENT }}>
                                 {variantUploadingFor === `${gi}-${oi}` ? '⏳' : '+'}
                                 <input type="file" accept="image/*" style={{ display: 'none' }}
                                   onChange={(e) => { const f = e.target.files[0]; if (f) uploadVariantOptionImage(gi, oi, f); e.target.value = ''; }} />
@@ -439,21 +433,21 @@ export default function AdminAddProduct() {
                           )}
 
                           <button onClick={() => removeVariantOption(gi, oi)} disabled={g.options.length === 1}
-                            style={{ background: '#fff0f0', color: '#ff4444', border: 'none', borderRadius: '8px', padding: '8px 10px', cursor: g.options.length === 1 ? 'not-allowed' : 'pointer', opacity: g.options.length === 1 ? 0.4 : 1 }}>✕</button>
+                            style={{ background: '#ff444422', color: DANGER, border: 'none', borderRadius: '8px', padding: '8px 10px', cursor: g.options.length === 1 ? 'not-allowed' : 'pointer', opacity: g.options.length === 1 ? 0.4 : 1 }}>✕</button>
                         </div>
                       ))}
-                      <button onClick={() => addVariantOption(gi)} style={{ background: 'none', border: '1px dashed #6c63ff', color: '#6c63ff', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>
+                      <button onClick={() => addVariantOption(gi)} style={{ background: 'none', border: `1px dashed ${ACCENT}`, color: ACCENT, borderRadius: '8px', padding: '6px 14px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>
                         + Add Option
                       </button>
                     </div>
                   ))}
 
-                  <button onClick={addVariantGroup} style={{ background: '#6c63ff15', color: '#6c63ff', border: 'none', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', fontWeight: '600', fontSize: '13px', marginBottom: '16px' }}>
+                  <button onClick={addVariantGroup} style={{ background: '#6c63ff22', color: ACCENT, border: 'none', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', fontWeight: '600', fontSize: '13px', marginBottom: '16px' }}>
                     + Add Variant Group
                   </button>
 
                   <div style={{ marginBottom: '16px' }}>
-                    <button onClick={generateVariantCombinations} style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '10px 20px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>
+                    <button onClick={generateVariantCombinations} style={{ background: ACCENT, color: 'white', border: 'none', borderRadius: '10px', padding: '10px 20px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>
                       ⚙️ Generate Combinations
                     </button>
                   </div>
@@ -462,30 +456,30 @@ export default function AdminAddProduct() {
                     <div style={{ overflowX: 'auto', marginBottom: '8px' }}>
                       <table style={{ width: '100%', minWidth: '480px', borderCollapse: 'collapse' }}>
                         <thead>
-                          <tr style={{ background: '#fafaf5' }}>
-                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: '#999' }}>Combination</th>
-                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: '#999' }}>Price (₹)</th>
-                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: '#999' }}>Stock</th>
-                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: '#999' }}>SKU</th>
+                          <tr style={{ background: '#6c63ff22' }}>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: TEXT_FAINT }}>Combination</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: TEXT_FAINT }}>Price (₹)</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: TEXT_FAINT }}>Stock</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: TEXT_FAINT }}>SKU</th>
                           </tr>
                         </thead>
                         <tbody>
                           {variantCombos.map((c, i) => (
-                            <tr key={i} style={{ borderBottom: '1px solid #f8f8f0' }}>
-                              <td style={{ padding: '8px 10px', fontSize: '12px', fontWeight: '600' }}>
+                            <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                              <td style={{ padding: '8px 10px', fontSize: '12px', fontWeight: '600', color: TEXT }}>
                                 {Object.entries(c.selections).map(([k, v]) => `${k}: ${v}`).join(' / ')}
                               </td>
                               <td style={{ padding: '8px 10px' }}>
                                 <input type="number" placeholder="base price" value={c.price} onChange={(e) => updateVariantCombo(i, 'price', e.target.value)}
-                                  style={{ width: '90px', padding: '6px 8px', border: '1px solid #e8e8e0', borderRadius: '6px', fontSize: '12px' }} />
+                                  style={{ width: '90px', padding: '6px 8px', border: `1px solid ${BORDER}`, borderRadius: '6px', fontSize: '12px', background: PAGE_BG, color: TEXT }} />
                               </td>
                               <td style={{ padding: '8px 10px' }}>
                                 <input type="number" value={c.stock} onChange={(e) => updateVariantCombo(i, 'stock', e.target.value)}
-                                  style={{ width: '70px', padding: '6px 8px', border: '1px solid #e8e8e0', borderRadius: '6px', fontSize: '12px' }} />
+                                  style={{ width: '70px', padding: '6px 8px', border: `1px solid ${BORDER}`, borderRadius: '6px', fontSize: '12px', background: PAGE_BG, color: TEXT }} />
                               </td>
                               <td style={{ padding: '8px 10px' }}>
                                 <input value={c.sku} placeholder="optional" onChange={(e) => updateVariantCombo(i, 'sku', e.target.value)}
-                                  style={{ width: '110px', padding: '6px 8px', border: '1px solid #e8e8e0', borderRadius: '6px', fontSize: '12px' }} />
+                                  style={{ width: '110px', padding: '6px 8px', border: `1px solid ${BORDER}`, borderRadius: '6px', fontSize: '12px', background: PAGE_BG, color: TEXT }} />
                               </td>
                             </tr>
                           ))}
@@ -499,7 +493,7 @@ export default function AdminAddProduct() {
           )}
 
           <button onClick={submit} disabled={saving}
-            style={{ background: '#6c63ff', color: 'white', border: 'none', borderRadius: '10px', padding: '12px 32px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', opacity: saving ? 0.7 : 1 }}>
+            style={{ background: ACCENT, color: 'white', border: 'none', borderRadius: '10px', padding: '12px 32px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', opacity: saving ? 0.7 : 1 }}>
             {saving ? 'Adding...' : '💾 Add Product to Shop'}
           </button>
         </>

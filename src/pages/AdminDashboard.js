@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import API from '../services/api';
 import { Toast, showToast } from '../components/Toast';
 import BulkProductUpload from './BulkProductUpload';
+import AdminAddProduct from '../components/AdminAddProduct';
 import { useTabHistory } from '../hooks/useTabHistory';
 
 function ThreeBackground() {
@@ -82,7 +83,7 @@ export default function AdminDashboard() {
   const [notifResult, setNotifResult] = useState(null);
 
  
- useTabHistory(tab, setTab, ['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners', 'pincodes', 'notifications']);
+ useTabHistory(tab, setTab, ['sellers', 'buyers', 'delivery', 'add-product', 'bulk-upload', 'banners', 'pincodes', 'notifications']);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -453,14 +454,14 @@ const suspendDelivery = async (id) => {
 
         {/* Tabs */}
        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-         {['sellers', 'buyers', 'delivery', 'bulk-upload', 'banners', 'pincodes', 'notifications'].map(t => (
+         {['sellers', 'buyers', 'delivery', 'add-product', 'bulk-upload', 'banners', 'pincodes', 'notifications'].map(t => (
          
   <button key={t} onClick={() => setTab(t)}
     style={{
       padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold',
       background: tab === t ? '#6c63ff' : '#1a1a2e', color: 'white', fontSize: '14px',
     }}>
-   {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : t === 'delivery' ? '🚴 Delivery Boys' : t === 'bulk-upload' ? '📦 Bulk Upload' : t === 'banners' ? '🖼️ Banners' : t === 'pincodes' ? '📍 Pincodes' : '🔔 Notifications'}
+   {t === 'sellers' ? '🏪 Sellers' : t === 'buyers' ? '🛒 Buyers' : t === 'delivery' ? '🚴 Delivery Boys' : t === 'add-product' ? '➕ Add Product' : t === 'bulk-upload' ? '📦 Bulk Upload' : t === 'banners' ? '🖼️ Banners' : t === 'pincodes' ? '📍 Pincodes' : '🔔 Notifications'}
   </button>
 ))}
         </div>
@@ -683,6 +684,12 @@ const suspendDelivery = async (id) => {
             )}
           </motion.div>
         )}
+
+{tab === 'add-product' && (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+    <AdminAddProduct />
+  </motion.div>
+)}
 
 {tab === 'bulk-upload' && (
   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
