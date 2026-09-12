@@ -13,4 +13,9 @@ API.interceptors.request.use((req) => {
 export const registerUser = (data) => API.post('/auth/register', data);
 export const loginUser = (data) => API.post('/auth/login', data);
 
+// ── Passwordless buyer entry: phone + pincode only ──
+// The backend ALWAYS returns 200 here (even when serviceable=false) —
+// serviceability only decides the dashboard banner, never blocks entry.
+export const buyerEntry = (data) => API.post('/auth/buyer-entry', data);
+
 export default API;

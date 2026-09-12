@@ -1,10 +1,12 @@
-import API, { registerUser } from '../services/api';
+import API from '../services/api';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Toast, showToast } from '../components/Toast';
 
 /**
  * Zaplo — Register page
+ * NOTE: Buyer registration has been REMOVED (buyers enter with phone +
+ * pincode only). This page now serves Seller & Delivery registration only.
  */
 
 const COLORS = {
@@ -74,7 +76,10 @@ const Field = ({ label, icon, children }) => (
 
 export default function Register() {
   const [searchParams] = useSearchParams();
-  const defaultRole = searchParams.get('role') || 'buyer';
+  // Buyer registration no longer exists — if someone arrives with
+  // ?role=buyer (old link/bookmark), default them to seller instead.
+  const urlRole = searchParams.get('role');
+  const defaultRole = (urlRole === 'seller' || urlRole === 'delivery') ? urlRole : 'seller';
   const [role, setRole] = useState(defaultRole);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -91,8 +96,9 @@ export default function Register() {
 
   const update = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
+  // Buyer tab removed — only Seller & Delivery can self-register.
+  // Admin stays disabled (created internally).
   const roles = [
-    { id: 'buyer',    label: 'Buyer',    icon: '🛒' },
     { id: 'seller',   label: 'Seller',   icon: '🏪' },
     { id: 'delivery', label: 'Delivery', icon: '🚴' },
     { id: 'admin',    label: 'Admin',    icon: '👑', disabled: true },
@@ -151,7 +157,8 @@ export default function Register() {
           locality: form.locality,
           contact_phone: form.contact_phone || form.phone,
         });
-      } else if (role === 'delivery') {
+      } else {
+        // role === 'delivery'
         await API.post('/auth/register-delivery', {
           username: form.username,
           name: form.name,
@@ -163,22 +170,11 @@ export default function Register() {
           vehicle_number: form.vehicle_number,
           locality: form.locality,
         });
-      } else {
-        await registerUser({
-          username: form.username,
-          name: form.name,
-          phone: form.phone,
-          password: form.password,
-          address: form.address,
-          pincode: form.pincode,
-          role: 'buyer',
-        });
       }
 
       const messages = {
         seller: 'Registration successful! Please wait for admin approval before logging in.',
         delivery: 'Registration successful! Our team will verify your details shortly.',
-        buyer: 'Registration successful! Please login.',
       };
       showToast(messages[role], 'success');
       setTimeout(() => navigate('/login'), 1800);
@@ -238,9 +234,9 @@ export default function Register() {
             </p>
           </div>
 
-          {/* Role picker */}
+          {/* Role picker — Buyer removed */}
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
             gap: '10px', marginBottom: '24px',
           }}>
             {roles.map(r => {
@@ -459,10 +455,31 @@ export default function Register() {
             </div>
           )}
 
+          {/* Buyer note — buyers don't need an account */}
+          <div style={{
+            background: '#EAF6EC',
+            border: '1px solid #BBF7D0',
+            borderRadius: '10px',
+            padding: '12px 14px',
+            marginTop: '20px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
+          }}>
+            <span style={{ fontSize: '16px', flexShrink: 0 }}>🛒</span>
+            <p style={{ margin: 0, fontSize: '12px', color: '#166534', lineHeight: '1.5', fontWeight: '500' }}>
+              Want to shop? Buyers don't need an account — just{' '}
+              <span style={{ fontWeight: 800, cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => navigate('/login')}>
+                enter your mobile number & pincode
+              </span>.
+            </p>
+          </div>
+
           {/* Divider + sign in link */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: '12px',
-            margin: '24px 0 16px',
+            margin: '20px 0 16px',
           }}>
             <div style={{ flex: 1, height: '1px', background: COLORS.border }} />
             <span style={{ fontSize: '12px', color: COLORS.subtle }}>Already on Zaplo?</span>

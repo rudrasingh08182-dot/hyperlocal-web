@@ -1,15 +1,65 @@
 import { useState } from 'react';
-import { loginUser } from '../services/api';
+import { loginUser, buyerEntry } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
-  const [role, setRole] = useState('buyer');
+  // ── Buyer: passwordless entry (phone + pincode) — PRIMARY flow ──
+  const [buyerForm, setBuyerForm] = useState({ phone: '', pincode: '' });
+  const [buyerError, setBuyerError] = useState('');
+  const [buyerLoading, setBuyerLoading] = useState(false);
+
+  // ── Staff: Seller / Delivery / Admin (phone + password) — UNCHANGED ──
+  const [role, setRole] = useState('seller');
   const [form, setForm] = useState({ phone: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  /* ────────────────────────────────────────────────────────────
+     BUYER ENTRY — pincode is NEVER used to block the buyer here.
+     Whatever the backend returns (serviceable true/false), the buyer
+     ALWAYS continues to /buyer. The flag only travels with the user
+     object so BuyerDashboard can show an informational banner.
+     ──────────────────────────────────────────────────────────── */
+  const handleBuyerEntry = async () => {
+    setBuyerError('');
+
+    // Frontend validates FORMAT only (10-digit phone, 6-digit pincode).
+    // Whether the pincode is serviceable is the backend's job.
+    if (!/^\d{10}$/.test(buyerForm.phone)) {
+      setBuyerError('Please enter a valid 10-digit mobile number');
+      return;
+    }
+    if (!/^\d{6}$/.test(buyerForm.pincode)) {
+      setBuyerError('Please enter a valid 6-digit pincode');
+      return;
+    }
+
+    setBuyerLoading(true);
+    try {
+      const res = await buyerEntry({
+        phone: buyerForm.phone.trim(),
+        pincode: buyerForm.pincode.trim(),
+      });
+
+      localStorage.setItem('token', res.data.token);
+      // Normalize serviceable onto the stored user so BuyerDashboard
+      // can read user.serviceable safely.
+      const user = { ...res.data.user, serviceable: res.data.serviceable };
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // location.replace (not href) — swaps the login page out of history
+      // so pressing Back after entry never lands the user back on login.
+      window.location.replace('/buyer');
+    } catch (err) {
+      setBuyerError(err.response?.data?.error || 'Something went wrong. Please try again.');
+    } finally {
+      setBuyerLoading(false);
+    }
+  };
+
+  /* ── Staff login — EXISTING logic, untouched ── */
   const handleLogin = async () => {
     setLoading(true);
     setError('');
@@ -18,9 +68,6 @@ export default function Login() {
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       const userRole = res.data.user.role;
-      // location.replace (not href) — swaps the login page out of history
-      // instead of pushing a new entry, so pressing Back after login never
-      // lands the user back on the login screen.
       if (userRole === 'admin') window.location.replace('/admin');
       else if (userRole === 'seller') window.location.replace('/seller');
       else if (userRole === 'delivery') window.location.replace('/delivery');
@@ -32,14 +79,15 @@ export default function Login() {
     }
   };
 
-  const roles = [
-    { id: 'buyer', label: 'Buyer', icon: '🛒', color: '#667eea' },
+  const staffRoles = [
     { id: 'seller', label: 'Seller', icon: '🏪', color: '#f59e0b' },
     { id: 'delivery', label: 'Delivery', icon: '🚴', color: '#10b981' },
     { id: 'admin', label: 'Admin', icon: '👑', color: '#ef4444' },
   ];
 
-  const activeRole = roles.find(r => r.id === role);
+  const activeRole = staffRoles.find(r => r.id === role);
+
+  const BUYER_GREEN = '#0C831F';
 
   return (
     <div style={{
@@ -65,20 +113,20 @@ export default function Login() {
         {/* Top accent bar */}
         <div style={{
           height: '4px',
-          background: `linear-gradient(90deg, ${activeRole.color}, ${activeRole.color}dd)`,
+          background: `linear-gradient(90deg, ${BUYER_GREEN}, ${activeRole.color})`,
           transition: 'background 0.3s ease',
         }} />
 
-        <div style={{ padding: '32px 28px 28px' }}>
+        <div style={{ padding: '28px 24px 24px' }}>
 
           {/* Logo & Header */}
-          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <div style={{
               width: '56px',
               height: '56px',
               background: '#f9fafb',
               borderRadius: '14px',
-              margin: '0 auto 14px',
+              margin: '0 auto 12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -90,7 +138,7 @@ export default function Login() {
                 style={{ width: '36px', height: '36px', objectFit: 'contain' }}
                 onError={(e) => {
                   e.target.style.display = 'none';
-                  e.target.parentElement.innerHTML = '<span style="font-size:28px;">🏠</span>';
+                  e.target.parentElement.innerHTML = '<span style="font-size:28px;">⚡</span>';
                 }}
               />
             </div>
@@ -101,7 +149,7 @@ export default function Login() {
               color: '#111827',
               letterSpacing: '-0.5px',
             }}>
-              Welcome back
+              Welcome to Zaplo
             </h1>
             <p style={{
               margin: 0,
@@ -109,18 +157,246 @@ export default function Login() {
               fontSize: '14px',
               fontWeight: '400',
             }}>
-              Sign in to your <strong style={{ color: activeRole.color }}>{activeRole.label}</strong> account
+              Your neighbourhood, delivered ⚡
             </p>
           </div>
 
-          {/* Role Selector */}
+          {/* ══════════════════════════════════════════════
+              BUYER SECTION — primary entry (no password!)
+              ══════════════════════════════════════════════ */}
+          <div style={{
+            background: '#EAF6EC',
+            border: `1.5px solid ${BUYER_GREEN}33`,
+            borderRadius: '14px',
+            padding: '18px 16px 16px',
+            marginBottom: '20px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '18px' }}>🛒</span>
+              <span style={{ fontSize: '15px', fontWeight: '800', color: BUYER_GREEN, letterSpacing: '0.02em' }}>
+                SHOP ON ZAPLO
+              </span>
+            </div>
+            <p style={{
+              margin: '0 0 14px 0',
+              fontSize: '12px',
+              color: '#6b7280',
+              lineHeight: '1.5',
+            }}>
+              Enter your mobile number and area pincode to continue.
+            </p>
+
+            {/* Buyer error */}
+            {buyerError && (
+              <div style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '10px',
+                padding: '10px 12px',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}>
+                <span style={{ fontSize: '14px' }}>⚠️</span>
+                <p style={{ margin: 0, fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
+                  {buyerError}
+                </p>
+              </div>
+            )}
+
+            {/* Mobile Number */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: '6px',
+              }}>
+                Mobile Number
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span style={{
+                  position: 'absolute',
+                  left: '14px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: '15px',
+                  color: '#9ca3af',
+                }}>
+                  📱
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile number"
+                  value={buyerForm.phone}
+                  onChange={e => setBuyerForm({ ...buyerForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px 12px 42px',
+                    border: '1.5px solid #e5e7eb',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.2s ease',
+                    background: 'white',
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = BUYER_GREEN;
+                    e.target.style.boxShadow = `0 0 0 3px ${BUYER_GREEN}15`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Area Pincode */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: '6px',
+              }}>
+                Area Pincode
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span style={{
+                  position: 'absolute',
+                  left: '14px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: '15px',
+                  color: '#9ca3af',
+                }}>
+                  📍
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="6-digit area pincode"
+                  value={buyerForm.pincode}
+                  onChange={e => setBuyerForm({ ...buyerForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                  onKeyDown={e => e.key === 'Enter' && handleBuyerEntry()}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px 12px 42px',
+                    border: '1.5px solid #e5e7eb',
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.2s ease',
+                    background: 'white',
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = BUYER_GREEN;
+                    e.target.style.boxShadow = `0 0 0 3px ${BUYER_GREEN}15`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Continue Button — ALWAYS goes to /buyer, pincode never blocks */}
+            <button
+              onClick={handleBuyerEntry}
+              disabled={buyerLoading || buyerForm.phone.length !== 10 || buyerForm.pincode.length !== 6}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: (buyerLoading || buyerForm.phone.length !== 10 || buyerForm.pincode.length !== 6)
+                  ? '#d1d5db'
+                  : `linear-gradient(135deg, ${BUYER_GREEN}, #16A34A)`,
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '15px',
+                fontWeight: '700',
+                fontFamily: 'inherit',
+                cursor: (buyerLoading || buyerForm.phone.length !== 10 || buyerForm.pincode.length !== 6) ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
+              {buyerLoading ? (
+                <>
+                  <span style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                    display: 'inline-block',
+                  }} />
+                  Please wait...
+                </>
+              ) : (
+                'Continue →'
+              )}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            margin: '4px 0 20px 0',
+          }}>
+            <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+            <span style={{
+              padding: '0 14px',
+              color: '#9ca3af',
+              fontSize: '12px',
+              fontWeight: '600',
+              letterSpacing: '0.05em',
+            }}>
+              OR
+            </span>
+            <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+          </div>
+
+          {/* ══════════════════════════════════════════════
+              STAFF SECTION — Seller / Delivery / Admin
+              Existing role-based login, visually secondary.
+              ══════════════════════════════════════════════ */}
+          <p style={{
+            margin: '0 0 12px 0',
+            textAlign: 'center',
+            fontSize: '12px',
+            fontWeight: '700',
+            color: '#9ca3af',
+            letterSpacing: '0.05em',
+          }}>
+            SELLER / DELIVERY / ADMIN LOGIN
+          </p>
+
+          {/* Role Selector (staff only) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(3, 1fr)',
             gap: '6px',
-            marginBottom: '24px',
+            marginBottom: '16px',
           }}>
-            {roles.map(r => (
+            {staffRoles.map(r => (
               <button
                 key={r.id}
                 onClick={() => setRole(r.id)}
@@ -323,7 +599,7 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Login Button */}
+          {/* Staff Login Button */}
           <button
             onClick={handleLogin}
             disabled={loading || !form.phone || !form.password}
@@ -363,53 +639,60 @@ export default function Login() {
             )}
           </button>
 
-          {/* Divider */}
-          {(role === 'buyer' || role === 'seller') && (
-            <>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: '20px 0',
-              }}>
-                <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-                <span style={{
-                  padding: '0 14px',
-                  color: '#9ca3af',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                }}>
-                  New to Zaplo?
-                </span>
-                <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-              </div>
+          {/* Staff registration links (Seller / Delivery only — never Admin) */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            margin: '18px 0',
+          }}>
+            <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+            <span style={{
+              padding: '0 14px',
+              color: '#9ca3af',
+              fontSize: '12px',
+              fontWeight: '500',
+            }}>
+              New {role === 'admin' ? 'here' : `${activeRole.label}`}?
+            </span>
+            <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+          </div>
 
-              <button
-                onClick={() => navigate(`/register?role=${role}`)}
-                style={{
-                  width: '100%',
-                  padding: '13px',
-                  background: 'white',
-                  color: activeRole.color,
-                  border: `1.5px solid ${activeRole.color}40`,
-                  borderRadius: '10px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  fontFamily: 'inherit',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = `${activeRole.color}08`;
-                  e.target.style.borderColor = activeRole.color;
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = 'white';
-                  e.target.style.borderColor = `${activeRole.color}40`;
-                }}
-              >
-                Create {activeRole.label} Account
-              </button>
-            </>
+          {role !== 'admin' ? (
+            <button
+              onClick={() => navigate(`/register?role=${role}`)}
+              style={{
+                width: '100%',
+                padding: '13px',
+                background: 'white',
+                color: activeRole.color,
+                border: `1.5px solid ${activeRole.color}40`,
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: '600',
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = `${activeRole.color}08`;
+                e.target.style.borderColor = activeRole.color;
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'white';
+                e.target.style.borderColor = `${activeRole.color}40`;
+              }}
+            >
+              Register as {activeRole.label}
+            </button>
+          ) : (
+            <p style={{
+              textAlign: 'center',
+              margin: 0,
+              fontSize: '12px',
+              color: '#9ca3af',
+            }}>
+              Admin accounts are created internally by Zaplo.
+            </p>
           )}
 
           {/* Trust badges */}

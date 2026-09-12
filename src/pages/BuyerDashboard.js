@@ -6,7 +6,6 @@ import { Toast, showToast } from '../components/Toast';
 import { registerFCMToken, onForegroundMessage } from '../services/fcmToken';
 
 import HeroBannerCarousel from '../components/HeroBannerCarousel';
-import UnserviceableModal from '../components/UnserviceableModal';
 import OfflinePage from '../components/OfflinePage';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -1192,7 +1191,7 @@ export default function BuyerDashboard() {
   const [v2Selections, setV2Selections] = useState({}); // { [groupName]: selectedValue }
   const touchStartXRef = useRef(null);
   const touchDeltaXRef = useRef(0);
-  const [showUnserviceable, setShowUnserviceable] = useState(false);
+  
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [orderRatings, setOrderRatings] = useState({});
   const [showEditAddress, setShowEditAddress] = useState(false);
@@ -1298,12 +1297,7 @@ export default function BuyerDashboard() {
   }, []);
 
 
-  // Show unserviceable modal if user's area is not serviceable
-  useEffect(() => {
-    if (user && user.serviceable === false) {
-      setShowUnserviceable(true);
-    }
-  }, [user]);
+
 
     // Online/Offline listener
   useEffect(() => {
@@ -1811,7 +1805,6 @@ export default function BuyerDashboard() {
       setUser(updatedUser);
       setShowEditAddress(false);
       showToast(res.data.message, 'success');
-      if (res.data.serviceable) setShowUnserviceable(false);
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to update address', 'error');
     } finally {
@@ -2106,9 +2099,6 @@ export default function BuyerDashboard() {
       <FontLoader />
       <InstallBanner />
       <Toast />
-            {showUnserviceable && (
-        <UnserviceableModal onClose={() => setShowUnserviceable(false)} />
-      )}
 
             {user?.serviceable === false && (
         <div style={{ background: '#FEF3C7', borderBottom: '1px solid #FCD34D', padding: '12px 16px', textAlign: 'center', position: 'relative', zIndex: 50 }}>
