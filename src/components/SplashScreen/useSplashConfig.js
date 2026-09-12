@@ -41,7 +41,7 @@ export default function useSplashConfig() {
 
     const fetchFresh = async () => {
       try {
-        const res = await API.get('/api/v1/app-config');
+        const res = await API.get('/v1/app-config');
         const data = res.data;
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
         setConfig(prev => ({
