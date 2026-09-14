@@ -7,6 +7,8 @@ import { requestNotificationPermission } from '../firebase';
 import { Toast, showToast } from '../components/Toast';
 import { useTabHistory } from '../hooks/useTabHistory';
 import VariantManagerModal from '../components/VariantManagerModal';
+import DynamicAttributeFields from '../components/DynamicAttributeFields';
+import { CATEGORY_CONFIG, resolveCategoryConfig } from '../config/categoryConfig';
 function SellerReviews() {
   const [reviews, setReviews] = useState([]);
   const [average, setAverage] = useState(null);
@@ -300,6 +302,8 @@ const openEditModal = (product) => {
     price: product.price || '',
     stock: product.stock ?? '',
     category: product.category || '',
+    subcategory: product.subcategory || '',
+    attributes: product.attributes || {},
     return_policy: product.return_policy || 'STANDARD_ELECTRONICS',
     unit_type: product.unit_type || 'piece',
     unit_weight: product.unit_weight || '',
@@ -314,7 +318,10 @@ const closeEditModal = () => {
 };
 
 const saveEditedProduct = async () => {
-  if (!editForm.name || !editForm.price || editForm.stock === '') {
+  const cfgForSave = resolveCategoryConfig(editForm.category, editForm.subcategory);
+  const stockOptional = cfgForSave?.stockMode === 'optional' || editingProduct?.has_variants || editingProduct?.variant_system === 'v2';
+
+  if (!editForm.name || !editForm.price || (!stockOptional && editForm.stock === '')) {
     showToast('Please fill name, price and stock', 'error');
     return;
   }
@@ -2162,14 +2169,71 @@ const saveProduct = async () => {
                 <input type="number" value={editForm.stock} onChange={e => setEditForm({ ...editForm, stock: e.target.value })}
                   style={{ width: '100%', padding: '11px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '6px' }}>Description</label>
-                <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                  style={{ width: '100%', padding: '11px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box', height: '70px', resize: 'none' }} />
-              </div>
+                      <div style={{ gridColumn: 'span 2' }}>
+          <label style={{ fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '6px' }}>Description</label>
+          <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+            style={{ width: '100%', padding: '11px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box', height: '70px', resize: 'none' }} />
+        </div>
+      </div>
+
+      {/* Category-aware: unit + subcategory + dynamic attributes */}
+      {(() => {
+        const editTheme = {
+          inputStyle: { width: '100%', padding: '11px', border: '1px solid #e8e8e0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
+          labelStyle: { fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '6px' },
+        };
+        const parentCfg = CATEGORY_CONFIG[editForm.category];
+        const needsSub = !!parentCfg?.subcategories;
+        const editCfg = resolveCategoryConfig(editForm.category, needsSub ? editForm.subcategory : undefined);
+
+        return (
+          <div style={{ marginBottom: '18px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: needsSub ? '1fr 1fr' : '1fr', gap: '14px', marginBottom: '14px' }}>
+              {needsSub && (
+                <div>
+                  <label style={editTheme.labelStyle}>Product Type</label>
+                  <select value={editForm.subcategory || ''} onChange={e => setEditForm({ ...editForm, subcategory: e.target.value })} style={editTheme.inputStyle}>
+                    <option value="">Select type...</option>
+                    {Object.entries(parentCfg.subcategories).map(([key, s]) => (
+                      <option key={key} value={key}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {editCfg && (
+                <div>
+                  <label style={editTheme.labelStyle}>Unit</label>
+                  <select value={editForm.unit_type || editCfg.units[0]} onChange={e => setEditForm({ ...editForm, unit_type: e.target.value })} style={editTheme.inputStyle}>
+                    {editCfg.units.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
 
-            {/* Images */}
+            {editCfg?.stockMode === 'optional' && (
+              <div style={{ background: '#f8f7ff', borderRadius: '8px', padding: '10px 12px', marginBottom: '14px', fontSize: '12px', color: '#6c63ff' }}>
+                Stock is optional for this category — leave blank to keep it always "In Stock".
+              </div>
+            )}
+
+            {editCfg?.attributeFields?.length > 0 && (
+              <>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: '#6c63ff', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '10px' }}>
+                  {editCfg.label} Details
+                </div>
+                <DynamicAttributeFields
+                  fields={editCfg.attributeFields}
+                  values={editForm.attributes || {}}
+                  onChange={(key, value) => setEditForm(prev => ({ ...prev, attributes: { ...prev.attributes, [key]: value } }))}
+                  theme={editTheme}
+                />
+              </>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Images */}
             <div style={{ marginBottom: '18px' }}>
               <label style={{ fontSize: '12px', fontWeight: '600', color: '#666', display: 'block', marginBottom: '8px' }}>Product Photos</label>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
