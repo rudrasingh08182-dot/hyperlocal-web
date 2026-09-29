@@ -983,7 +983,7 @@ const suspendDelivery = async (id) => {
               )}
             </>
           ) : (
-            <input value={bannerForm.action_value} placeholder={bannerForm.action_type === 'category' ? 'grocery / fresh / electronics...' : bannerForm.action_type === 'url' ? 'https://...' : 'screen id'}
+            <input value={bannerForm.action_value} placeholder={bannerForm.action_type === 'category' ? 'grocery / fresh / supplements...' : bannerForm.action_type === 'url' ? 'https://...' : 'screen id'}
               onChange={e => setBannerForm({ ...bannerForm, action_value: e.target.value })}
               style={{ width: '100%', padding: '10px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
           )}

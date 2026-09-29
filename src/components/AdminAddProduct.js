@@ -20,9 +20,7 @@ import { CATEGORY_CONFIG, CATEGORY_OPTIONS_LIST, resolveCategoryConfig } from '.
 const RETURN_POLICY_OPTIONS = [
   { value: 'PERISHABLE_FOOD', label: '🥬 Perishable Food (No returns)' },
   { value: 'PACKAGED_FOOD', label: '📦 Packaged Food (2 days)' },
-  { value: 'STANDARD_ELECTRONICS', label: '📱 Standard Electronics (7 days)' },
-  { value: 'HIGH_VALUE_ELECTRONICS', label: '💎 High Value Electronics (7 days)' },
-  { value: 'STATIONERY', label: '✏️ Stationery (2 days)' },
+  
   { value: 'FASHION', label: '👕 Fashion (3 days)' },
   { value: 'GROCERY', label: '🛒 Grocery (1 day)' },
   { value: 'FRESH', label: '🥦 Fresh Produce (No returns)' },

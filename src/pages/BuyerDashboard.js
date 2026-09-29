@@ -699,12 +699,12 @@ const categories = [
   { id: 'all', label: 'All', emoji: '🛍️', image: null },
   { id: 'grocery', label: 'Grocery', emoji: '🛒', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233795/maria-lin-kim-8RaUEd8zD-U-unsplash_qoqtal.jpg' },
   { id: 'fresh', label: 'Fresh', emoji: '🥬', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233768/jonas-kakaroto-B77ypBmpYuw-unsplash_nfcdrd.jpg' },
-  { id: 'electronics', label: 'Electronics', emoji: '🎧', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233820/sebastian-banasiewcz-oXXc-s5nNy8-unsplash_ulul8x.jpg' },
+  { id: 'supplements', label: 'Supplements', emoji: '💊', image:'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1790660219/WhatsApp_Image_2026-09-29_at_10.17.06_AM_ax2xck.jpg' },
   { id: 'fashion', label: 'Fashion', emoji: '👕', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233681/artem-beliaikin-UdQt3FT6rxM-unsplash_atgfs1.jpg' },
   { id: 'food', label: 'Food', emoji: '🍔', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233754/david-foodphototasty-E94j3rMcxlw-unsplash_qhm984.jpg' },
   { id: 'footwear', label: 'Footwear', emoji: '👟', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1789012099/file_0000000051b08211b6c455333498122d_m9dswx.png' },
   { id: 'kids_zone', label: "Kid's Zone", emoji: '🧸', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1789012089/file_0000000065048211b49eee4e5a96d44f_ktjsha.png' },
-  { id: 'stationery', label: 'Stationery', emoji: '📚', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1783233835/tim-gouw-KigTvXqetXA-unsplash_s4gm0v.jpg' },
+ 
   { id: 'beauty', label: 'Beauty & Accessories', emoji: '💄', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1788828925/file_000000004c988208a4807c9b029ca233_edkqlz.png' },
   { id: 'sweets', label: 'Sweets & Confectionery', emoji: '🍬', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1784435004/WhatsApp_Image_2026-07-19_at_9.46.06_AM_vfypyj.jpg' },
 ];
@@ -712,9 +712,7 @@ const categories = [
 const RETURN_POLICY_LABELS = {
   PERISHABLE_FOOD: 'No returns',
   PACKAGED_FOOD: '2 days — Damaged/Expired only',
-  STANDARD_ELECTRONICS: '7 days — Replacement only',
-  HIGH_VALUE_ELECTRONICS: '7 days — Approval required',
-  STATIONERY: '2 days — Damaged only',
+ 
   FASHION: '3 days — Wrong size/Damaged',
   GROCERY: '1 day — Damaged/Expired',
   FRESH: 'No returns',
@@ -3242,7 +3240,7 @@ export default function BuyerDashboard() {
               { q: 'How do I cancel an order?', a: 'You can cancel an order within 2 minutes of placing it. Go to My Orders and tap Cancel. After confirmation by seller, cancellation is not possible.' },
                { q: 'What is the delivery charge?', a: 'Delivery charge is ₹20 for up to 3km, ₹30 for up to 5km, and ₹6 for every extra km beyond that. The charge is paid directly to the delivery partner.' },
               { q: 'How does payment work?', a: 'You can pay via Cash on Delivery (pay to delivery partner) or Online (scan the seller\'s UPI QR code and upload a payment screenshot — the order is confirmed once the seller verifies it). 10% platform fee applies on all orders.' },
-              { q: 'What is the return policy?', a: 'Return policy varies by product category. Fresh food cannot be returned. Electronics have 7-day replacement. Fashion has 3-day return window.' },
+              { q: 'What is the return policy?', a: 'Return policy varies by product category. Fresh food cannot be returned. Packaged food and supplements can be returned within 2 days if damaged or expired. Fashion has 3-day return window.' },
               { q: 'How do I become a seller?', a: 'Register as a seller from the login page. After admin approval, you can start listing products and receiving orders.' },
             ].map((faq, i) => (
               <div key={i} style={{ background: T.card, borderRadius: T.radiusMd, padding: '14px 16px', marginBottom: '8px', border: `1px solid ${T.border}` }}>

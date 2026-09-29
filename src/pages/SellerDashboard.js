@@ -94,7 +94,7 @@ export default function SellerDashboard() {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [newProduct, setNewProduct] = useState({
   name: '', description: '', sku: '', price: '',
-  stock: '', category: '', return_policy: 'STANDARD_ELECTRONICS',
+  stock: '', category: '', return_policy: 'GROCERY',
   image_urls: [], unit_type: 'piece', unit_weight: '', price_per_kg: ''
 });
 const [hasVariants, setHasVariants] = useState(false);
@@ -285,7 +285,7 @@ const [addingSizeFor, setAddingSizeFor] = useState(null);
 const CATEGORY_OPTIONS = [
   { value: 'grocery', label: '🛒 Grocery' },
   { value: 'fresh', label: '🥬 Fresh' },
-  { value: 'electronics', label: '🎧 Electronics' },
+  { value: 'supplements', label: '💊 Supplements' },
   { value: 'fashion', label: '👕 Fashion' },
   { value: 'food', label: '🍔 Food' },
   { value: 'sweets', label: '🍬 Sweets & Confectionery' },
@@ -1110,7 +1110,7 @@ const saveProduct = async () => {
                       <select value={newProduct.category || ''}
                         onChange={e => {
                           const cat = e.target.value;
-                          const autoReturnPolicy = (cat === 'footwear' || cat === 'kids_zone') ? 'FOOTWEAR_KIDS_ZONE' : newProduct.return_policy;
+                          const autoReturnPolicy = (cat === 'footwear' || cat === 'kids_zone') ? 'FOOTWEAR_KIDS_ZONE' : cat === 'supplements' ? 'PACKAGED_FOOD' : newProduct.return_policy;
                           setNewProduct({ ...newProduct, category: cat, return_policy: autoReturnPolicy, gender: '', footwear_type: '' });
                         }}
                         style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
@@ -1286,9 +1286,7 @@ const saveProduct = async () => {
     style={{ width: '100%', padding: '12px', border: '1px solid #e8e8e0', borderRadius: '10px', fontSize: '14px', outline: 'none' }}>
     <option value="PERISHABLE_FOOD">🥬 Perishable Food (No returns)</option>
     <option value="PACKAGED_FOOD">📦 Packaged Food (2 days - Damaged/Expired)</option>
-    <option value="STANDARD_ELECTRONICS">📱 Standard Electronics (7 days - Replacement only)</option>
-    <option value="HIGH_VALUE_ELECTRONICS">💎 High Value Electronics (7 days - Approval required)</option>
-    <option value="STATIONERY">✏️ Stationery (2 days - Damaged only)</option>
+    
     <option value="FASHION">👕 Fashion (3 days - Wrong size/Damaged)</option>
     <option value="GROCERY">🛒 Grocery (1 day - Damaged/Expired)</option>
     <option value="FRESH">🥦 Fresh Produce (No returns)</option>
