@@ -1520,13 +1520,24 @@ const saveProduct = async () => {
             ? item.size
             : item.variant_value
             ? `${item.variant_type || 'Variant'}: ${item.variant_value}`
+            : item.variant_snapshot
+            ? Object.entries(item.variant_snapshot).map(([k, v]) => `${k}: ${v}`).join(' / ')
             : null;
 
           return (
             <div key={i} style={{ padding: '8px 0', borderBottom: i < order.items.length - 1 ? '1px solid #f0f0e8' : 'none' }}>
               {/* Product name + price */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <span style={{ color: '#333', fontWeight: '700', fontSize: '13px' }}>📦 {item.name}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name}
+                      onClick={() => window.open(item.image_url, '_blank')}
+                      style={{ width: '56px', height: '56px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #e8e8e0', cursor: 'pointer', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: '56px', height: '56px', borderRadius: '8px', background: '#f0eeff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>📦</div>
+                  )}
+                  <span style={{ color: '#333', fontWeight: '700', fontSize: '13px' }}>{item.name}</span>
+                </div>
                 <span style={{ color: '#6c63ff', fontWeight: '700', fontSize: '13px', flexShrink: 0, marginLeft: '8px' }}>
                   x{item.quantity} — ₹{(item.unit_price * item.quantity).toFixed(0)}
                 </span>
