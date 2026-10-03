@@ -9,6 +9,7 @@ import HeroBannerCarousel from '../components/HeroBannerCarousel';
 import OfflinePage from '../components/OfflinePage';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { CATEGORY_CONFIG } from '../config/categoryConfig';
 
 /* ============================================================
    ZAPLO — BLINKIT-INSPIRED DESIGN SYSTEM
@@ -708,6 +709,29 @@ const categories = [
   { id: 'beauty', label: 'Beauty & Accessories', emoji: '💄', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1788828925/file_000000004c988208a4807c9b029ca233_edkqlz.png' },
   { id: 'sweets', label: 'Sweets & Confectionery', emoji: '🍬', image: 'https://res.cloudinary.com/dzu1vvjmo/image/upload/v1784435004/WhatsApp_Image_2026-07-19_at_9.46.06_AM_vfypyj.jpg' },
 ];
+
+// Returns [{label, value}] for only the attribute fields that were filled in
+const getProductDetailRows = (product) => {
+  if (!product) return [];
+  let attrs = product.attributes;
+  if (typeof attrs === 'string') {
+    try { attrs = JSON.parse(attrs); } catch { attrs = null; }
+  }
+  if (!attrs || typeof attrs !== 'object') return [];
+
+  const base = CATEGORY_CONFIG[product.category];
+  const fields = (product.subcategory && base?.subcategories?.[product.subcategory]?.attributeFields)
+    || base?.attributeFields
+    || [];
+  const labelMap = {};
+  fields.forEach(f => { labelMap[f.key] = f.label; });
+
+  const prettify = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  return Object.entries(attrs)
+    .filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+    .map(([k, v]) => ({ label: labelMap[k] || prettify(k), value: String(v) }));
+};
 
 const RETURN_POLICY_LABELS = {
   PERISHABLE_FOOD: 'No returns',
@@ -3640,6 +3664,24 @@ export default function BuyerDashboard() {
                   <div style={{ fontSize: '11px', color: T.textSoft, marginTop: '2px' }}>₹20 upto 3km, ₹30 upto 5km, ₹6/km after</div>
                 </div>
               </div>
+
+              {(() => {
+                const rows = getProductDetailRows(selectedProduct);
+                if (rows.length === 0) return null; // koi info nahi → section hide
+                return (
+                  <div style={{ marginBottom: '14px' }}>
+                    <h4 style={{ margin: '0 0 8px', color: T.text, fontSize: '14px', fontWeight: '800' }}>Product details</h4>
+                    <div style={{ background: T.bg, borderRadius: T.radiusMd, padding: '4px 14px' }}>
+                      {rows.map((r, i) => (
+                        <div key={r.label} style={{ display: 'flex', gap: '12px', padding: '10px 0', borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none' }}>
+                          <div style={{ width: '38%', flexShrink: 0, fontSize: '12px', color: T.textSoft, fontWeight: '600' }}>{r.label}</div>
+                          <div style={{ flex: 1, fontSize: '13px', color: T.text, fontWeight: '600', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {selectedProduct.description && (
                 <div style={{ marginBottom: '14px' }}>

@@ -372,7 +372,9 @@ export default function AdminAddProduct() {
         unit_type: unit,
         category,
         subcategory: subcategory || null,
-        attributes: attributeValues,
+        attributes: Object.fromEntries(
+          Object.entries(attributeValues).filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+        ),
         image_urls: images,
         return_policy: returnPolicy,
         stock: hasVariants ? 0 : (form.stock ? parseInt(form.stock) : (isOptionalStock ? '' : 0)),
