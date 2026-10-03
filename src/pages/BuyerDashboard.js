@@ -1258,7 +1258,16 @@ export default function BuyerDashboard() {
 
     if (state.screen === 'categoryProducts') {
       if (state.activeCategory === 'all') setProducts(allProducts);
-      else setProducts(allProducts.filter(p => p.category?.toLowerCase() === state.activeCategory.toLowerCase()));
+      else {
+        let list = allProducts.filter(p => p.category?.toLowerCase() === state.activeCategory.toLowerCase());
+        if (state.activeCategory === 'footwear' && state.footwearGender && state.footwearType) {
+          list = list.filter(p =>
+            p.gender?.toLowerCase() === state.footwearGender &&
+            p.footwear_type?.toLowerCase() === state.footwearType
+          );
+        }
+        setProducts(list);
+      }
     }
     if (state.screen === 'shop' && state.selectedShop) {
       try {
@@ -1656,7 +1665,7 @@ export default function BuyerDashboard() {
 
   const openCategoryScreen = (catId) => {
     if (catId === 'footwear') {
-      navigate({ screen: 'footwearGender', activeCategory: catId });
+      navigate({ screen: 'footwearGender', activeCategory: catId, footwearGender: null, footwearType: null });
       return;
     }
     filterByCategory(catId);
@@ -1665,7 +1674,7 @@ export default function BuyerDashboard() {
 
   const selectFootwearGender = (gender) => {
     setFootwearGender(gender);
-    navigate({ screen: 'footwearType' });
+    navigate({ screen: 'footwearType', footwearGender: gender, footwearType: null });
   };
 
   const selectFootwearType = (type) => {
@@ -1676,7 +1685,7 @@ export default function BuyerDashboard() {
       p.footwear_type?.toLowerCase() === type
     );
     setProducts(filtered);
-    navigate({ screen: 'categoryProducts', activeCategory: 'footwear' });
+    navigate({ screen: 'categoryProducts', activeCategory: 'footwear', footwearGender, footwearType: type });
   };
 
   const openShop = async (shop) => {
