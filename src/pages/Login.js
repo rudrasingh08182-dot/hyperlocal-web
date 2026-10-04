@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { loginUser, buyerEntry } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import API from '../services/api';
+import '../firebase'; // Firebase app init
 
 export default function Login() {
   // ── Buyer: passwordless entry (phone + pincode) — PRIMARY flow ──
@@ -15,6 +18,87 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  // ── Forgot password (Firebase OTP) ──
+  const [fpOpen, setFpOpen] = useState(false);
+  const [fpStep, setFpStep] = useState('phone'); // phone → otp → newpass
+  const [fpPhone, setFpPhone] = useState('');
+  const [fpOtp, setFpOtp] = useState('');
+  const [fpPass, setFpPass] = useState('');
+  const [fpError, setFpError] = useState('');
+  const [fpLoading, setFpLoading] = useState(false);
+  const [fpConfirmation, setFpConfirmation] = useState(null);
+  const [fpIdToken, setFpIdToken] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const clearRecaptcha = () => {
+    try { window.zaploRecaptcha?.clear(); } catch (e) { /* ignore */ }
+    window.zaploRecaptcha = null;
+  };
+
+  const closeForgot = () => {
+    clearRecaptcha();
+    setFpOpen(false); setFpStep('phone'); setFpPhone(''); setFpOtp('');
+    setFpPass(''); setFpError(''); setFpConfirmation(null); setFpIdToken('');
+  };
+
+  const sendForgotOtp = async () => {
+    setFpError('');
+    if (!/^\d{10}$/.test(fpPhone)) { setFpError('Enter a valid 10-digit phone number'); return; }
+    setFpLoading(true);
+    try {
+      const auth = getAuth();
+      clearRecaptcha();
+      window.zaploRecaptcha = new RecaptchaVerifier(auth, 'fp-recaptcha', { size: 'invisible' });
+      const confirmation = await signInWithPhoneNumber(auth, `+91${fpPhone}`, window.zaploRecaptcha);
+      setFpConfirmation(confirmation);
+      setFpStep('otp');
+    } catch (err) {
+      console.error('Send OTP failed:', err);
+      clearRecaptcha();
+      setFpError(err.code === 'auth/too-many-requests'
+        ? 'Too many attempts. Please try again later.'
+        : 'OTP nahi bhej paye. Number check karke dobara try karo.');
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const verifyForgotOtp = async () => {
+    setFpError('');
+    if (fpOtp.length !== 6) { setFpError('Enter the 6-digit OTP'); return; }
+    setFpLoading(true);
+    try {
+      const cred = await fpConfirmation.confirm(fpOtp);
+      const token = await cred.user.getIdToken();
+      setFpIdToken(token);
+      setFpStep('newpass');
+    } catch (err) {
+      setFpError('Galat OTP. Dobara try karo.');
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const submitNewPassword = async () => {
+    setFpError('');
+    if (/\s/.test(fpPass)) { setFpError('Space not allowed in password'); return; }
+    if (fpPass.length < 6) { setFpError('Password kam se kam 6 characters ka rakho'); return; }
+    setFpLoading(true);
+    try {
+      await API.post('/auth/reset-password-otp', { id_token: fpIdToken, new_password: fpPass });
+      try { await getAuth().signOut(); } catch (e) { /* ignore */ }
+      const doneForPhone = fpPhone;
+      closeForgot();
+      setForm({ phone: doneForPhone, password: '' });
+      setError('');
+      setNotice('Password reset ho gaya! Ab naye password se login karo.');
+    } catch (err) {
+      setFpError(err.response?.data?.error || 'Reset failed. Try again.');
+    } finally {
+      setFpLoading(false);
+    }
+  };
 
   /* ────────────────────────────────────────────────────────────
      BUYER ENTRY — pincode is NEVER used to block the buyer here.
@@ -64,7 +148,7 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const res = await loginUser({ ...form, role });
+      const res = await loginUser({ ...form, phone: form.phone.trim(), role });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       const userRole = res.data.user.role;
@@ -599,6 +683,20 @@ export default function Login() {
             </div>
           </div>
 
+          {notice && (
+            <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', padding: '10px 12px', marginBottom: '12px', fontSize: '12px', color: '#065f46', fontWeight: '600' }}>
+              ✅ {notice}
+            </div>
+          )}
+          {role !== 'admin' && (
+            <div style={{ textAlign: 'right', margin: '-12px 0 16px' }}>
+              <button type="button" onClick={() => { setNotice(''); setFpPhone(form.phone.replace(/\D/g, '').slice(-10)); setFpOpen(true); }}
+                style={{ background: 'none', border: 'none', color: activeRole.color, fontSize: '13px', fontWeight: '700', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+                Forgot password?
+              </button>
+            </div>
+          )}
+
           {/* Staff Login Button */}
           <button
             onClick={handleLogin}
@@ -744,6 +842,76 @@ export default function Login() {
       }}>
         © 2026 Zaplo. Your neighborhood, delivered.
       </p>
+
+      {/* Forgot password modal */}
+      {fpOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '16px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '380px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#111827' }}>🔑 Forgot Password</h3>
+              <button onClick={closeForgot} style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            {fpError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '9px 12px', marginBottom: '12px', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
+                ⚠️ {fpError}
+              </div>
+            )}
+
+            {fpStep === 'phone' && (
+              <>
+                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 10px' }}>
+                  Apna registered phone number dalo. Is number par OTP aayega.
+                </p>
+                <input type="tel" inputMode="numeric" maxLength={10} placeholder="10-digit phone number" value={fpPhone}
+                  onChange={e => setFpPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  style={{ width: '100%', padding: '12px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box', marginBottom: '14px', outline: 'none' }} />
+                <button onClick={sendForgotOtp} disabled={fpLoading || fpPhone.length !== 10}
+                  style={{ width: '100%', padding: '13px', background: (fpLoading || fpPhone.length !== 10) ? '#d1d5db' : activeRole.color, color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}>
+                  {fpLoading ? 'Sending...' : 'Send OTP'}
+                </button>
+              </>
+            )}
+
+            {fpStep === 'otp' && (
+              <>
+                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 10px' }}>
+                  +91 {fpPhone} par 6-digit OTP bheja gaya hai.
+                </p>
+                <input type="tel" inputMode="numeric" maxLength={6} placeholder="Enter OTP" value={fpOtp}
+                  onChange={e => setFpOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  style={{ width: '100%', padding: '12px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '18px', letterSpacing: '6px', textAlign: 'center', boxSizing: 'border-box', marginBottom: '14px', outline: 'none' }} />
+                <button onClick={verifyForgotOtp} disabled={fpLoading || fpOtp.length !== 6}
+                  style={{ width: '100%', padding: '13px', background: (fpLoading || fpOtp.length !== 6) ? '#d1d5db' : activeRole.color, color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}>
+                  {fpLoading ? 'Verifying...' : 'Verify OTP'}
+                </button>
+              </>
+            )}
+
+            {fpStep === 'newpass' && (
+              <>
+                <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 10px' }}>
+                  Number verify ho gaya ✅ Ab naya password set karo (space allowed nahi).
+                </p>
+                <input type="password" placeholder="New password (min 6)" value={fpPass}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (/\s/.test(v)) setFpError('Space not allowed in password');
+                    else setFpError('');
+                    setFpPass(v.replace(/\s/g, ''));
+                  }}
+                  style={{ width: '100%', padding: '12px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box', marginBottom: '14px', outline: 'none' }} />
+                <button onClick={submitNewPassword} disabled={fpLoading || fpPass.length < 6}
+                  style={{ width: '100%', padding: '13px', background: (fpLoading || fpPass.length < 6) ? '#d1d5db' : activeRole.color, color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}>
+                  {fpLoading ? 'Saving...' : 'Set New Password'}
+                </button>
+              </>
+            )}
+
+            <div id="fp-recaptcha" />
+          </div>
+        </div>
+      )}
 
       {/* Spinner animation */}
       <style>{`

@@ -96,6 +96,15 @@ export default function Register() {
 
   const update = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
+  // Password mein space allowed nahi — alert dikhao aur space hata do
+  const handlePasswordChange = (key, val) => {
+    if (/\s/.test(val)) {
+      showToast('Space not allowed in password', 'error');
+      val = val.replace(/\s/g, '');
+    }
+    update(key, val);
+  };
+
   // Buyer tab removed — only Seller & Delivery can self-register.
   // Admin stays disabled (created internally).
   const roles = [
@@ -349,7 +358,7 @@ export default function Register() {
               <Field label="Password" icon="🔒">
                 <input placeholder="Create a password"
                   type={showPassword ? 'text' : 'password'} value={form.password}
-                  onChange={e => update('password', e.target.value)} style={inputStyle} />
+                  onChange={e => handlePasswordChange('password', e.target.value)} style={inputStyle} />
                 <span onClick={() => setShowPassword(s => !s)}
                   style={{ cursor: 'pointer', fontSize: '16px', color: COLORS.muted }}>
                   {showPassword ? '🙈' : '👁'}
@@ -358,7 +367,7 @@ export default function Register() {
               <Field label="Confirm Password" icon="🔒">
                 <input placeholder="Confirm your password"
                   type={showConfirm ? 'text' : 'password'} value={form.confirmPassword}
-                  onChange={e => update('confirmPassword', e.target.value)} style={inputStyle} />
+                  onChange={e => handlePasswordChange('confirmPassword', e.target.value)} style={inputStyle} />
                 <span onClick={() => setShowConfirm(s => !s)}
                   style={{ cursor: 'pointer', fontSize: '16px', color: COLORS.muted }}>
                   {showConfirm ? '🙈' : '👁'}
