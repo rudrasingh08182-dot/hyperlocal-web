@@ -1279,7 +1279,15 @@ export default function BuyerDashboard() {
   };
 
   const navigate = (updates) => {
-    const newState = { ...buildNavState(), ...updates };
+    const currentState = buildNavState();
+    const newState = { ...currentState, ...updates };
+
+    // Screen badal rahi hai aur product explicitly nahi diya → purana product clear karo
+    const hasProductUpdate = Object.prototype.hasOwnProperty.call(updates, 'selectedProduct');
+    if (!hasProductUpdate && updates.screen && updates.screen !== currentState.screen) {
+      newState.selectedProduct = null;
+    }
+
     window.history.pushState(newState, '');
     sessionStorage.setItem('zaplo_nav_state', JSON.stringify(newState));
     applyNavState(newState);
@@ -1511,8 +1519,7 @@ export default function BuyerDashboard() {
       setQrTransactionId('');
       loadQrPaymentDetails(qrOrderIds[next]);
     } else {
-      window.history.back();
-      navigate({ screen: 'orders', checkoutStep: 1 });
+      navigate({ screen: 'orders', checkoutStep: 1, qrPaymentActive: false, selectedProduct: null });
       fetchMyOrders();
     }
   };
