@@ -1519,7 +1519,10 @@ export default function BuyerDashboard() {
       setQrTransactionId('');
       loadQrPaymentDetails(qrOrderIds[next]);
     } else {
-      navigate({ screen: 'orders', checkoutStep: 1, qrPaymentActive: false, selectedProduct: null });
+      const ordersState = { ...buildNavState(), screen: 'orders', checkoutStep: 1, qrPaymentActive: false, selectedProduct: null };
+      window.history.replaceState(ordersState, '');
+      sessionStorage.setItem('zaplo_nav_state', JSON.stringify(ordersState));
+      applyNavState(ordersState);
       fetchMyOrders();
     }
   };
