@@ -125,6 +125,9 @@ export default function AdminDashboard() {
   const [salesModalOpen, setSalesModalOpen] = useState(false);
   const [salesLoading, setSalesLoading] = useState(false);
   const [sellerSalesData, setSellerSalesData] = useState(null);
+const [resetTarget, setResetTarget] = useState(null);
+const [resetPassword, setResetPassword] = useState('');
+const [resetLoading, setResetLoading] = useState(false);
 
   // ── Hero Banner Carousel management ──
   const emptyBannerForm = {
@@ -421,6 +424,24 @@ const suspendDelivery = async (id) => {
     window.location.href = '/login';
   };
 
+  const submitPasswordReset = async () => {
+    if (resetPassword.trim().length < 6) {
+      showToast('Password kam se kam 6 characters ka rakho', 'error');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await API.patch(`/admin/sellers/${resetTarget.id}/reset-password`, { new_password: resetPassword.trim() });
+      showToast('Password reset ho gaya! Seller ko naya password bata do.', 'success');
+      setResetTarget(null);
+      setResetPassword('');
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Reset failed', 'error');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const pending = sellers.filter(s => s.status === 'pending').length;
 
   return (
@@ -561,6 +582,7 @@ const suspendDelivery = async (id) => {
                       <th style={th}>Username</th>
                       <th style={th}>Phone</th>
                       <th style={th}>Shop</th>
+                      <th style={th}>Shop Phone</th>
                       <th style={th}>Status</th>
                       <th style={th}>Actions</th>
                     </>
@@ -582,6 +604,7 @@ const suspendDelivery = async (id) => {
                     <td style={td}>@{s.username}</td>
                     <td style={td}>{s.phone}</td>
                     <td style={td}>{s.shop_name || '—'}</td>
+                    <td style={td}>{s.contact_phone || '—'}</td>
                     <td style={td}>
                       <span style={{
                         padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold',
@@ -591,6 +614,10 @@ const suspendDelivery = async (id) => {
                     </td>
                     <td style={td}>
                       <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => { setResetTarget(s); setResetPassword(''); }}
+                          style={{ padding: '4px 12px', background: '#6c63ff33', color: '#a29bfe', border: '1px solid #6c63ff', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>
+                          🔑 Reset Password
+                        </button>
                         {s.status !== 'approved' && (
                           <button onClick={() => approveSeller(s.id)}
                             style={{ padding: '4px 12px', background: '#00ff8833', color: '#00ff88', border: '1px solid #00ff88', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>
@@ -1041,6 +1068,33 @@ const suspendDelivery = async (id) => {
       </div>
 
       {/* Seller Last-7-Days Sales Modal */}
+      {resetTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '20px' }}
+          onClick={() => setResetTarget(null)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%' }}>
+            <h3 style={{ margin: '0 0 14px', color: 'white' }}>🔑 Reset Password</h3>
+            <div style={{ background: '#0a0a1a', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#ccc', lineHeight: 1.8 }}>
+              <div>🏪 <strong>{resetTarget.shop_name || '—'}</strong></div>
+              <div>👤 {resetTarget.name} (@{resetTarget.username})</div>
+              <div>📞 Registered phone: <strong style={{ color: '#00ff88' }}>{resetTarget.phone || '—'}</strong></div>
+              <div>📞 Shop phone: {resetTarget.contact_phone || '—'}</div>
+            </div>
+            <label style={{ fontSize: '12px', color: '#999', display: 'block', marginBottom: '6px' }}>Naya password (min 6 characters)</label>
+            <input value={resetPassword} onChange={e => setResetPassword(e.target.value)} placeholder="e.g. Shop@1234"
+              style={{ width: '100%', padding: '11px', background: '#0a0a1a', border: '1px solid #2a2a4a', borderRadius: '8px', color: 'white', fontSize: '14px', outline: 'none', boxSizing: 'border-box', marginBottom: '16px' }} />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setResetTarget(null)}
+                style={{ flex: 1, padding: '12px', background: '#2a2a4a', color: '#999', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Cancel</button>
+              <button onClick={submitPasswordReset} disabled={resetLoading}
+                style={{ flex: 2, padding: '12px', background: '#6c63ff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', opacity: resetLoading ? 0.7 : 1 }}>
+                {resetLoading ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {salesModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '20px' }}
           onClick={() => setSalesModalOpen(false)}>
